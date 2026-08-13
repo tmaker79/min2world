@@ -1,5 +1,5 @@
 import { UNIT_STATS, UNIT_TYPE_LABELS, UNIT_TYPES } from '../game/rules'
-import type { City, UnitType } from '../game/types'
+import type { Site, UnitType } from '../game/types'
 import { UnitIcon } from './UnitIcon'
 
 type ProductionFeedback = {
@@ -8,51 +8,51 @@ type ProductionFeedback = {
 }
 
 type ProductionPanelProps = {
-  cities: City[]
-  selectedCityId?: string
+  sites: Site[]
+  selectedSiteId?: string
   selectedUnitType?: UnitType
   resource: number
   turn: number
   deployableCount: number
   disabled: boolean
   feedback?: ProductionFeedback
-  onCitySelected: (cityId: string) => void
+  onSiteSelected: (siteId: string) => void
   onUnitTypeSelected: (unitType: UnitType) => void
   onCancel: () => void
 }
 
 export function ProductionPanel({
-  cities,
-  selectedCityId,
+  sites,
+  selectedSiteId,
   selectedUnitType,
   resource,
   turn,
   deployableCount,
   disabled,
   feedback,
-  onCitySelected,
+  onSiteSelected,
   onUnitTypeSelected,
   onCancel,
 }: ProductionPanelProps) {
-  const city = cities.find((candidate) => candidate.id === selectedCityId)
+  const site = sites.find((candidate) => candidate.id === selectedSiteId)
   const unavailable =
-    disabled || !city || city.lastProducedTurn === turn || deployableCount === 0
+    disabled || !site || site.lastProducedTurn === turn || deployableCount === 0
 
   return (
     <section className="production-card" aria-labelledby="production-heading">
       <p className="eyebrow">CITY PRODUCTION</p>
       <h2 id="production-heading">부대 생산</h2>
 
-      {cities.length > 0 ? (
+      {sites.length > 0 ? (
         <>
           <label className="production-card__city">
-            <span>생산 도시</span>
+            <span>생산 거점</span>
             <select
-              value={selectedCityId}
+              value={selectedSiteId}
               disabled={disabled}
-              onChange={(event) => onCitySelected(event.target.value)}
+              onChange={(event) => onSiteSelected(event.target.value)}
             >
-              {cities.map((candidate) => (
+              {sites.map((candidate) => (
                 <option key={candidate.id} value={candidate.id}>
                   {candidate.name}
                   {candidate.lastProducedTurn === turn ? ' · 생산 완료' : ''}
@@ -100,15 +100,15 @@ export function ProductionPanel({
             </div>
           )}
 
-          {!selectedUnitType && city?.lastProducedTurn === turn && (
+          {!selectedUnitType && site?.lastProducedTurn === turn && (
             <p className="production-card__notice">이번 라운드 생산 완료</p>
           )}
-          {!selectedUnitType && city && deployableCount === 0 && (
+          {!selectedUnitType && site && deployableCount === 0 && (
             <p className="production-card__notice">배치 가능한 타일 없음</p>
           )}
         </>
       ) : (
-        <p className="production-card__empty">생산 가능한 도시가 없습니다.</p>
+        <p className="production-card__empty">생산 가능한 거점이 없습니다.</p>
       )}
 
       {feedback && (

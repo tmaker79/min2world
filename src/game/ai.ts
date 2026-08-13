@@ -1,21 +1,21 @@
 import {
   getAttackableUnits,
   getDeployablePositions,
+  getHexNeighbors,
   getMovementCost,
+  getMovementStepCost,
   getReachablePositions,
   getTileAt,
   getUnitAt,
   isPositionInEnemyZoneOfControl,
-  isPositionOnBoard,
   positionKey,
-  TERRAIN_MOVEMENT_COST,
   UNIT_STATS,
 } from './rules'
 import type {
-  City,
   GameAction,
   GameState,
   Position,
+  Site,
   Unit,
   UnitType,
 } from './types'
@@ -31,27 +31,18 @@ function compareIds(left: { id: string }, right: { id: string }) {
   return left.id.localeCompare(right.id)
 }
 
-function getOrthogonalNeighbors(position: Position): Position[] {
-  return [
-    { x: position.x, y: position.y - 1 },
-    { x: position.x + 1, y: position.y },
-    { x: position.x, y: position.y + 1 },
-    { x: position.x - 1, y: position.y },
-  ].filter(isPositionOnBoard)
-}
-
 function getApproachPositions(
   state: GameState,
   target: Unit,
   movingUnit: Unit,
 ): Position[] {
-  return getOrthogonalNeighbors(target.position).filter((position) => {
+  return getHexNeighbors(target.position).filter((position) => {
     const tile = getTileAt(state, position)
     const occupant = getUnitAt(state, position)
 
     return Boolean(
       tile &&
-        TERRAIN_MOVEMENT_COST[tile.terrain] !== null &&
+        tile.terrain !== 'water' &&
         (!occupant || occupant.id === movingUnit.id),
     )
   })
@@ -78,8 +69,8 @@ function getWeightedPathCost(
     frontier.sort(
       (left, right) =>
         left.cost - right.cost ||
-        left.position.y - right.position.y ||
-        left.position.x - right.position.x,
+        left.position.r - right.position.r ||
+        left.position.q - right.position.q,
     )
     const current = frontier.shift()
 
@@ -103,7 +94,7 @@ function getWeightedPathCost(
       continue
     }
 
-    for (const neighbor of getOrthogonalNeighbors(current.position)) {
+    for (const neighbor of getHexNeighbors(current.position)) {
       const neighborKey = positionKey(neighbor)
       if (occupiedKeys.has(neighborKey)) {
         continue
@@ -114,7 +105,11 @@ function getWeightedPathCost(
         continue
       }
 
-      const movementCost = TERRAIN_MOVEMENT_COST[tile.terrain]
+      const movementCost = getMovementStepCost(
+        state,
+        current.position,
+        neighbor,
+      )
       if (movementCost === null) {
         continue
       }
@@ -161,17 +156,23 @@ function chooseClosestTarget(
 }
 
 function chooseTarget(state: GameState, unit: Unit): Target | undefined {
-  const cities = state.cities
-    .filter((city) => city.ownerId === 'player')
+  const capital = state.sites.find(
+    (site) => site.capitalFor === 'player' && site.ownerId === 'player',
+  )
+  const sites = state.sites
+    .filter((site) => site.ownerId === 'player')
     .sort(compareIds)
-  const cityTarget = chooseClosestTarget(
+  const siteTarget = chooseClosestTarget(
     state,
     unit,
-    cities.map((city: City) => ({ id: city.id, positions: [city.position] })),
+    (capital ? [capital] : sites).map((site: Site) => ({
+      id: site.id,
+      positions: [site.position],
+    })),
   )
 
-  if (cityTarget) {
-    return cityTarget
+  if (siteTarget) {
+    return siteTarget
   }
 
   const playerUnits = state.units
@@ -221,8 +222,8 @@ function chooseMovement(
       (left, right) =>
         left.remainingCost - right.remainingCost ||
         right.movementCost - left.movementCost ||
-        left.position.y - right.position.y ||
-        left.position.x - right.position.x,
+        left.position.r - right.position.r ||
+        left.position.q - right.position.q,
     )[0]?.position
 
   return destination
@@ -231,7 +232,7 @@ function chooseMovement(
 }
 
 function chooseProduction(state: GameState): GameAction | undefined {
-  const city = state.cities
+  const site = state.sites
     .filter(
       (candidate) =>
         candidate.ownerId === 'enemy' &&
@@ -240,7 +241,7 @@ function chooseProduction(state: GameState): GameAction | undefined {
     )
     .sort(compareIds)[0]
 
-  if (!city) {
+  if (!site) {
     return undefined
   }
 
@@ -267,9 +268,9 @@ function chooseProduction(state: GameState): GameAction | undefined {
 
   return {
     type: 'unitProduced',
-    cityId: city.id,
+    siteId: site.id,
     unitType,
-    destination: getDeployablePositions(state, city)[0],
+    destination: getDeployablePositions(state, site)[0],
   }
 }
 

@@ -4,6 +4,7 @@ type GameResultPanelProps = {
   phase: Exclude<GamePhase, 'playing'>
   turn: number
   onRestart: () => void
+  onRandomRestart: () => void
 }
 
 const RESULT_CONTENT = {
@@ -25,6 +26,7 @@ export function GameResultPanel({
   phase,
   turn,
   onRestart,
+  onRandomRestart,
 }: GameResultPanelProps) {
   const content = RESULT_CONTENT[phase]
 
@@ -45,9 +47,14 @@ export function GameResultPanel({
         <strong>
           {turn}턴 만에 {content.summary}
         </strong>
-        <button type="button" onClick={onRestart} autoFocus>
-          새 게임
-        </button>
+        <div className="result-panel__actions">
+          <button type="button" onClick={onRestart} autoFocus>
+            같은 seed로 새 게임
+          </button>
+          <button type="button" onClick={onRandomRestart}>
+            무작위 지도
+          </button>
+        </div>
       </section>
     </div>
   )

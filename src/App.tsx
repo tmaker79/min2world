@@ -11,13 +11,16 @@ import { ProductionPanel } from './components/ProductionPanel'
 import { SavePanel } from './components/SavePanel'
 import { StatusBar } from './components/StatusBar'
 import { createInitialGameState } from './game/initialState'
+import { createRandomMapSeed, normalizeMapSeed } from './game/mapGenerator'
 import { gameReducer } from './game/reducer'
 import {
   getDeployablePositions,
   getUnitAt,
   positionKey,
   resolveCombat,
+  SITE_STATS,
   UNIT_TYPE_LABELS,
+  UNIT_STATS,
 } from './game/rules'
 import {
   getSelectedUnit,
@@ -40,11 +43,12 @@ type AppProps = {
   initialState?: GameState
 }
 
+function initializeGameState(initialState?: GameState): GameState {
+  return initialState ?? createInitialGameState(createRandomMapSeed())
+}
+
 function App({ initialState }: AppProps = {}) {
-  const [state, dispatch] = useReducer(
-    gameReducer,
-    initialState ?? createInitialGameState(),
-  )
+  const [state, dispatch] = useReducer(gameReducer, initialState, initializeGameState)
   const [activeCombat, setActiveCombat] = useState<
     Omit<CombatAnimation, 'phase'>
   >()
@@ -54,25 +58,33 @@ function App({ initialState }: AppProps = {}) {
     type: 'status' | 'error'
     message: string
   }>()
-  const [productionCityId, setProductionCityId] = useState<string>(() =>
-    state.cities.find((city) => city.ownerId === 'player')?.id ?? '',
+  const [seedInput, setSeedInput] = useState(state.mapSeed)
+  const [seedFeedback, setSeedFeedback] = useState<string>()
+  const [productionSiteId, setProductionSiteId] = useState<string>(() =>
+    state.sites.find(
+      (site) => site.ownerId === 'player' && SITE_STATS[site.kind].canProduce,
+    )?.id ?? '',
   )
   const [productionUnitType, setProductionUnitType] = useState<UnitType>()
   const [productionFeedback, setProductionFeedback] = useState<{
     type: 'status' | 'error'
     message: string
   }>()
-  const playerCities = useMemo(
-    () => state.cities.filter((city) => city.ownerId === 'player'),
-    [state.cities],
+  const playerProductionSites = useMemo(
+    () =>
+      state.sites.filter(
+        (site) =>
+          site.ownerId === 'player' && SITE_STATS[site.kind].canProduce,
+      ),
+    [state.sites],
   )
-  const availableProductionCityId = playerCities.some(
-    (city) => city.id === productionCityId,
+  const availableProductionSiteId = playerProductionSites.some(
+    (site) => site.id === productionSiteId,
   )
-    ? productionCityId
-    : playerCities[0]?.id
-  const productionCity = playerCities.find(
-    (city) => city.id === availableProductionCityId,
+    ? productionSiteId
+    : playerProductionSites[0]?.id
+  const productionSite = playerProductionSites.find(
+    (site) => site.id === availableProductionSiteId,
   )
   const activeProductionUnitType =
     state.phase === 'playing' &&
@@ -82,8 +94,8 @@ function App({ initialState }: AppProps = {}) {
       : undefined
   const deployablePositions = useMemo(
     () =>
-      productionCity ? getDeployablePositions(state, productionCity) : [],
-    [productionCity, state],
+      productionSite ? getDeployablePositions(state, productionSite) : [],
+    [productionSite, state],
   )
   const deployableKeys = useMemo(
     () =>
@@ -130,7 +142,7 @@ function App({ initialState }: AppProps = {}) {
         return
       }
 
-      const result = resolveCombat(attacker, defender)
+      const result = resolveCombat(state, attacker, defender)
       setCombatPhase('attack')
       setProductionUnitType(undefined)
       setActiveCombat({
@@ -144,7 +156,7 @@ function App({ initialState }: AppProps = {}) {
         defenderDefeated: result.defenderHp === 0,
       })
     },
-    [state.units],
+    [state],
   )
 
   const aiAnnouncement = useAiTurn({
@@ -207,6 +219,13 @@ function App({ initialState }: AppProps = {}) {
     setActiveCombat(undefined)
     setCombatPhase('attack')
     setProductionUnitType(undefined)
+    setProductionSiteId(
+      result.value.gameState.sites.find(
+        (site) => site.ownerId === 'player' && SITE_STATS[site.kind].canProduce,
+      )?.id ?? '',
+    )
+    setSeedInput(result.value.gameState.mapSeed)
+    setSeedFeedback(undefined)
     dispatch({ type: 'gameLoaded', state: result.value.gameState })
     setSaveFeedback({ type: 'status', message: '저장된 게임을 불러왔습니다.' })
   }
@@ -288,6 +307,9 @@ function App({ initialState }: AppProps = {}) {
         target instanceof HTMLTextAreaElement ||
         target instanceof HTMLSelectElement ||
         (target instanceof HTMLElement && target.isContentEditable)
+      const isInteractive =
+        target instanceof HTMLButtonElement ||
+        target instanceof HTMLAnchorElement
 
       if (event.key === 'Escape' && activeProductionUnitType) {
         event.preventDefault()
@@ -303,7 +325,8 @@ function App({ initialState }: AppProps = {}) {
         event.ctrlKey ||
         event.altKey ||
         event.metaKey ||
-        isEditing
+        isEditing ||
+        isInteractive
       ) {
         return
       }
@@ -329,7 +352,7 @@ function App({ initialState }: AppProps = {}) {
 
     const unit = getUnitAt(state, tile.position)
 
-    if (activeProductionUnitType && productionCity) {
+    if (activeProductionUnitType && productionSite) {
       if (!deployableKeys.has(positionKey(tile.position))) {
         setProductionFeedback({
           type: 'error',
@@ -340,7 +363,7 @@ function App({ initialState }: AppProps = {}) {
 
       dispatch({
         type: 'unitProduced',
-        cityId: productionCity.id,
+        siteId: productionSite.id,
         unitType: activeProductionUnitType,
         destination: tile.position,
       })
@@ -369,6 +392,48 @@ function App({ initialState }: AppProps = {}) {
         destination: tile.position,
       })
     }
+  }
+
+  const hasProgress =
+    state.turn > 1 ||
+    state.units.length !== 6 ||
+    state.units.some(
+      (unit) =>
+        unit.hasActed ||
+        unit.hp !== unit.maxHp ||
+        unit.movementRemaining !== UNIT_STATS[unit.type].movement,
+    ) ||
+    state.sites.some(
+      (site) =>
+        (site.capitalFor && site.ownerId !== site.capitalFor) ||
+        (!site.capitalFor && site.ownerId !== 'neutral'),
+    )
+
+  const restartGame = (seed: string, confirmProgress: boolean) => {
+    const normalizedSeed = normalizeMapSeed(seed)
+    if (!normalizedSeed) {
+      setSeedFeedback('seed는 공백이 아닌 1~64자로 입력해 주세요.')
+      return
+    }
+    if (
+      confirmProgress &&
+      hasProgress &&
+      !window.confirm('현재 진행을 중단하고 새 지도를 시작할까요?')
+    ) {
+      return
+    }
+    setActiveCombat(undefined)
+    setCombatPhase('attack')
+    setProductionUnitType(undefined)
+    setProductionFeedback(undefined)
+    setSaveFeedback(undefined)
+    setSeedInput(normalizedSeed)
+    setSeedFeedback(undefined)
+    dispatch({ type: 'gameRestarted', seed: normalizedSeed })
+  }
+
+  const restartRandomGame = (confirmProgress: boolean) => {
+    restartGame(createRandomMapSeed(), confirmProgress)
   }
 
   return (
@@ -405,8 +470,39 @@ function App({ initialState }: AppProps = {}) {
               <p className="eyebrow">THE FRONTIER</p>
               <h2 id="map-heading">전략 지도</h2>
             </div>
-            <span className="map-size">10 × 10</span>
+            <span className="map-size">91 HEX</span>
           </div>
+
+          <form
+            className="seed-controls"
+            onSubmit={(event) => {
+              event.preventDefault()
+              restartGame(seedInput, true)
+            }}
+          >
+            <label>
+              <span>MAP SEED</span>
+              <input
+                value={seedInput}
+                maxLength={64}
+                aria-describedby={seedFeedback ? 'seed-feedback' : undefined}
+                onChange={(event) => {
+                  setSeedInput(event.target.value)
+                  setSeedFeedback(undefined)
+                }}
+              />
+            </label>
+            <button type="submit">seed로 새 게임</button>
+            <button type="button" onClick={() => restartRandomGame(true)}>
+              무작위 지도
+            </button>
+            <output>현재 seed: {state.mapSeed}</output>
+            {seedFeedback && (
+              <span id="seed-feedback" className="seed-controls__error" role="alert">
+                {seedFeedback}
+              </span>
+            )}
+          </form>
 
           <div className="map-scroll">
             <GameMap
@@ -434,10 +530,9 @@ function App({ initialState }: AppProps = {}) {
               phase={state.phase}
               turn={state.turn}
               onRestart={() => {
-                setProductionUnitType(undefined)
-                setProductionFeedback(undefined)
-                dispatch({ type: 'gameRestarted' })
+                restartGame(state.mapSeed, false)
               }}
+              onRandomRestart={() => restartRandomGame(false)}
             />
           )}
         </section>
@@ -445,8 +540,8 @@ function App({ initialState }: AppProps = {}) {
         <aside className="side-panel" aria-label="게임 정보">
           <InfoPanel unit={selectedUnit} />
           <ProductionPanel
-            cities={playerCities}
-            selectedCityId={availableProductionCityId}
+            sites={playerProductionSites}
+            selectedSiteId={availableProductionSiteId}
             selectedUnitType={activeProductionUnitType}
             resource={state.resources.player}
             turn={state.turn}
@@ -457,8 +552,8 @@ function App({ initialState }: AppProps = {}) {
               Boolean(activeCombat)
             }
             feedback={productionFeedback}
-            onCitySelected={(cityId) => {
-              setProductionCityId(cityId)
+            onSiteSelected={(siteId) => {
+              setProductionSiteId(siteId)
               setProductionUnitType(undefined)
               setProductionFeedback(undefined)
             }}

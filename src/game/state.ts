@@ -6,6 +6,8 @@ export function cloneGameState(
 ): GameState {
   return {
     schemaVersion: state.schemaVersion,
+    mapSeed: state.mapSeed,
+    mapGenerationVersion: state.mapGenerationVersion,
     turn: state.turn,
     phase: state.phase,
     activeFactionId: state.activeFactionId,
@@ -19,9 +21,9 @@ export function cloneGameState(
       ...unit,
       position: { ...unit.position },
     })),
-    cities: state.cities.map((city) => ({
-      ...city,
-      position: { ...city.position },
+    sites: state.sites.map((site) => ({
+      ...site,
+      position: { ...site.position },
     })),
   }
 }

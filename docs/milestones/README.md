@@ -9,6 +9,6 @@
 | [03](03-rule-based-ai.md) | 규칙 기반 AI와 턴 전환 | 완료 |
 | [04](04-save-and-load.md) | 저장과 불러오기 | 완료 |
 | [05](05-economy-and-production.md) | 도시 자원, 유닛 생산과 병종 확장 | 완료 |
-| [06](06-procedural-hex-map.md) | 무작위 육각 지도와 seed | 다음 목표 |
+| [06](06-procedural-hex-map.md) | 무작위 육각 지도와 seed | 완료 |
 
 새 목표를 구체화할 때 `NN-kebab-case.md` 형식으로 문서를 추가한다. 기존 마일스톤 문서는 덮어쓰지 않는다.

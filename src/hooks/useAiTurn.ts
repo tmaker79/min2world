@@ -48,10 +48,10 @@ function getActionAnnouncement(state: GameState, action: GameAction): string {
   }
 
   if (action.type === 'unitProduced') {
-    const city = state.cities.find(
-      (candidate) => candidate.id === action.cityId,
+    const site = state.sites.find(
+      (candidate) => candidate.id === action.siteId,
     )
-    return `${city?.name ?? '도시'}에서 ${UNIT_TYPE_LABELS[action.unitType]}을 생산합니다.`
+    return `${site?.name ?? '거점'}에서 ${UNIT_TYPE_LABELS[action.unitType]}을 생산합니다.`
   }
 
   return ''

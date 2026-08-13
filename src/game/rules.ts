@@ -1,45 +1,31 @@
+import {
+  getHexDistance,
+  getHexNeighbors,
+  isPositionOnBoard,
+  positionKey,
+  positionsEqual,
+} from './hex'
 import type {
-  City,
   FactionId,
+  GamePhase,
   GameState,
   Position,
+  Site,
+  SiteStats,
+  SiteType,
   Terrain,
   Unit,
   UnitStats,
   UnitType,
 } from './types'
 
-export const BOARD_SIZE = 10
+export { getHexDistance, getHexNeighbors, isPositionOnBoard, positionKey, positionsEqual }
 
 export const UNIT_STATS: Record<UnitType, UnitStats> = {
-  infantry: {
-    movement: 2,
-    attack: 4,
-    counterAttack: 3,
-    range: 1,
-    cost: 10,
-  },
-  cavalry: {
-    movement: 3,
-    attack: 5,
-    counterAttack: 2,
-    range: 1,
-    cost: 15,
-  },
-  archer: {
-    movement: 2,
-    attack: 3,
-    counterAttack: 1,
-    range: 2,
-    cost: 12,
-  },
-  spearman: {
-    movement: 2,
-    attack: 3,
-    counterAttack: 5,
-    range: 1,
-    cost: 12,
-  },
+  infantry: { movement: 2, attack: 4, counterAttack: 3, range: 1, cost: 10 },
+  cavalry: { movement: 3, attack: 5, counterAttack: 2, range: 1, cost: 15 },
+  archer: { movement: 2, attack: 3, counterAttack: 1, range: 2, cost: 12 },
+  spearman: { movement: 2, attack: 3, counterAttack: 5, range: 1, cost: 12 },
 }
 
 export const UNIT_TYPES: readonly UnitType[] = [
@@ -56,27 +42,51 @@ export const UNIT_TYPE_LABELS: Record<UnitType, string> = {
   spearman: '창병',
 }
 
+export const SITE_STATS: Record<SiteType, SiteStats> = {
+  stronghold: { income: 5, canProduce: true },
+  city: { income: 4, canProduce: true },
+  village: { income: 2, canProduce: false },
+  mine: { income: 3, canProduce: false },
+}
+
+export const SITE_TYPE_LABELS: Record<SiteType, string> = {
+  stronghold: '성',
+  city: '도시',
+  village: '마을',
+  mine: '광산',
+}
+
 export const TERRAIN_MOVEMENT_COST: Record<Terrain, number | null> = {
   plain: 1,
   mountain: 2,
   water: null,
+  hill: 2,
+  road: 1,
+  forest: 2,
+  grassland: 1,
+  steppe: 1,
 }
 
-export function positionKey(position: Position): string {
-  return `${position.x},${position.y}`
+export const TERRAIN_DEFENSE: Record<Terrain, number> = {
+  plain: 0,
+  mountain: 2,
+  water: 0,
+  hill: 1,
+  road: 0,
+  forest: 1,
+  grassland: 0,
+  steppe: 0,
 }
 
-export function positionsEqual(left: Position, right: Position): boolean {
-  return left.x === right.x && left.y === right.y
-}
-
-export function isPositionOnBoard(position: Position): boolean {
-  return (
-    position.x >= 0 &&
-    position.x < BOARD_SIZE &&
-    position.y >= 0 &&
-    position.y < BOARD_SIZE
-  )
+export const TERRAIN_LABELS: Record<Terrain, string> = {
+  plain: '평지',
+  mountain: '산',
+  water: '물',
+  hill: '언덕',
+  road: '길',
+  forest: '숲',
+  grassland: '초원',
+  steppe: '평원',
 }
 
 export function getTileAt(state: GameState, position: Position) {
@@ -87,28 +97,20 @@ export function getUnitAt(state: GameState, position: Position) {
   return state.units.find((unit) => positionsEqual(unit.position, position))
 }
 
-export function getCityAt(state: GameState, position: Position) {
-  return state.cities.find((city) => positionsEqual(city.position, position))
+export function getSiteAt(state: GameState, position: Position) {
+  return state.sites.find((site) => positionsEqual(site.position, position))
 }
 
-export function areOrthogonallyAdjacent(
-  left: Position,
-  right: Position,
-): boolean {
-  return Math.abs(left.x - right.x) + Math.abs(left.y - right.y) === 1
-}
-
-export function getOrthogonalNeighbors(position: Position): Position[] {
-  return [
-    { x: position.x, y: position.y - 1 },
-    { x: position.x + 1, y: position.y },
-    { x: position.x, y: position.y + 1 },
-    { x: position.x - 1, y: position.y },
-  ].filter(isPositionOnBoard)
-}
-
-export function getManhattanDistance(left: Position, right: Position): number {
-  return Math.abs(left.x - right.x) + Math.abs(left.y - right.y)
+export function getMovementStepCost(
+  state: GameState,
+  from: Position,
+  destination: Position,
+): number | null {
+  const fromTile = getTileAt(state, from)
+  const destinationTile = getTileAt(state, destination)
+  if (!fromTile || !destinationTile) return null
+  if (fromTile.terrain === 'road' && destinationTile.terrain === 'road') return 0.5
+  return TERRAIN_MOVEMENT_COST[destinationTile.terrain]
 }
 
 export function getEnemyZoneOfControlPositions(
@@ -118,11 +120,8 @@ export function getEnemyZoneOfControlPositions(
   const positions = new Map<string, Position>()
 
   for (const unit of state.units) {
-    if (unit.factionId === factionId) {
-      continue
-    }
-
-    for (const position of getOrthogonalNeighbors(unit.position)) {
+    if (unit.factionId === factionId) continue
+    for (const position of getHexNeighbors(unit.position)) {
       positions.set(positionKey(position), position)
     }
   }
@@ -140,7 +139,7 @@ export function isPositionInEnemyZoneOfControl(
   return state.units.some(
     (unit) =>
       unit.factionId !== factionId &&
-      areOrthogonallyAdjacent(unit.position, position),
+      getHexDistance(unit.position, position) === 1,
   )
 }
 
@@ -156,7 +155,6 @@ function getReachablePositionCosts(
     return new Map()
   }
 
-  const movement = unit.movementRemaining
   const occupiedPositions = new Set(
     state.units
       .filter((candidate) => candidate.id !== unit.id)
@@ -171,49 +169,32 @@ function getReachablePositionCosts(
   ]
 
   while (frontier.length > 0) {
-    frontier.sort((left, right) => left.cost - right.cost)
-    const current = frontier.shift()
+    frontier.sort(
+      (left, right) =>
+        left.cost - right.cost ||
+        left.position.r - right.position.r ||
+        left.position.q - right.position.q,
+    )
+    const current = frontier.shift()!
+    const currentKey = positionKey(current.position)
+    if (current.cost !== bestCosts.get(currentKey)) continue
 
-    if (!current) {
-      break
-    }
-
-    if (current.cost !== bestCosts.get(positionKey(current.position))) {
+    if (current.cost > 0 && enemyZoneOfControlPositions.has(currentKey)) {
       continue
     }
 
-    if (
-      current.cost > 0 &&
-      enemyZoneOfControlPositions.has(positionKey(current.position))
-    ) {
-      continue
-    }
-
-    for (const neighbor of getOrthogonalNeighbors(current.position)) {
+    for (const neighbor of getHexNeighbors(current.position)) {
       const neighborKey = positionKey(neighbor)
-
-      if (occupiedPositions.has(neighborKey)) {
-        continue
-      }
-
-      const tile = getTileAt(state, neighbor)
-      if (!tile) {
-        continue
-      }
-
-      const movementCost = TERRAIN_MOVEMENT_COST[tile.terrain]
-      if (movementCost === null) {
-        continue
-      }
-
-      const nextCost = current.cost + movementCost
+      if (occupiedPositions.has(neighborKey)) continue
+      const stepCost = getMovementStepCost(state, current.position, neighbor)
+      if (stepCost === null) continue
+      const nextCost = current.cost + stepCost
       if (
-        nextCost > movement ||
+        nextCost > unit.movementRemaining ||
         nextCost >= (bestCosts.get(neighborKey) ?? Infinity)
       ) {
         continue
       }
-
       bestCosts.set(neighborKey, nextCost)
       frontier.push({ position: neighbor, cost: nextCost })
     }
@@ -227,8 +208,8 @@ export function getReachablePositions(state: GameState, unit: Unit): Position[] 
   return [...getReachablePositionCosts(state, unit).entries()]
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([key]) => {
-      const [x, y] = key.split(',').map(Number)
-      return { x, y }
+      const [q, r] = key.split(',').map(Number)
+      return { q, r }
     })
 }
 
@@ -252,7 +233,7 @@ export function getAttackableUnits(state: GameState, unit: Unit): Unit[] {
   return state.units.filter(
     (candidate) =>
       candidate.factionId !== unit.factionId &&
-      getManhattanDistance(unit.position, candidate.position) <=
+      getHexDistance(unit.position, candidate.position) <=
         UNIT_STATS[unit.type].range,
   )
 }
@@ -262,38 +243,50 @@ export type CombatResult = {
   defenderHp: number
 }
 
-export function resolveCombat(attacker: Unit, defender: Unit): CombatResult {
-  const distance = getManhattanDistance(attacker.position, defender.position)
+export function resolveCombat(
+  state: GameState,
+  attacker: Unit,
+  defender: Unit,
+): CombatResult {
+  const distance = getHexDistance(attacker.position, defender.position)
   const attackBonus =
     attacker.type === 'spearman' && defender.type === 'cavalry' ? 2 : 0
-  const defenderHp = Math.max(
-    0,
-    defender.hp - (UNIT_STATS[attacker.type].attack + attackBonus),
+  const defenderTerrain = getTileAt(state, defender.position)?.terrain ?? 'plain'
+  const damageToDefender = Math.max(
+    1,
+    UNIT_STATS[attacker.type].attack +
+      attackBonus -
+      TERRAIN_DEFENSE[defenderTerrain],
   )
+  const defenderHp = Math.max(0, defender.hp - damageToDefender)
   const canCounter =
     distance <= UNIT_STATS[defender.type].range && defenderHp > 0
   const counterAttackBonus =
     defender.type === 'spearman' && attacker.type === 'cavalry' ? 2 : 0
-  const attackerHp =
-    canCounter
-      ? Math.max(
-          0,
-          attacker.hp -
-            (UNIT_STATS[defender.type].counterAttack + counterAttackBonus),
-        )
-      : attacker.hp
+  const attackerTerrain = getTileAt(state, attacker.position)?.terrain ?? 'plain'
+  const damageToAttacker = Math.max(
+    1,
+    UNIT_STATS[defender.type].counterAttack +
+      counterAttackBonus -
+      TERRAIN_DEFENSE[attackerTerrain],
+  )
+  const attackerHp = canCounter
+    ? Math.max(0, attacker.hp - damageToAttacker)
+    : attacker.hp
 
   return { attackerHp, defenderHp }
 }
 
 export function getDeployablePositions(
   state: GameState,
-  city: City,
+  site: Site,
 ): Position[] {
+  if (!SITE_STATS[site.kind].canProduce) return []
+
   const candidates = [
-    { ...city.position },
-    ...getOrthogonalNeighbors(city.position).sort(
-      (left, right) => left.y - right.y || left.x - right.x,
+    { ...site.position },
+    ...getHexNeighbors(site.position).sort(
+      (left, right) => left.r - right.r || left.q - right.q,
     ),
   ]
 
@@ -311,29 +304,33 @@ export function getFactionIncome(
   state: GameState,
   factionId: FactionId,
 ): number {
-  return state.cities
-    .filter((city) => city.ownerId === factionId)
-    .reduce((total, city) => total + city.resourcePerTurn, 0)
+  return state.sites
+    .filter((site) => site.ownerId === factionId)
+    .reduce((total, site) => total + SITE_STATS[site.kind].income, 0)
 }
 
-export function captureCityAt(
-  cities: City[],
+export function captureSiteAt(
+  sites: Site[],
   position: Position,
   ownerId: FactionId,
-): City[] {
-  let cityCaptured = false
-  const nextCities = cities.map((city) => {
-    if (!positionsEqual(city.position, position) || city.ownerId === ownerId) {
-      return city
+): Site[] {
+  let siteCaptured = false
+  const nextSites = sites.map((site) => {
+    if (!positionsEqual(site.position, position) || site.ownerId === ownerId) {
+      return site
     }
-
-    cityCaptured = true
-    return { ...city, ownerId }
+    siteCaptured = true
+    return { ...site, ownerId }
   })
 
-  return cityCaptured ? nextCities : cities
+  return siteCaptured ? nextSites : sites
 }
 
-export function ownsAllCities(cities: City[], factionId: FactionId): boolean {
-  return cities.length > 0 && cities.every((city) => city.ownerId === factionId)
+export function getCapitalPhase(sites: Site[]): GamePhase {
+  const playerCapital = sites.find((site) => site.capitalFor === 'player')
+  const enemyCapital = sites.find((site) => site.capitalFor === 'enemy')
+
+  if (enemyCapital?.ownerId === 'player') return 'victory'
+  if (playerCapital?.ownerId === 'enemy') return 'defeat'
+  return 'playing'
 }

@@ -1,17 +1,14 @@
+import type { CSSProperties } from 'react'
+import { getHexPixelPosition, HEX_HEIGHT, HEX_WIDTH } from '../game/hex'
 import {
-  getCityAt,
+  getSiteAt,
   getUnitAt,
   positionKey,
+  SITE_TYPE_LABELS,
+  TERRAIN_LABELS,
   UNIT_TYPE_LABELS,
 } from '../game/rules'
-import type {
-  City,
-  GameState,
-  Position,
-  Terrain,
-  Tile,
-  Unit,
-} from '../game/types'
+import type { GameState, Position, Site, Tile, Unit } from '../game/types'
 import { UnitIcon } from './UnitIcon'
 
 export type CombatAnimationPhase =
@@ -32,12 +29,6 @@ export type CombatAnimation = {
   phase: CombatAnimationPhase
 }
 
-const TERRAIN_LABELS: Record<Terrain, string> = {
-  plain: '평지',
-  mountain: '산',
-  water: '물',
-}
-
 type GameMapProps = {
   state: GameState
   reachableKeys: Set<string>
@@ -52,7 +43,7 @@ type GameMapProps = {
 type TileButtonProps = {
   tile: Tile
   unit?: Unit
-  city?: City
+  site?: Site
   selected: boolean
   reachable: boolean
   attackable: boolean
@@ -60,34 +51,35 @@ type TileButtonProps = {
   inZoneOfControl: boolean
   combatAnimation?: CombatAnimation
   disabled: boolean
+  style: CSSProperties
   onClick: () => void
+}
+
+function ownerLabel(site: Site): string {
+  if (site.ownerId === 'player') return '푸른 연맹'
+  if (site.ownerId === 'enemy') return '붉은 제국'
+  return '중립'
 }
 
 function getTileLabel(
   tile: Tile,
   unit?: Unit,
-  city?: City,
+  site?: Site,
   attackable = false,
   inZoneOfControl = false,
   deployable = false,
 ) {
   const parts = [
-    `좌표 ${tile.position.x}, ${tile.position.y}`,
+    `육각 좌표 ${tile.position.q}, ${tile.position.r}`,
     TERRAIN_LABELS[tile.terrain],
   ]
-
-  if (inZoneOfControl) {
-    parts.push('적 통제 구역')
+  if (inZoneOfControl) parts.push('적 통제 구역')
+  if (deployable) parts.push('생산 배치 가능')
+  if (site) {
+    parts.push(
+      `${site.name}, ${ownerLabel(site)} ${SITE_TYPE_LABELS[site.kind]}`,
+    )
   }
-
-  if (deployable) {
-    parts.push('생산 배치 가능')
-  }
-
-  if (city) {
-    parts.push(`${city.name}, ${city.ownerId === 'player' ? '푸른 연맹' : '붉은 제국'} 도시`)
-  }
-
   if (unit) {
     parts.push(`${unit.name}, ${UNIT_TYPE_LABELS[unit.type]}`)
     parts.push(`체력 ${unit.hp}/${unit.maxHp}`)
@@ -98,18 +90,28 @@ function getTileLabel(
           ? '공격만 가능'
           : '행동 가능',
     )
-    if (attackable) {
-      parts.push('공격 가능')
-    }
+    if (attackable) parts.push('공격 가능')
   }
-
   return parts.join(', ')
+}
+
+function getTerrainMark(terrain: Tile['terrain']): string | undefined {
+  return {
+    plain: undefined,
+    mountain: '▲',
+    water: '≋',
+    hill: '◒',
+    road: '╱',
+    forest: '♣',
+    grassland: '·',
+    steppe: '⁘',
+  }[terrain]
 }
 
 function TileButton({
   tile,
   unit,
-  city,
+  site,
   selected,
   reachable,
   attackable,
@@ -117,6 +119,7 @@ function TileButton({
   inZoneOfControl,
   combatAnimation,
   disabled,
+  style,
   onClick,
 }: TileButtonProps) {
   const healthPercent = unit
@@ -143,8 +146,14 @@ function TileButton({
   const strikeTarget = isAttacker
     ? combatAnimation?.defenderPosition
     : combatAnimation?.attackerPosition
-  const strikeX = unit && strikeTarget ? (strikeTarget.x - unit.position.x) * 18 : 0
-  const strikeY = unit && strikeTarget ? (strikeTarget.y - unit.position.y) * 18 : 0
+  const originPixel = unit ? getHexPixelPosition(unit.position) : undefined
+  const targetPixel = strikeTarget ? getHexPixelPosition(strikeTarget) : undefined
+  const deltaX = originPixel && targetPixel ? targetPixel.x - originPixel.x : 0
+  const deltaY = originPixel && targetPixel ? targetPixel.y - originPixel.y : 0
+  const deltaLength = Math.hypot(deltaX, deltaY) || 1
+  const strikeX = (deltaX / deltaLength) * 18
+  const strikeY = (deltaY / deltaLength) * 18
+  const terrainMark = getTerrainMark(tile.terrain)
   const classNames = [
     'map-tile',
     `map-tile--${tile.terrain}`,
@@ -160,15 +169,9 @@ function TileButton({
   return (
     <button
       className={classNames}
+      style={style}
       type="button"
-      aria-label={getTileLabel(
-        tile,
-        unit,
-        city,
-        attackable,
-        inZoneOfControl,
-        deployable,
-      )}
+      aria-label={getTileLabel(tile, unit, site, attackable, inZoneOfControl, deployable)}
       aria-pressed={unit ? selected : undefined}
       data-coordinate={positionKey(tile.position)}
       data-reachable={reachable ? 'true' : undefined}
@@ -179,26 +182,27 @@ function TileButton({
       onClick={onClick}
     >
       <span className="tile-coordinate" aria-hidden="true">
-        {tile.position.x},{tile.position.y}
+        {tile.position.q},{tile.position.r}
       </span>
 
-      {tile.terrain === 'mountain' && (
-        <span className="terrain-mark terrain-mark--mountain" aria-hidden="true">
-          ▲
-        </span>
-      )}
-      {tile.terrain === 'water' && (
-        <span className="terrain-mark terrain-mark--water" aria-hidden="true">
-          ≋
+      {terrainMark && (
+        <span className={`terrain-mark terrain-mark--${tile.terrain}`} aria-hidden="true">
+          {terrainMark}
         </span>
       )}
 
-      {city && (
+      {site && (
         <span
-          className={`city-marker city-marker--${city.ownerId}`}
+          className={`site-marker site-marker--${site.kind} site-marker--${site.ownerId}`}
           aria-hidden="true"
         >
-          성
+          {site.kind === 'stronghold'
+            ? '성'
+            : site.kind === 'city'
+              ? '도'
+              : site.kind === 'village'
+                ? '촌'
+                : '광'}
         </span>
       )}
 
@@ -216,7 +220,7 @@ function TileButton({
             {
               '--strike-x': `${strikeX}px`,
               '--strike-y': `${strikeY}px`,
-            } as React.CSSProperties
+            } as CSSProperties
           }
         >
           <span className="unit-symbol">
@@ -232,10 +236,7 @@ function TileButton({
       )}
       {unit && isHit && (
         <span className="damage-popup" aria-hidden="true">
-          -
-          {isDefender
-            ? combatAnimation?.damageToDefender
-            : combatAnimation?.damageToAttacker}
+          -{isDefender ? combatAnimation?.damageToDefender : combatAnimation?.damageToAttacker}
         </span>
       )}
     </button>
@@ -252,25 +253,37 @@ export function GameMap({
   disabled,
   onTileClick,
 }: GameMapProps) {
+  const pixelPositions = state.tiles.map((tile) => getHexPixelPosition(tile.position))
+  const minimumX = Math.min(...pixelPositions.map((position) => position.x))
+  const minimumY = Math.min(...pixelPositions.map((position) => position.y))
+  const maximumX = Math.max(...pixelPositions.map((position) => position.x))
+  const maximumY = Math.max(...pixelPositions.map((position) => position.y))
+
   return (
-    <div className="game-map" data-testid="game-map">
+    <div
+      className="game-map"
+      data-testid="game-map"
+      style={{
+        width: maximumX - minimumX + HEX_WIDTH,
+        height: maximumY - minimumY + HEX_HEIGHT,
+      }}
+    >
       {state.tiles.map((tile) => {
         const unit = getUnitAt(state, tile.position)
-        const city = getCityAt(state, tile.position)
+        const site = getSiteAt(state, tile.position)
         const selected = Boolean(unit && unit.id === state.selectedUnitId)
         const reachable = reachableKeys.has(positionKey(tile.position))
         const attackable = attackableKeys.has(positionKey(tile.position))
         const deployable = deployableKeys.has(positionKey(tile.position))
-        const inZoneOfControl = zoneOfControlKeys.has(
-          positionKey(tile.position),
-        )
+        const inZoneOfControl = zoneOfControlKeys.has(positionKey(tile.position))
+        const pixel = getHexPixelPosition(tile.position)
 
         return (
           <TileButton
             key={tile.id}
             tile={tile}
             unit={unit}
-            city={city}
+            site={site}
             selected={selected}
             reachable={reachable}
             attackable={attackable}
@@ -278,6 +291,7 @@ export function GameMap({
             inZoneOfControl={inZoneOfControl}
             combatAnimation={combatAnimation}
             disabled={disabled}
+            style={{ left: pixel.x - minimumX, top: pixel.y - minimumY }}
             onClick={() => onTileClick(tile)}
           />
         )

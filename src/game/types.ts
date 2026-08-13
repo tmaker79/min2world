@@ -1,13 +1,24 @@
-export type Terrain = 'plain' | 'mountain' | 'water'
+export type Terrain =
+  | 'plain'
+  | 'mountain'
+  | 'water'
+  | 'hill'
+  | 'road'
+  | 'forest'
+  | 'grassland'
+  | 'steppe'
 
-export const GAME_SCHEMA_VERSION = 5
+export const GAME_SCHEMA_VERSION = 6
+export const MAP_GENERATION_VERSION = 1
 
 export type Position = {
-  x: number
-  y: number
+  q: number
+  r: number
 }
 
 export type FactionId = 'player' | 'enemy'
+export type SiteOwnerId = FactionId | 'neutral'
+export type SiteType = 'stronghold' | 'city' | 'village' | 'mine'
 export type UnitType = 'infantry' | 'cavalry' | 'archer' | 'spearman'
 export type GamePhase = 'playing' | 'victory' | 'defeat'
 
@@ -19,11 +30,16 @@ export type UnitStats = {
   cost: number
 }
 
+export type SiteStats = {
+  income: number
+  canProduce: boolean
+}
+
 export type Tile = {
   id: string
   position: Position
   terrain: Terrain
-  cityId?: string
+  siteId?: string
 }
 
 export type Unit = {
@@ -38,17 +54,20 @@ export type Unit = {
   hasActed: boolean
 }
 
-export type City = {
+export type Site = {
   id: string
   name: string
+  kind: SiteType
   position: Position
-  ownerId: FactionId
-  resourcePerTurn: number
+  ownerId: SiteOwnerId
+  capitalFor?: FactionId
   lastProducedTurn?: number
 }
 
 export type GameState = {
   schemaVersion: number
+  mapSeed: string
+  mapGenerationVersion: number
   turn: number
   phase: GamePhase
   activeFactionId: FactionId
@@ -56,7 +75,7 @@ export type GameState = {
   resources: Record<FactionId, number>
   tiles: Tile[]
   units: Unit[]
-  cities: City[]
+  sites: Site[]
 }
 
 export type GameAction =
@@ -67,10 +86,10 @@ export type GameAction =
   | { type: 'unitWaited'; unitId: string }
   | {
       type: 'unitProduced'
-      cityId: string
+      siteId: string
       unitType: UnitType
       destination: Position
     }
   | { type: 'turnEnded' }
   | { type: 'gameLoaded'; state: GameState }
-  | { type: 'gameRestarted' }
+  | { type: 'gameRestarted'; seed: string }

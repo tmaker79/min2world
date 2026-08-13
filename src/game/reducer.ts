@@ -1,13 +1,13 @@
 import { createInitialGameState } from './initialState'
 import { cloneGameState } from './state'
 import {
-  captureCityAt,
+  captureSiteAt,
+  getCapitalPhase,
   getAttackableUnits,
   getDeployablePositions,
   getFactionIncome,
   getMovementCost,
   isPositionInEnemyZoneOfControl,
-  ownsAllCities,
   resolveCombat,
   UNIT_TYPE_LABELS,
   UNIT_STATS,
@@ -16,7 +16,7 @@ import type { GameAction, GameState } from './types'
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
   if (action.type === 'gameRestarted') {
-    return createInitialGameState()
+    return createInitialGameState(action.seed)
   }
 
   if (action.type === 'gameLoaded') {
@@ -73,21 +73,17 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ? 0
         : movementAfterCost
 
-      const cities = captureCityAt(
-        state.cities,
+      const sites = captureSiteAt(
+        state.sites,
         action.destination,
         unit.factionId,
       )
 
       return {
         ...state,
-        phase: ownsAllCities(cities, unit.factionId)
-          ? unit.factionId === 'player'
-            ? 'victory'
-            : 'defeat'
-          : state.phase,
+        phase: getCapitalPhase(sites),
         selectedUnitId: unit.id,
-        cities,
+        sites,
         units: state.units.map((candidate) =>
           candidate.id === action.unitId
             ? {
@@ -126,7 +122,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         return state
       }
 
-      const result = resolveCombat(attacker, defender)
+      const result = resolveCombat(state, attacker, defender)
       const units = state.units.flatMap((unit) => {
         if (unit.id === attacker.id) {
           return result.attackerHp > 0
@@ -180,21 +176,21 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'unitProduced': {
-      const city = state.cities.find(
-        (candidate) => candidate.id === action.cityId,
+      const site = state.sites.find(
+        (candidate) => candidate.id === action.siteId,
       )
       const stats = UNIT_STATS[action.unitType]
 
       if (
-        !city ||
-        city.ownerId !== state.activeFactionId ||
-        city.lastProducedTurn === state.turn ||
+        !site ||
+        site.ownerId !== state.activeFactionId ||
+        site.lastProducedTurn === state.turn ||
         !stats ||
         state.resources[state.activeFactionId] < stats.cost ||
-        !getDeployablePositions(state, city).some(
+        !getDeployablePositions(state, site).some(
           (position) =>
-            position.x === action.destination.x &&
-            position.y === action.destination.y,
+            position.q === action.destination.q &&
+            position.r === action.destination.r,
         )
       ) {
         return state
@@ -230,8 +226,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             state.resources[state.activeFactionId] - stats.cost,
         },
         units: [...state.units, unit],
-        cities: state.cities.map((candidate) =>
-          candidate.id === city.id
+        sites: state.sites.map((candidate) =>
+          candidate.id === site.id
             ? { ...candidate, lastProducedTurn: state.turn }
             : candidate,
         ),

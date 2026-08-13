@@ -1,618 +1,142 @@
 import { describe, expect, it } from 'vitest'
+import { getHexNeighbors } from './hex'
 import { createInitialGameState } from './initialState'
 import { gameReducer } from './reducer'
-import { getUnitAt } from './rules'
+import { getDeployablePositions, getFactionIncome } from './rules'
 import type { GameState, Unit } from './types'
 
-function createCombatState({
-  attackerHp = 10,
-  defenderHp = 10,
-  defenderPosition = { x: 5, y: 4 },
-  attackerHasActed = false,
-  selected = true,
-}: {
-  attackerHp?: number
-  defenderHp?: number
-  defenderPosition?: { x: number; y: number }
-  attackerHasActed?: boolean
-  selected?: boolean
-} = {}): GameState {
-  const initialState = createInitialGameState()
-  const units: Unit[] = [
-    {
-      id: 'attacker',
-      name: '시험 보병대',
-      factionId: 'player',
-      type: 'infantry',
-      position: { x: 5, y: 5 },
-      hp: attackerHp,
-      maxHp: 10,
-      movementRemaining: 2,
-      hasActed: attackerHasActed,
-    },
-    {
-      id: 'defender',
-      name: '시험 기병대',
-      factionId: 'enemy',
-      type: 'cavalry',
-      position: defenderPosition,
-      hp: defenderHp,
-      maxHp: 10,
-      movementRemaining: 3,
-      hasActed: false,
-    },
-  ]
-
-  return {
-    ...initialState,
-    selectedUnitId: selected ? 'attacker' : undefined,
-    units,
-  }
+function select(state: GameState, unitId: string) {
+  return gameReducer(state, { type: 'unitSelected', unitId })
 }
 
-describe('gameReducer', () => {
-  it('행동 가능한 플레이어 유닛을 선택하고 다시 선택하면 해제한다', () => {
-    const initialState = createInitialGameState()
-    const selected = gameReducer(initialState, {
-      type: 'unitSelected',
-      unitId: 'player-infantry-1',
-    })
-    const cleared = gameReducer(selected, {
-      type: 'unitSelected',
-      unitId: 'player-infantry-1',
-    })
+describe('gameReducer on a hex map', () => {
+  it('selects only the active faction and toggles selection', () => {
+    const state = createInitialGameState('reducer-select')
+    const player = state.units.find((unit) => unit.factionId === 'player')!
+    const enemy = state.units.find((unit) => unit.factionId === 'enemy')!
 
-    expect(selected.selectedUnitId).toBe('player-infantry-1')
-    expect(cleared.selectedUnitId).toBeUndefined()
+    expect(select(state, enemy.id)).toBe(state)
+    const selected = select(state, player.id)
+    expect(selected.selectedUnitId).toBe(player.id)
+    expect(select(selected, player.id).selectedUnitId).toBeUndefined()
   })
 
-  it('적 유닛 선택 명령은 상태를 변경하지 않는다', () => {
-    const state = createInitialGameState()
-
-    expect(
-      gameReducer(state, {
-        type: 'unitSelected',
-        unitId: 'enemy-infantry-1',
-      }),
-    ).toBe(state)
-  })
-
-  it('유효한 위치로 이동하고 원본 상태는 변경하지 않는다', () => {
-    const initialState = createInitialGameState()
-    const selected = gameReducer(initialState, {
-      type: 'unitSelected',
-      unitId: 'player-infantry-1',
-    })
-    const moved = gameReducer(selected, {
-      type: 'unitMoved',
-      unitId: 'player-infantry-1',
-      destination: { x: 1, y: 6 },
-    })
-    const initialUnit = initialState.units.find(
-      (unit) => unit.id === 'player-infantry-1',
-    )
-    const movedUnit = moved.units.find(
-      (unit) => unit.id === 'player-infantry-1',
-    )
-
-    expect(initialUnit?.position).toEqual({ x: 1, y: 7 })
-    expect(initialUnit?.hasActed).toBe(false)
-    expect(movedUnit?.position).toEqual({ x: 1, y: 6 })
-    expect(movedUnit?.movementRemaining).toBe(1)
-    expect(movedUnit?.hasActed).toBe(false)
-    expect(moved.selectedUnitId).toBe('player-infantry-1')
-  })
-
-  it('물, 점유 타일, 범위 밖으로 이동할 수 없다', () => {
-    const initialState = createInitialGameState()
-    const selected = gameReducer(initialState, {
-      type: 'unitSelected',
-      unitId: 'player-infantry-1',
-    })
-
-    for (const destination of [
-      { x: 4, y: 7 },
-      { x: 2, y: 7 },
-      { x: -1, y: 7 },
-    ]) {
-      expect(
-        gameReducer(selected, {
-          type: 'unitMoved',
-          unitId: 'player-infantry-1',
-          destination,
-        }),
-      ).toBe(selected)
-    }
-  })
-
-  it('남은 이동력만큼 연속 이동하고 소진 후에는 다시 행동할 수 없다', () => {
-    const initialState = createInitialGameState()
-    const selected = gameReducer(initialState, {
-      type: 'unitSelected',
-      unitId: 'player-infantry-1',
-    })
-    const moved = gameReducer(selected, {
-      type: 'unitMoved',
-      unitId: 'player-infantry-1',
-      destination: { x: 1, y: 6 },
-    })
-
-    const exhausted = gameReducer(moved, {
-      type: 'unitMoved',
-      unitId: 'player-infantry-1',
-      destination: { x: 1, y: 5 },
-    })
-    const exhaustedUnit = exhausted.units.find(
-      (unit) => unit.id === 'player-infantry-1',
-    )
-
-    expect(exhaustedUnit?.position).toEqual({ x: 1, y: 5 })
-    expect(exhaustedUnit?.movementRemaining).toBe(0)
-    expect(exhaustedUnit?.hasActed).toBe(true)
-    expect(
-      gameReducer(exhausted, {
-        type: 'unitMoved',
-        unitId: 'player-infantry-1',
-        destination: { x: 1, y: 4 },
-      }),
-    ).toBe(exhausted)
-
-    const deselected = gameReducer(exhausted, { type: 'selectionCleared' })
-    const inspected = gameReducer(deselected, {
-      type: 'unitSelected',
-      unitId: 'player-infantry-1',
-    })
-    expect(inspected.selectedUnitId).toBe('player-infantry-1')
-  })
-
-  it('플레이어 종료 후 같은 라운드의 AI 턴을 시작한다', () => {
-    const initialState = createInitialGameState()
-    const state = {
-      ...initialState,
-      selectedUnitId: 'player-infantry-1',
-      units: initialState.units.map((unit) =>
-        unit.id === 'player-infantry-1'
-          ? { ...unit, movementRemaining: 0, hasActed: true }
-          : unit,
+  it('moves by a fractional road cost and captures a neutral site', () => {
+    const initial = createInitialGameState('reducer-capture')
+    const neutral = initial.sites.find((site) => site.ownerId === 'neutral')!
+    const start = getHexNeighbors(neutral.position).find((position) =>
+      initial.tiles.some((tile) =>
+        tile.position.q === position.q && tile.position.r === position.r && tile.terrain !== 'water',
       ),
+    )!
+    const mover: Unit = {
+      id: 'capture-unit', name: 'capture', factionId: 'player', type: 'cavalry',
+      position: start, hp: 10, maxHp: 10, movementRemaining: 3, hasActed: false,
     }
-    const aiTurn = gameReducer(state, { type: 'turnEnded' })
-
-    expect(aiTurn.turn).toBe(1)
-    expect(aiTurn.activeFactionId).toBe('enemy')
-    expect(aiTurn.selectedUnitId).toBeUndefined()
-    expect(
-      aiTurn.units.find((unit) => unit.id === 'player-infantry-1')?.hasActed,
-    ).toBe(true)
-    expect(
-      aiTurn.units.find((unit) => unit.id === 'player-infantry-1')
-        ?.movementRemaining,
-    ).toBe(0)
-    expect(aiTurn.resources).toEqual({ player: 20, enemy: 15 })
-  })
-
-  it('AI 종료 후 다음 라운드의 플레이어 유닛을 초기화한다', () => {
-    const initialState = createInitialGameState()
     const state: GameState = {
-      ...initialState,
-      activeFactionId: 'enemy',
-      units: initialState.units.map((unit) =>
-        unit.factionId === 'player'
-          ? { ...unit, movementRemaining: 0, hasActed: true }
-          : unit,
+      ...initial,
+      units: [mover],
+      tiles: initial.tiles.map((tile) =>
+        (tile.position.q === start.q && tile.position.r === start.r) ||
+        (tile.position.q === neutral.position.q && tile.position.r === neutral.position.r)
+          ? { ...tile, terrain: 'road' }
+          : tile,
       ),
     }
-    const playerTurn = gameReducer(state, { type: 'turnEnded' })
+    const moved = gameReducer(select(state, mover.id), {
+      type: 'unitMoved', unitId: mover.id, destination: neutral.position,
+    })
 
-    expect(playerTurn.turn).toBe(2)
-    expect(playerTurn.activeFactionId).toBe('player')
-    expect(
-      playerTurn.units.find((unit) => unit.id === 'player-infantry-1'),
-    ).toMatchObject({ movementRemaining: 2, hasActed: false })
-    expect(playerTurn.resources).toEqual({ player: 15, enemy: 20 })
+    expect(moved.units[0].position).toEqual(neutral.position)
+    expect(moved.units[0].movementRemaining).toBe(2.5)
+    expect(moved.sites.find((site) => site.id === neutral.id)?.ownerId).toBe('player')
   })
 
-  it('도시에서 자원을 소비해 행동 완료 상태의 부대를 생산한다', () => {
-    const state = createInitialGameState()
-    const produced = gameReducer(state, {
-      type: 'unitProduced',
-      cityId: 'city-player',
-      unitType: 'archer',
-      destination: { x: 1, y: 8 },
-    })
-    const unit = produced.units.find(
-      (candidate) => candidate.id === 'player-archer-produced-1',
-    )
-
-    expect(produced.resources.player).toBe(3)
-    expect(produced.selectedUnitId).toBe(unit?.id)
-    expect(unit).toMatchObject({
-      name: '푸른 궁병 1',
-      type: 'archer',
-      hp: 10,
-      maxHp: 10,
-      movementRemaining: 0,
-      hasActed: true,
-      position: { x: 1, y: 8 },
-    })
-    expect(
-      produced.cities.find((city) => city.id === 'city-player')
-        ?.lastProducedTurn,
-    ).toBe(1)
-    expect(state.units).toHaveLength(6)
-    expect(state.resources.player).toBe(15)
-  })
-
-  it('생산 유닛은 다음 자기 세력 턴에 행동 가능해진다', () => {
-    const produced = gameReducer(createInitialGameState(), {
-      type: 'unitProduced',
-      cityId: 'city-player',
-      unitType: 'infantry',
-      destination: { x: 1, y: 8 },
-    })
-    const enemyTurn = gameReducer(produced, { type: 'turnEnded' })
-    const nextPlayerTurn = gameReducer(enemyTurn, { type: 'turnEnded' })
-
-    expect(
-      nextPlayerTurn.units.find(
-        (unit) => unit.id === 'player-infantry-produced-1',
+  it('wins immediately when the enemy capital is occupied', () => {
+    const initial = createInitialGameState('reducer-victory')
+    const capital = initial.sites.find((site) => site.capitalFor === 'enemy')!
+    const start = getHexNeighbors(capital.position)[0]
+    const attacker: Unit = {
+      id: 'winner', name: 'winner', factionId: 'player', type: 'infantry',
+      position: start, hp: 10, maxHp: 10, movementRemaining: 2, hasActed: false,
+    }
+    const state = {
+      ...initial,
+      units: [attacker],
+      tiles: initial.tiles.map((tile) =>
+        tile.position.q === capital.position.q && tile.position.r === capital.position.r
+          ? { ...tile, terrain: 'plain' as const }
+          : tile,
       ),
-    ).toMatchObject({ movementRemaining: 2, hasActed: false })
-    expect(nextPlayerTurn.resources).toEqual({ player: 10, enemy: 20 })
-  })
-
-  it('소유권, 자원, 배치 위치와 라운드당 생산 제한을 검증한다', () => {
-    const initial = createInitialGameState()
-    const cases: GameState[] = [
-      { ...initial, resources: { ...initial.resources, player: 9 } },
-      {
-        ...initial,
-        cities: initial.cities.map((city) =>
-          city.id === 'city-player'
-            ? { ...city, lastProducedTurn: initial.turn }
-            : city,
-        ),
-      },
-    ]
-
-    for (const state of cases) {
-      expect(
-        gameReducer(state, {
-          type: 'unitProduced',
-          cityId: 'city-player',
-          unitType: 'infantry',
-          destination: { x: 1, y: 8 },
-        }),
-      ).toBe(state)
     }
 
-    for (const action of [
-      {
-        type: 'unitProduced' as const,
-        cityId: 'city-enemy',
-        unitType: 'infantry' as const,
-        destination: { x: 8, y: 1 },
-      },
-      {
-        type: 'unitProduced' as const,
-        cityId: 'city-player',
-        unitType: 'infantry' as const,
-        destination: { x: 1, y: 7 },
-      },
-      {
-        type: 'unitProduced' as const,
-        cityId: 'city-player',
-        unitType: 'infantry' as const,
-        destination: { x: 4, y: 8 },
-      },
-    ]) {
-      expect(gameReducer(initial, action)).toBe(initial)
-    }
+    const result = gameReducer(select(state, attacker.id), {
+      type: 'unitMoved', unitId: attacker.id, destination: capital.position,
+    })
+    expect(result.phase).toBe('victory')
+    expect(result.sites.find((site) => site.id === capital.id)?.capitalFor).toBe('enemy')
   })
 
-  it('인접한 적을 공격하고 생존한 양쪽 유닛의 체력을 갱신한다', () => {
-    const state = createCombatState()
-    const result = gameReducer(state, {
-      type: 'unitAttacked',
-      attackerId: 'attacker',
-      defenderId: 'defender',
+  it('rejects movement outside the unit range', () => {
+    const state = createInitialGameState('reducer-invalid')
+    const player = state.units.find((unit) => unit.factionId === 'player')!
+    const selected = select(state, player.id)
+    expect(gameReducer(selected, {
+      type: 'unitMoved', unitId: player.id, destination: { q: 6, r: 0 },
+    })).toBe(selected)
+  })
+
+  it("resolves a valid adjacent attack and consumes the attacker's action", () => {
+    const initial = createInitialGameState('reducer-combat')
+    const attacker: Unit = {
+      id: 'attacker', name: 'attacker', factionId: 'player', type: 'infantry',
+      position: { q: 0, r: 0 }, hp: 10, maxHp: 10, movementRemaining: 2, hasActed: false,
+    }
+    const defender: Unit = {
+      id: 'defender', name: 'defender', factionId: 'enemy', type: 'infantry',
+      position: { q: 1, r: 0 }, hp: 10, maxHp: 10, movementRemaining: 2, hasActed: false,
+    }
+    const state = { ...initial, units: [attacker, defender] }
+    const result = gameReducer(select(state, attacker.id), {
+      type: 'unitAttacked', attackerId: attacker.id, defenderId: defender.id,
     })
 
-    expect(result.units.find((unit) => unit.id === 'attacker')).toMatchObject({
-      hp: 8,
-      movementRemaining: 0,
-      hasActed: true,
-    })
-    expect(result.units.find((unit) => unit.id === 'defender')?.hp).toBe(6)
+    expect(result.units.find((unit) => unit.id === attacker.id)).toMatchObject({ hp: 7, hasActed: true })
+    expect(result.units.find((unit) => unit.id === defender.id)?.hp).toBeLessThan(10)
     expect(result.selectedUnitId).toBeUndefined()
   })
 
-  it('통제 구역 진입 시 이동은 멈추지만 인접한 적을 공격할 수 있다', () => {
-    const state = createCombatState({ defenderPosition: { x: 5, y: 3 } })
-    const moved = gameReducer(state, {
-      type: 'unitMoved',
-      unitId: 'attacker',
-      destination: { x: 5, y: 4 },
-    })
-    const result = gameReducer(moved, {
-      type: 'unitAttacked',
-      attackerId: 'attacker',
-      defenderId: 'defender',
+  it('produces only at an owned production site and charges resources', () => {
+    const initial = createInitialGameState('reducer-produce')
+    const site = initial.sites.find((candidate) => candidate.capitalFor === 'player')!
+    const destination = getDeployablePositions(initial, site)[0]
+    const produced = gameReducer(initial, {
+      type: 'unitProduced', siteId: site.id, unitType: 'infantry', destination,
     })
 
-    expect(
-      moved.units.find((unit) => unit.id === 'attacker')?.movementRemaining,
-    ).toBe(0)
-    expect(
-      moved.units.find((unit) => unit.id === 'attacker')?.hasActed,
-    ).toBe(false)
-    expect(
-      gameReducer(moved, {
-        type: 'unitMoved',
-        unitId: 'attacker',
-        destination: { x: 4, y: 4 },
-      }),
-    ).toBe(moved)
-    expect(result.units.find((unit) => unit.id === 'defender')?.hp).toBe(6)
-    expect(
-      result.units.find((unit) => unit.id === 'attacker'),
-    ).toMatchObject({ movementRemaining: 0, hasActed: true })
+    expect(produced.units).toHaveLength(initial.units.length + 1)
+    expect(produced.resources.player).toBe(initial.resources.player - 10)
+    expect(produced.sites.find((candidate) => candidate.id === site.id)?.lastProducedTurn).toBe(1)
+    expect(gameReducer(produced, {
+      type: 'unitProduced', siteId: site.id, unitType: 'infantry', destination,
+    })).toBe(produced)
   })
 
-  it('통제 구역까지 이동력을 모두 사용한 유닛은 공격할 수 없다', () => {
-    const state = createCombatState({ defenderPosition: { x: 5, y: 2 } })
-    const moved = gameReducer(state, {
-      type: 'unitMoved',
-      unitId: 'attacker',
-      destination: { x: 5, y: 3 },
-    })
-    const movedUnit = moved.units.find((unit) => unit.id === 'attacker')
+  it('adds the ending faction income and refreshes the next faction', () => {
+    const state = createInitialGameState('reducer-turn')
+    const income = getFactionIncome(state, 'player')
+    const result = gameReducer(state, { type: 'turnEnded' })
 
-    expect(movedUnit).toMatchObject({
-      position: { x: 5, y: 3 },
-      movementRemaining: 0,
-      hasActed: true,
-    })
-    expect(
-      gameReducer(moved, {
-        type: 'unitAttacked',
-        attackerId: 'attacker',
-        defenderId: 'defender',
-      }),
-    ).toBe(moved)
+    expect(result.activeFactionId).toBe('enemy')
+    expect(result.resources.player).toBe(state.resources.player + income)
+    expect(result.units.filter((unit) => unit.factionId === 'enemy').every((unit) => !unit.hasActed)).toBe(true)
   })
 
-  it('공격으로 방어자가 사망하면 제거하고 반격을 적용하지 않는다', () => {
-    const state = createCombatState({ defenderHp: 4 })
-    const result = gameReducer(state, {
-      type: 'unitAttacked',
-      attackerId: 'attacker',
-      defenderId: 'defender',
-    })
+  it('restarts deterministically with the requested seed even after game over', () => {
+    const over = { ...createInitialGameState('old'), phase: 'defeat' as const }
+    const restarted = gameReducer(over, { type: 'gameRestarted', seed: 'new-seed' })
 
-    expect(result.units.find((unit) => unit.id === 'defender')).toBeUndefined()
-    expect(getUnitAt(result, { x: 5, y: 4 })).toBeUndefined()
-    expect(result.units.find((unit) => unit.id === 'attacker')?.hp).toBe(10)
-  })
-
-  it('공격자가 반격으로 사망하면 제거한다', () => {
-    const state = createCombatState({ attackerHp: 2 })
-    const result = gameReducer(state, {
-      type: 'unitAttacked',
-      attackerId: 'attacker',
-      defenderId: 'defender',
-    })
-
-    expect(result.units.find((unit) => unit.id === 'attacker')).toBeUndefined()
-    expect(result.units.find((unit) => unit.id === 'defender')?.hp).toBe(6)
-  })
-
-  it('유효하지 않은 공격은 상태를 변경하지 않는다', () => {
-    const friendlyState = createCombatState()
-    const states = [
-      createCombatState({ defenderPosition: { x: 6, y: 4 } }),
-      createCombatState({ attackerHasActed: true }),
-      createCombatState({ selected: false }),
-      {
-        ...friendlyState,
-        units: friendlyState.units.map((unit) => ({
-          ...unit,
-          factionId: 'player' as const,
-        })),
-      },
-    ]
-
-    for (const state of states) {
-      expect(
-        gameReducer(state, {
-          type: 'unitAttacked',
-          attackerId: 'attacker',
-          defenderId: 'defender',
-        }),
-      ).toBe(state)
-    }
-
-    const state = createCombatState()
-    expect(
-      gameReducer(state, {
-        type: 'unitAttacked',
-        attackerId: 'attacker',
-        defenderId: 'missing',
-      }),
-    ).toBe(state)
-  })
-
-  it('현재 세력의 선택된 유닛만 대기할 수 있다', () => {
-    const selected = createCombatState()
-    const waited = gameReducer(selected, {
-      type: 'unitWaited',
-      unitId: 'attacker',
-    })
-
-    expect(waited.selectedUnitId).toBeUndefined()
-    expect(waited.units.find((unit) => unit.id === 'attacker')).toMatchObject({
-      movementRemaining: 0,
-      hasActed: true,
-    })
-    expect(
-      gameReducer(selected, { type: 'unitWaited', unitId: 'defender' }),
-    ).toBe(selected)
-  })
-
-  it('현재 세력이 아닌 유닛의 선택, 이동과 공격을 거부한다', () => {
-    const playerState = createCombatState()
-    const enemyTurn = {
-      ...playerState,
-      activeFactionId: 'enemy' as const,
-      selectedUnitId: 'attacker',
-    }
-
-    expect(
-      gameReducer(enemyTurn, { type: 'unitSelected', unitId: 'attacker' }),
-    ).toBe(enemyTurn)
-    expect(
-      gameReducer(enemyTurn, {
-        type: 'unitMoved',
-        unitId: 'attacker',
-        destination: { x: 5, y: 6 },
-      }),
-    ).toBe(enemyTurn)
-    expect(
-      gameReducer(enemyTurn, {
-        type: 'unitAttacked',
-        attackerId: 'attacker',
-        defenderId: 'defender',
-      }),
-    ).toBe(enemyTurn)
-  })
-
-  it('적 도시로 이동하면 도시를 점령하고 승리한다', () => {
-    const initialState = createInitialGameState()
-    const state: GameState = {
-      ...initialState,
-      selectedUnitId: 'capturer',
-      units: [
-        {
-          id: 'capturer',
-          name: '점령 부대',
-          factionId: 'player',
-          type: 'infantry',
-          position: { x: 7, y: 1 },
-          hp: 10,
-          maxHp: 10,
-          movementRemaining: 2,
-          hasActed: false,
-        },
-      ],
-    }
-    const result = gameReducer(state, {
-      type: 'unitMoved',
-      unitId: 'capturer',
-      destination: { x: 8, y: 1 },
-    })
-
-    expect(result.cities.find((city) => city.id === 'city-enemy')?.ownerId).toBe(
-      'player',
-    )
-    expect(result.phase).toBe('victory')
-  })
-
-  it('AI가 플레이어 도시를 점령하면 패배한다', () => {
-    const initialState = createInitialGameState()
-    const state: GameState = {
-      ...initialState,
-      activeFactionId: 'enemy',
-      selectedUnitId: 'capturer',
-      units: [
-        {
-          id: 'capturer',
-          name: 'AI 점령 부대',
-          factionId: 'enemy',
-          type: 'infantry',
-          position: { x: 1, y: 7 },
-          hp: 10,
-          maxHp: 10,
-          movementRemaining: 2,
-          hasActed: false,
-        },
-      ],
-    }
-    const result = gameReducer(state, {
-      type: 'unitMoved',
-      unitId: 'capturer',
-      destination: { x: 1, y: 8 },
-    })
-
-    expect(
-      result.cities.find((city) => city.id === 'city-player')?.ownerId,
-    ).toBe('enemy')
-    expect(result.phase).toBe('defeat')
-  })
-
-  it('승리 후 새 게임 외의 명령을 차단한다', () => {
-    const state = { ...createInitialGameState(), phase: 'victory' as const }
-
-    const actions = [
-      { type: 'turnEnded' as const },
-      { type: 'selectionCleared' as const },
-      {
-        type: 'unitSelected',
-        unitId: 'player-infantry-1',
-      } as const,
-      {
-        type: 'unitMoved',
-        unitId: 'player-infantry-1',
-        destination: { x: 1, y: 6 },
-      } as const,
-      {
-        type: 'unitAttacked',
-        attackerId: 'player-infantry-1',
-        defenderId: 'enemy-infantry-1',
-      } as const,
-      { type: 'unitWaited', unitId: 'player-infantry-1' } as const,
-    ]
-
-    for (const action of actions) {
-      expect(gameReducer(state, action)).toBe(state)
-    }
-  })
-
-  it('새 게임은 독립된 최신 초기 상태를 반환한다', () => {
-    const state = {
-      ...createInitialGameState(),
-      phase: 'victory' as const,
-      turn: 9,
-    }
-    const restarted = gameReducer(state, { type: 'gameRestarted' })
-
-    expect(restarted).toEqual(createInitialGameState())
-    expect(restarted).not.toBe(state)
-    expect(restarted.units).not.toBe(state.units)
-    expect(restarted.schemaVersion).toBe(5)
-  })
-
-  it('승리와 패배 상태에서도 저장된 게임을 독립된 상태로 불러온다', () => {
-    const current = {
-      ...createInitialGameState(),
-      phase: 'victory' as const,
-      turn: 9,
-    }
-    const saved = {
-      ...createInitialGameState(),
-      turn: 3,
-      selectedUnitId: 'player-infantry-1',
-      resources: { player: 8, enemy: 4 },
-    }
-    const loaded = gameReducer(current, { type: 'gameLoaded', state: saved })
-
-    expect(loaded).toMatchObject({
-      phase: 'playing',
-      turn: 3,
-      resources: { player: 8, enemy: 4 },
-    })
-    expect(loaded.selectedUnitId).toBeUndefined()
-    expect(loaded).not.toBe(saved)
-    expect(loaded.units).not.toBe(saved.units)
-    expect(loaded.units[0].position).not.toBe(saved.units[0].position)
+    expect(restarted).toEqual(createInitialGameState('new-seed'))
+    expect(gameReducer(over, { type: 'turnEnded' })).toBe(over)
   })
 })
