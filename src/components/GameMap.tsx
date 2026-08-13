@@ -101,10 +101,7 @@ function getTerrainMark(terrain: Tile['terrain']): string | undefined {
     mountain: '▲',
     water: '≋',
     hill: '◒',
-    road: '╱',
     forest: '♣',
-    grassland: '·',
-    steppe: '⁘',
   }[terrain]
 }
 

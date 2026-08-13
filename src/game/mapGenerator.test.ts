@@ -29,7 +29,10 @@ describe('procedural map generation', () => {
       const state = generateGameState(seed)
 
       expect(validateGeneratedMap(state)).toEqual([])
-      expect(state.tiles).toHaveLength(91)
+      expect(state.tiles).toHaveLength(144)
+      expect(state.tiles.map((tile) => tile.terrain)).not.toContain('road')
+      expect(state.tiles.map((tile) => tile.terrain)).not.toContain('grassland')
+      expect(state.tiles.map((tile) => tile.terrain)).not.toContain('steppe')
       expect(state.sites).toHaveLength(8)
       expect(state.units).toHaveLength(6)
       expect(state.sites.filter((site) => site.kind === 'stronghold')).toHaveLength(2)

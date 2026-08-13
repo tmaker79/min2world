@@ -38,7 +38,7 @@ export type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 const FACTIONS = new Set<FactionId>(['player', 'enemy'])
 const SITE_OWNERS = new Set<SiteOwnerId>(['player', 'enemy', 'neutral'])
 const TERRAINS = new Set<Terrain>([
-  'plain', 'mountain', 'water', 'hill', 'road', 'forest', 'grassland', 'steppe',
+  'plain', 'mountain', 'water', 'hill', 'forest',
 ])
 const UNIT_TYPES = new Set<UnitType>(['infantry', 'cavalry', 'archer', 'spearman'])
 const SITE_TYPES = new Set<SiteType>(['stronghold', 'city', 'village', 'mine'])

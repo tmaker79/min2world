@@ -58,13 +58,10 @@ export const SITE_TYPE_LABELS: Record<SiteType, string> = {
 
 export const TERRAIN_MOVEMENT_COST: Record<Terrain, number | null> = {
   plain: 1,
-  mountain: 2,
+  mountain: null,
   water: null,
   hill: 2,
-  road: 1,
   forest: 2,
-  grassland: 1,
-  steppe: 1,
 }
 
 export const TERRAIN_DEFENSE: Record<Terrain, number> = {
@@ -72,10 +69,7 @@ export const TERRAIN_DEFENSE: Record<Terrain, number> = {
   mountain: 2,
   water: 0,
   hill: 1,
-  road: 0,
   forest: 1,
-  grassland: 0,
-  steppe: 0,
 }
 
 export const TERRAIN_LABELS: Record<Terrain, string> = {
@@ -83,10 +77,7 @@ export const TERRAIN_LABELS: Record<Terrain, string> = {
   mountain: '산',
   water: '물',
   hill: '언덕',
-  road: '길',
   forest: '숲',
-  grassland: '초원',
-  steppe: '평원',
 }
 
 export function getTileAt(state: GameState, position: Position) {
@@ -109,7 +100,6 @@ export function getMovementStepCost(
   const fromTile = getTileAt(state, from)
   const destinationTile = getTileAt(state, destination)
   if (!fromTile || !destinationTile) return null
-  if (fromTile.terrain === 'road' && destinationTile.terrain === 'road') return 0.5
   return TERRAIN_MOVEMENT_COST[destinationTile.terrain]
 }
 

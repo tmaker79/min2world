@@ -21,7 +21,7 @@ describe('gameReducer on a hex map', () => {
     expect(select(selected, player.id).selectedUnitId).toBeUndefined()
   })
 
-  it('moves by a fractional road cost and captures a neutral site', () => {
+  it('moves onto natural terrain and captures a neutral site', () => {
     const initial = createInitialGameState('reducer-capture')
     const neutral = initial.sites.find((site) => site.ownerId === 'neutral')!
     const start = getHexNeighbors(neutral.position).find((position) =>
@@ -39,7 +39,7 @@ describe('gameReducer on a hex map', () => {
       tiles: initial.tiles.map((tile) =>
         (tile.position.q === start.q && tile.position.r === start.r) ||
         (tile.position.q === neutral.position.q && tile.position.r === neutral.position.r)
-          ? { ...tile, terrain: 'road' }
+          ? { ...tile, terrain: 'plain' }
           : tile,
       ),
     }
@@ -48,7 +48,7 @@ describe('gameReducer on a hex map', () => {
     })
 
     expect(moved.units[0].position).toEqual(neutral.position)
-    expect(moved.units[0].movementRemaining).toBe(2.5)
+    expect(moved.units[0].movementRemaining).toBe(2)
     expect(moved.sites.find((site) => site.id === neutral.id)?.ownerId).toBe('player')
   })
 
@@ -96,7 +96,16 @@ describe('gameReducer on a hex map', () => {
       id: 'defender', name: 'defender', factionId: 'enemy', type: 'infantry',
       position: { q: 1, r: 0 }, hp: 10, maxHp: 10, movementRemaining: 2, hasActed: false,
     }
-    const state = { ...initial, units: [attacker, defender] }
+    const state = {
+      ...initial,
+      units: [attacker, defender],
+      tiles: initial.tiles.map((tile) =>
+        (tile.position.q === 0 && tile.position.r === 0) ||
+        (tile.position.q === 1 && tile.position.r === 0)
+          ? { ...tile, terrain: 'plain' as const }
+          : tile,
+      ),
+    }
     const result = gameReducer(select(state, attacker.id), {
       type: 'unitAttacked', attackerId: attacker.id, defenderId: defender.id,
     })

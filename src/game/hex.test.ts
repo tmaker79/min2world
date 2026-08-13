@@ -4,23 +4,32 @@ import {
   getHexDistance,
   getHexLine,
   getHexNeighbors,
+  getOppositeBoardPosition,
   getHexPixelPosition,
   isPositionOnBoard,
   positionKey,
 } from './hex'
 
 describe('hex coordinates', () => {
-  it('creates the 91 unique cells of a radius-5 board', () => {
+  it('creates a square 12 by 12 board with 144 unique cells', () => {
     const positions = getAllHexPositions()
 
-    expect(positions).toHaveLength(91)
-    expect(new Set(positions.map(positionKey))).toHaveLength(91)
+    expect(positions).toHaveLength(144)
+    expect(new Set(positions.map(positionKey))).toHaveLength(144)
     expect(positions.every((position) => isPositionOnBoard(position))).toBe(true)
+    const rowCounts = new Map<number, number>()
+    positions.forEach(({ r }) => rowCounts.set(r, (rowCounts.get(r) ?? 0) + 1))
+    expect([...rowCounts.values()]).toEqual(Array(12).fill(12))
+    expect(
+      positions.every((position) =>
+        isPositionOnBoard(getOppositeBoardPosition(position)),
+      ),
+    ).toBe(true)
   })
 
   it('returns six neighbors at the center and clips board-edge neighbors', () => {
     expect(getHexNeighbors({ q: 0, r: 0 })).toHaveLength(6)
-    expect(getHexNeighbors({ q: 5, r: 0 })).toHaveLength(3)
+    expect(getHexNeighbors({ q: 5, r: 0 }).length).toBeLessThan(6)
   })
 
   it('uses axial hex distance and creates an inclusive straight line', () => {

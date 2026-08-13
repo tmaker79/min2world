@@ -1,10 +1,14 @@
 import type { Position } from './types'
 
-export const HEX_RADIUS = 5
-export const HEX_TILE_COUNT = 1 + 3 * HEX_RADIUS * (HEX_RADIUS + 1)
+export const HEX_COLUMNS = 12
+export const HEX_ROWS = 12
+export const HEX_TILE_COUNT = HEX_COLUMNS * HEX_ROWS
 export const HEX_WIDTH = 58
 export const HEX_HEIGHT = 66
 export const HEX_ROW_STEP = HEX_HEIGHT * 0.75
+
+const CENTER_COLUMN = Math.floor(HEX_COLUMNS / 2)
+const CENTER_ROW = Math.floor(HEX_ROWS / 2)
 
 export const HEX_DIRECTIONS: readonly Position[] = [
   { q: 1, r: 0 },
@@ -29,36 +33,46 @@ export function getHexDistance(left: Position, right: Position): number {
   return (Math.abs(dq) + Math.abs(dr) + Math.abs(dq + dr)) / 2
 }
 
-export function isPositionOnBoard(
-  position: Position,
-  radius = HEX_RADIUS,
-): boolean {
-  return getHexDistance({ q: 0, r: 0 }, position) <= radius
+export function isPositionOnBoard(position: Position): boolean {
+  const row = position.r + CENTER_ROW
+  const column = position.q + CENTER_COLUMN + Math.floor(position.r / 2)
+  return row >= 0 && row < HEX_ROWS && column >= 0 && column < HEX_COLUMNS
 }
 
-export function getHexNeighbors(
-  position: Position,
-  radius = HEX_RADIUS,
-): Position[] {
+export function getHexNeighbors(position: Position): Position[] {
   return HEX_DIRECTIONS.map((direction) => ({
     q: position.q + direction.q,
     r: position.r + direction.r,
-  })).filter((candidate) => isPositionOnBoard(candidate, radius))
+  })).filter((candidate) => isPositionOnBoard(candidate))
 }
 
-export function getAllHexPositions(radius = HEX_RADIUS): Position[] {
+export function getAllHexPositions(): Position[] {
   const positions: Position[] = []
 
-  for (let r = -radius; r <= radius; r += 1) {
-    const minimumQ = Math.max(-radius, -r - radius)
-    const maximumQ = Math.min(radius, -r + radius)
-
-    for (let q = minimumQ; q <= maximumQ; q += 1) {
-      positions.push({ q, r })
+  for (let row = 0; row < HEX_ROWS; row += 1) {
+    const r = row - CENTER_ROW
+    for (let column = 0; column < HEX_COLUMNS; column += 1) {
+      positions.push({
+        q: column - CENTER_COLUMN - Math.floor(r / 2),
+        r,
+      })
     }
   }
 
   return positions
+}
+
+export function getOppositeBoardPosition(position: Position): Position {
+  const row = position.r + CENTER_ROW
+  const column = position.q + CENTER_COLUMN + Math.floor(position.r / 2)
+  const oppositeRow = HEX_ROWS - 1 - row
+  const oppositeColumn = HEX_COLUMNS - 1 - column
+  const r = oppositeRow - CENTER_ROW
+
+  return {
+    q: oppositeColumn - CENTER_COLUMN - Math.floor(r / 2),
+    r,
+  }
 }
 
 function cubeRound(q: number, r: number): Position {

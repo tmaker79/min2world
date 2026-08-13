@@ -11,6 +11,7 @@ import { ProductionPanel } from './components/ProductionPanel'
 import { SavePanel } from './components/SavePanel'
 import { StatusBar } from './components/StatusBar'
 import { createInitialGameState } from './game/initialState'
+import { HEX_TILE_COUNT } from './game/hex'
 import { createRandomMapSeed, normalizeMapSeed } from './game/mapGenerator'
 import { gameReducer } from './game/reducer'
 import {
@@ -470,7 +471,7 @@ function App({ initialState }: AppProps = {}) {
               <p className="eyebrow">THE FRONTIER</p>
               <h2 id="map-heading">전략 지도</h2>
             </div>
-            <span className="map-size">91 HEX</span>
+            <span className="map-size">{HEX_TILE_COUNT} HEX</span>
           </div>
 
           <form

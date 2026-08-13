@@ -63,26 +63,16 @@ describe('hex movement rules', () => {
     expect(reachable.every((position) => getHexDistance(position, infantry.position) <= 2)).toBe(true)
   })
 
-  it('blocks water and charges 2 for rough terrain', () => {
+  it('blocks water and mountain and charges 2 for rough terrain', () => {
     const infantry = unit('p1', 'player', 'infantry', { q: 0, r: 0 })
     let state = rulesState([infantry])
     state = withTerrain(state, { q: 1, r: 0 }, 'water')
+    state = withTerrain(state, { q: 1, r: -1 }, 'mountain')
     state = withTerrain(state, { q: 0, r: 1 }, 'forest')
 
     expect(getMovementCost(state, infantry, { q: 1, r: 0 })).toBeUndefined()
+    expect(getMovementCost(state, infantry, { q: 1, r: -1 })).toBeUndefined()
     expect(getMovementCost(state, infantry, { q: 0, r: 1 })).toBe(2)
-  })
-
-  it('charges 0.5 between consecutive road cells and 1 to enter or leave', () => {
-    const cavalry = unit('p1', 'player', 'cavalry', { q: 0, r: 0 })
-    let state = rulesState([cavalry])
-    state = withTerrain(state, { q: 0, r: 0 }, 'road')
-    state = withTerrain(state, { q: 1, r: 0 }, 'road')
-    state = withTerrain(state, { q: 2, r: 0 }, 'road')
-
-    expect(getMovementCost(state, cavalry, { q: 1, r: 0 })).toBe(0.5)
-    expect(getMovementCost(state, cavalry, { q: 2, r: 0 })).toBe(1)
-    expect(getMovementCost(state, cavalry, { q: 2, r: -1 })).toBe(1.5)
   })
 
   it('uses all six adjacent cells for enemy zone of control', () => {

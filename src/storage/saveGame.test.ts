@@ -45,7 +45,7 @@ describe('schema 6 saves', () => {
     expect(loaded.ok).toBe(true)
     if (loaded.ok) {
       expect(loaded.value.gameState).toEqual(JSON.parse(JSON.stringify(state)))
-      expect(loaded.value.gameState.tiles).toHaveLength(91)
+      expect(loaded.value.gameState.tiles).toHaveLength(144)
       expect(loaded.value.gameState.sites).toHaveLength(8)
       expect(loaded.value.gameState.mapSeed).toBe('save-roundtrip')
     }

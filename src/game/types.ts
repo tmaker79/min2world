@@ -3,10 +3,7 @@ export type Terrain =
   | 'mountain'
   | 'water'
   | 'hill'
-  | 'road'
   | 'forest'
-  | 'grassland'
-  | 'steppe'
 
 export const GAME_SCHEMA_VERSION = 6
 export const MAP_GENERATION_VERSION = 1

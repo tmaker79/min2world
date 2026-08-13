@@ -16,14 +16,14 @@ describe('Milestone 06 UI', () => {
     vi.restoreAllMocks()
   })
 
-  it('renders all 91 keyboard-focusable pointy hex tiles and the current seed', () => {
+  it('renders all 144 keyboard-focusable pointy hex tiles and the current seed', () => {
     const { container } = renderApp()
     const map = screen.getByTestId('game-map')
     const tiles = map.querySelectorAll<HTMLButtonElement>('.map-tile')
 
-    expect(tiles).toHaveLength(91)
+    expect(tiles).toHaveLength(144)
     expect([...tiles].every((tile) => tile.type === 'button' && !tile.disabled)).toBe(true)
-    expect(container.querySelector('.map-size')).toHaveTextContent('91 HEX')
+    expect(container.querySelector('.map-size')).toHaveTextContent('144 HEX')
     expect(container.querySelector('.seed-controls output')).toHaveTextContent('ui-seed')
     expect(container.querySelectorAll('.site-marker')).toHaveLength(8)
     expect(container.querySelectorAll('.unit-token')).toHaveLength(6)
@@ -70,7 +70,7 @@ describe('Milestone 06 UI', () => {
     await user.type(input, '  next-map  ')
     await user.click(submit)
     expect(container.querySelector('.seed-controls output')).toHaveTextContent('next-map')
-    expect(container.querySelectorAll('.map-tile')).toHaveLength(91)
+    expect(container.querySelectorAll('.map-tile')).toHaveLength(144)
   })
 
   it('asks before replacing a game that has progressed', async () => {

@@ -9,6 +9,7 @@ import {
   getUnitAt,
   isPositionInEnemyZoneOfControl,
   positionKey,
+  TERRAIN_MOVEMENT_COST,
   UNIT_STATS,
 } from './rules'
 import type {
@@ -42,7 +43,7 @@ function getApproachPositions(
 
     return Boolean(
       tile &&
-        tile.terrain !== 'water' &&
+        TERRAIN_MOVEMENT_COST[tile.terrain] !== null &&
         (!occupant || occupant.id === movingUnit.id),
     )
   })

@@ -2,7 +2,7 @@ import {
   getAllHexPositions,
   getHexDistance,
   getHexNeighbors,
-  HEX_DIRECTIONS,
+  getOppositeBoardPosition,
   positionKey,
 } from './hex'
 import { MAP_GENERATION_VERSION } from './types'
@@ -22,7 +22,7 @@ export const DEFAULT_MAP_SEED = 'min2world'
 
 const STARTING_RESOURCES = 15
 const MAX_GENERATION_ATTEMPTS = 128
-const CAPITAL_DISTANCE_FROM_CENTER = 4
+const CAPITAL_DISTANCE_FROM_CENTER = 5
 const SITE_PAIR_TYPES: readonly SiteType[] = ['city', 'village', 'mine']
 const STARTING_UNIT_TYPES: readonly UnitType[] = [
   'infantry',
@@ -32,13 +32,10 @@ const STARTING_UNIT_TYPES: readonly UnitType[] = [
 
 const TERRAIN_COST: Record<Terrain, number | null> = {
   plain: 1,
-  mountain: 2,
+  mountain: null,
   water: null,
   hill: 2,
-  road: 1,
   forest: 2,
-  grassland: 1,
-  steppe: 1,
 }
 
 function hashSeed(value: string): number {
@@ -124,23 +121,22 @@ function terrainFromNoise(elevation: number, moisture: number): Terrain {
   if (elevation > 0.68) return 'mountain'
   if (elevation > 0.59) return 'hill'
   if (moisture > 0.61) return 'forest'
-  if (moisture > 0.52) return 'grassland'
-  if (moisture < 0.43) return 'steppe'
   return 'plain'
 }
 
 function opposite(position: Position): Position {
-  return { q: -position.q, r: -position.r }
+  return getOppositeBoardPosition(position)
 }
 
 function chooseCapitals(random: () => number): Record<FactionId, Position> {
-  const axes = [HEX_DIRECTIONS[0], HEX_DIRECTIONS[1], HEX_DIRECTIONS[2]]
-  const axis = axes[Math.floor(random() * axes.length)]
-  const direction = random() < 0.5 ? axis : opposite(axis)
-  const player = {
-    q: direction.q * CAPITAL_DISTANCE_FROM_CENTER,
-    r: direction.r * CAPITAL_DISTANCE_FROM_CENTER,
-  }
+  const candidates = getAllHexPositions().filter(
+    (position) =>
+      getHexDistance(position, { q: 0, r: 0 }) ===
+        CAPITAL_DISTANCE_FROM_CENTER &&
+      positionKey(position) < positionKey(opposite(position)),
+  )
+  const selected = candidates[Math.floor(random() * candidates.length)]
+  const player = random() < 0.5 ? selected : opposite(selected)
 
   return { player, enemy: opposite(player) }
 }
@@ -167,62 +163,6 @@ function getConnectedKeys(tiles: Tile[], start: Position): Set<string> {
   }
 
   return connected
-}
-
-function findPath(
-  tiles: Tile[],
-  start: Position,
-  destinationKeys: Set<string>,
-): Position[] | undefined {
-  const tileByKey = new Map(tiles.map((tile) => [positionKey(tile.position), tile]))
-  const frontier: Array<{ position: Position; cost: number }> = [
-    { position: start, cost: 0 },
-  ]
-  const costs = new Map<string, number>([[positionKey(start), 0]])
-  const previous = new Map<string, string>()
-
-  while (frontier.length > 0) {
-    frontier.sort(
-      (left, right) =>
-        left.cost - right.cost ||
-        left.position.r - right.position.r ||
-        left.position.q - right.position.q,
-    )
-    const current = frontier.shift()!
-    const currentKey = positionKey(current.position)
-    if (current.cost !== costs.get(currentKey)) continue
-
-    if (destinationKeys.has(currentKey)) {
-      const path: Position[] = [current.position]
-      let key = currentKey
-      while (previous.has(key)) {
-        key = previous.get(key)!
-        const [q, r] = key.split(',').map(Number)
-        path.push({ q, r })
-      }
-      return path.reverse()
-    }
-
-    for (const neighbor of getHexNeighbors(current.position)) {
-      const neighborKey = positionKey(neighbor)
-      const terrain = tileByKey.get(neighborKey)?.terrain
-      if (!terrain || TERRAIN_COST[terrain] === null) continue
-      const nextCost = current.cost + (TERRAIN_COST[terrain] ?? 1)
-      if (nextCost >= (costs.get(neighborKey) ?? Infinity)) continue
-      costs.set(neighborKey, nextCost)
-      previous.set(neighborKey, currentKey)
-      frontier.push({ position: neighbor, cost: nextCost })
-    }
-  }
-
-  return undefined
-}
-
-function setTerrain(tiles: Tile[], positions: Position[], terrain: Terrain) {
-  const keys = new Set(positions.map(positionKey))
-  for (const tile of tiles) {
-    if (keys.has(positionKey(tile.position))) tile.terrain = terrain
-  }
 }
 
 function chooseNeutralSites(
@@ -271,28 +211,6 @@ function chooseNeutralSites(
   }))
 }
 
-function connectSitesWithRoads(tiles: Tile[], sites: Site[]): boolean {
-  const roadKeys = new Set<string>()
-  const capitals = sites.filter((site) => site.kind === 'stronghold')
-  const capitalPath = findPath(
-    tiles,
-    capitals[0].position,
-    new Set([positionKey(capitals[1].position)]),
-  )
-  if (!capitalPath) return false
-  setTerrain(tiles, capitalPath, 'road')
-  capitalPath.forEach((position) => roadKeys.add(positionKey(position)))
-
-  for (const site of sites.filter((candidate) => candidate.kind !== 'stronghold')) {
-    const path = findPath(tiles, site.position, roadKeys)
-    if (!path) return false
-    setTerrain(tiles, path, 'road')
-    path.forEach((position) => roadKeys.add(positionKey(position)))
-  }
-
-  return true
-}
-
 function getWeightedCosts(tiles: Tile[], start: Position): Map<string, number> {
   const tileByKey = new Map(tiles.map((tile) => [positionKey(tile.position), tile]))
   const costs = new Map<string, number>([[positionKey(start), 0]])
@@ -308,12 +226,9 @@ function getWeightedCosts(tiles: Tile[], start: Position): Map<string, number> {
 
     for (const neighbor of getHexNeighbors(current.position)) {
       const neighborKey = positionKey(neighbor)
-      const currentTerrain = tileByKey.get(currentKey)?.terrain
       const terrain = tileByKey.get(neighborKey)?.terrain
-      if (!currentTerrain || !terrain || TERRAIN_COST[terrain] === null) continue
-      const stepCost = currentTerrain === 'road' && terrain === 'road'
-        ? 0.5
-        : (TERRAIN_COST[terrain] ?? 1)
+      if (!terrain || TERRAIN_COST[terrain] === null) continue
+      const stepCost = TERRAIN_COST[terrain] ?? 1
       const nextCost = current.cost + stepCost
       if (nextCost >= (costs.get(neighborKey) ?? Infinity)) continue
       costs.set(neighborKey, nextCost)
@@ -326,7 +241,7 @@ function getWeightedCosts(tiles: Tile[], start: Position): Map<string, number> {
 
 export function validateGeneratedMap(state: GameState): string[] {
   const issues: string[] = []
-  if (state.tiles.length !== 91) issues.push('tileCount')
+  if (state.tiles.length !== getAllHexPositions().length) issues.push('tileCount')
   if (state.sites.length !== 8) issues.push('siteCount')
 
   const tileKeys = state.tiles.map((tile) => positionKey(tile.position))
@@ -446,7 +361,7 @@ function buildCandidate(seed: string, attempt: number, fallback = false): GameSt
     id: `tile-${position.q}-${position.r}`,
     position: { ...position },
     terrain: fallback
-      ? 'grassland'
+      ? 'plain'
       : terrainFromNoise(
           elevation.get(positionKey(position)) ?? 0.5,
           moisture.get(positionKey(position)) ?? 0.5,
@@ -458,7 +373,7 @@ function buildCandidate(seed: string, attempt: number, fallback = false): GameSt
       (tile) => getHexDistance(tile.position, capitals[factionId]) <= 2,
     )
     for (const tile of localTiles) {
-      if (tile.terrain === 'water') tile.terrain = 'grassland'
+      if (tile.terrain === 'water') tile.terrain = 'plain'
       if (tile.terrain === 'mountain') tile.terrain = 'hill'
     }
   }
@@ -466,8 +381,6 @@ function buildCandidate(seed: string, attempt: number, fallback = false): GameSt
   const neutralSites = chooseNeutralSites(tiles, capitals, random)
   if (!neutralSites) return undefined
   const sites = createSites(capitals, neutralSites)
-  if (!connectSitesWithRoads(tiles, sites)) return undefined
-
   const siteIdsByPosition = new Map(
     sites.map((site) => [positionKey(site.position), site.id]),
   )
