@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Dispatch } from 'react'
 import { chooseAiAction } from '../game/ai'
+import { UNIT_TYPE_LABELS } from '../game/rules'
 import type { GameAction, GameState } from '../game/types'
 
 type UseAiTurnOptions = {
@@ -44,6 +45,13 @@ function getActionAnnouncement(state: GameState, action: GameAction): string {
     return attacker && defender
       ? `${attacker.name}이 ${defender.name}을 공격합니다.`
       : 'AI 공격'
+  }
+
+  if (action.type === 'unitProduced') {
+    const city = state.cities.find(
+      (candidate) => candidate.id === action.cityId,
+    )
+    return `${city?.name ?? '도시'}에서 ${UNIT_TYPE_LABELS[action.unitType]}을 생산합니다.`
   }
 
   return ''

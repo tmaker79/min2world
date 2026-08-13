@@ -25,6 +25,10 @@ export function Legend() {
           공격 가능
         </li>
         <li>
+          <span className="legend-swatch legend-swatch--deployable" />
+          생산 배치 가능
+        </li>
+        <li>
           <span className="legend-swatch legend-swatch--zoc" />
           적 통제 구역 <small>진입 시 이동 종료</small>
         </li>

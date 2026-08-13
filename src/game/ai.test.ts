@@ -197,6 +197,54 @@ describe('chooseAiAction', () => {
     ).toEqual({ type: 'turnEnded' })
   })
 
+  it('모든 부대 행동 후 부족한 병종을 도시에서 생산한다', () => {
+    const initial = createInitialGameState()
+    const state: GameState = {
+      ...initial,
+      activeFactionId: 'enemy',
+      units: initial.units.map((unit) =>
+        unit.factionId === 'enemy'
+          ? { ...unit, movementRemaining: 0, hasActed: true }
+          : unit,
+      ),
+    }
+
+    expect(chooseAiAction(state)).toEqual({
+      type: 'unitProduced',
+      cityId: 'city-enemy',
+      unitType: 'spearman',
+      destination: { x: 8, y: 1 },
+    })
+  })
+
+  it('자원이 부족하거나 도시가 이미 생산했으면 AI 턴을 종료한다', () => {
+    const initial = createInitialGameState()
+    const actedUnits = initial.units.map((unit) =>
+      unit.factionId === 'enemy'
+        ? { ...unit, movementRemaining: 0, hasActed: true }
+        : unit,
+    )
+    const base: GameState = {
+      ...initial,
+      activeFactionId: 'enemy',
+      units: actedUnits,
+      resources: { ...initial.resources, enemy: 9 },
+    }
+
+    expect(chooseAiAction(base)).toEqual({ type: 'turnEnded' })
+    expect(
+      chooseAiAction({
+        ...base,
+        resources: { ...base.resources, enemy: 15 },
+        cities: base.cities.map((city) =>
+          city.id === 'city-enemy'
+            ? { ...city, lastProducedTurn: base.turn }
+            : city,
+        ),
+      }),
+    ).toEqual({ type: 'turnEnded' })
+  })
+
   it('같은 상태에서 같은 행동을 반환하고 원본을 변경하지 않는다', () => {
     const state = createAiState()
     const snapshot = structuredClone(state)

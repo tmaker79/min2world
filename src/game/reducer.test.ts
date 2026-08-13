@@ -188,7 +188,7 @@ describe('gameReducer', () => {
       aiTurn.units.find((unit) => unit.id === 'player-infantry-1')
         ?.movementRemaining,
     ).toBe(0)
-    expect(aiTurn.resources).toEqual(state.resources)
+    expect(aiTurn.resources).toEqual({ player: 20, enemy: 15 })
   })
 
   it('AI 종료 후 다음 라운드의 플레이어 유닛을 초기화한다', () => {
@@ -209,6 +209,105 @@ describe('gameReducer', () => {
     expect(
       playerTurn.units.find((unit) => unit.id === 'player-infantry-1'),
     ).toMatchObject({ movementRemaining: 2, hasActed: false })
+    expect(playerTurn.resources).toEqual({ player: 15, enemy: 20 })
+  })
+
+  it('도시에서 자원을 소비해 행동 완료 상태의 부대를 생산한다', () => {
+    const state = createInitialGameState()
+    const produced = gameReducer(state, {
+      type: 'unitProduced',
+      cityId: 'city-player',
+      unitType: 'archer',
+      destination: { x: 1, y: 8 },
+    })
+    const unit = produced.units.find(
+      (candidate) => candidate.id === 'player-archer-produced-1',
+    )
+
+    expect(produced.resources.player).toBe(3)
+    expect(produced.selectedUnitId).toBe(unit?.id)
+    expect(unit).toMatchObject({
+      name: '푸른 궁병 1',
+      type: 'archer',
+      hp: 10,
+      maxHp: 10,
+      movementRemaining: 0,
+      hasActed: true,
+      position: { x: 1, y: 8 },
+    })
+    expect(
+      produced.cities.find((city) => city.id === 'city-player')
+        ?.lastProducedTurn,
+    ).toBe(1)
+    expect(state.units).toHaveLength(6)
+    expect(state.resources.player).toBe(15)
+  })
+
+  it('생산 유닛은 다음 자기 세력 턴에 행동 가능해진다', () => {
+    const produced = gameReducer(createInitialGameState(), {
+      type: 'unitProduced',
+      cityId: 'city-player',
+      unitType: 'infantry',
+      destination: { x: 1, y: 8 },
+    })
+    const enemyTurn = gameReducer(produced, { type: 'turnEnded' })
+    const nextPlayerTurn = gameReducer(enemyTurn, { type: 'turnEnded' })
+
+    expect(
+      nextPlayerTurn.units.find(
+        (unit) => unit.id === 'player-infantry-produced-1',
+      ),
+    ).toMatchObject({ movementRemaining: 2, hasActed: false })
+    expect(nextPlayerTurn.resources).toEqual({ player: 10, enemy: 20 })
+  })
+
+  it('소유권, 자원, 배치 위치와 라운드당 생산 제한을 검증한다', () => {
+    const initial = createInitialGameState()
+    const cases: GameState[] = [
+      { ...initial, resources: { ...initial.resources, player: 9 } },
+      {
+        ...initial,
+        cities: initial.cities.map((city) =>
+          city.id === 'city-player'
+            ? { ...city, lastProducedTurn: initial.turn }
+            : city,
+        ),
+      },
+    ]
+
+    for (const state of cases) {
+      expect(
+        gameReducer(state, {
+          type: 'unitProduced',
+          cityId: 'city-player',
+          unitType: 'infantry',
+          destination: { x: 1, y: 8 },
+        }),
+      ).toBe(state)
+    }
+
+    for (const action of [
+      {
+        type: 'unitProduced' as const,
+        cityId: 'city-enemy',
+        unitType: 'infantry' as const,
+        destination: { x: 8, y: 1 },
+      },
+      {
+        type: 'unitProduced' as const,
+        cityId: 'city-player',
+        unitType: 'infantry' as const,
+        destination: { x: 1, y: 7 },
+      },
+      {
+        type: 'unitProduced' as const,
+        cityId: 'city-player',
+        unitType: 'infantry' as const,
+        destination: { x: 4, y: 8 },
+      },
+    ]) {
+      expect(gameReducer(initial, action)).toBe(initial)
+    }
   })
 
   it('인접한 적을 공격하고 생존한 양쪽 유닛의 체력을 갱신한다', () => {
@@ -489,7 +588,7 @@ describe('gameReducer', () => {
     expect(restarted).toEqual(createInitialGameState())
     expect(restarted).not.toBe(state)
     expect(restarted.units).not.toBe(state.units)
-    expect(restarted.schemaVersion).toBe(4)
+    expect(restarted.schemaVersion).toBe(5)
   })
 
   it('승리와 패배 상태에서도 저장된 게임을 독립된 상태로 불러온다', () => {

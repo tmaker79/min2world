@@ -128,8 +128,8 @@ export function createInitialGameState(): GameState {
     phase: 'playing',
     activeFactionId: 'player',
     resources: {
-      player: 0,
-      enemy: 0,
+      player: 15,
+      enemy: 15,
     },
     tiles: Array.from({ length: BOARD_SIZE * BOARD_SIZE }, (_, index) => {
       const position = {

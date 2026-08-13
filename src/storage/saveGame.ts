@@ -41,7 +41,13 @@ export type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 
 const FACTIONS = new Set<FactionId>(['player', 'enemy'])
 const TERRAINS = new Set<Terrain>(['plain', 'mountain', 'water'])
-const UNIT_TYPES = new Set<UnitType>(['infantry', 'cavalry'])
+const UNIT_TYPES = new Set<UnitType>([
+  'infantry',
+  'cavalry',
+  'archer',
+  'spearman',
+])
+const LEGACY_UNIT_TYPES = new Set<UnitType>(['infantry', 'cavalry'])
 
 function success<T>(value: T): StorageResult<T> {
   return { ok: true, value }
@@ -160,7 +166,9 @@ function parseCity(value: unknown): City | undefined {
     !isNonEmptyString(value.name) ||
     typeof value.ownerId !== 'string' ||
     !FACTIONS.has(value.ownerId as FactionId) ||
-    !isIntegerInRange(value.resourcePerTurn, 0)
+    !isIntegerInRange(value.resourcePerTurn, 0) ||
+    (value.lastProducedTurn !== undefined &&
+      !isIntegerInRange(value.lastProducedTurn, 1))
   ) {
     return undefined
   }
@@ -176,6 +184,9 @@ function parseCity(value: unknown): City | undefined {
     position,
     ownerId: value.ownerId as FactionId,
     resourcePerTurn: value.resourcePerTurn,
+    ...(value.lastProducedTurn === undefined
+      ? {}
+      : { lastProducedTurn: value.lastProducedTurn as number }),
   }
 }
 
@@ -183,7 +194,10 @@ function hasUniqueValues(values: string[]): boolean {
   return new Set(values).size === values.length
 }
 
-function parseGameState(value: unknown): StorageResult<GameState> {
+function parseGameState(
+  value: unknown,
+  sourceVersion: number,
+): StorageResult<GameState> {
   if (!isRecord(value)) {
     return failure('invalidData', '저장된 게임 상태 형식이 올바르지 않습니다.')
   }
@@ -192,7 +206,7 @@ function parseGameState(value: unknown): StorageResult<GameState> {
     return failure('invalidData', '저장 데이터의 버전 정보가 없습니다.')
   }
 
-  if (value.schemaVersion !== GAME_SCHEMA_VERSION) {
+  if (value.schemaVersion !== sourceVersion) {
     return failure(
       'unsupportedVersion',
       '현재 버전에서 지원하지 않는 저장 데이터입니다.',
@@ -229,7 +243,24 @@ function parseGameState(value: unknown): StorageResult<GameState> {
 
   const parsedTiles = tiles as Tile[]
   const parsedUnits = units as Unit[]
-  const parsedCities = cities as City[]
+  const parsedCities = (cities as City[]).map((city) =>
+    sourceVersion === 4
+      ? {
+          id: city.id,
+          name: city.name,
+          position: city.position,
+          ownerId: city.ownerId,
+          resourcePerTurn: city.resourcePerTurn,
+        }
+      : city,
+  )
+
+  if (
+    sourceVersion === 4 &&
+    parsedUnits.some((unit) => !LEGACY_UNIT_TYPES.has(unit.type))
+  ) {
+    return failure('invalidData', '이전 저장 데이터의 병종 정보가 올바르지 않습니다.')
+  }
 
   if (
     !hasUniqueValues(parsedTiles.map((tile) => tile.id)) ||
@@ -275,8 +306,17 @@ function parseGameState(value: unknown): StorageResult<GameState> {
       tile && TERRAIN_MOVEMENT_COST[tile.terrain] !== null,
     )
   })
+  const productionTurnsAreValid = parsedCities.every(
+    (city) =>
+      city.lastProducedTurn === undefined || city.lastProducedTurn <= state.turn,
+  )
 
-  if (!citiesMatchTiles || !tilesMatchCities || !unitsAreOnPassableTiles) {
+  if (
+    !citiesMatchTiles ||
+    !tilesMatchCities ||
+    !unitsAreOnPassableTiles ||
+    !productionTurnsAreValid
+  ) {
     return failure('invalidData', '지도 참조 관계가 올바르지 않습니다.')
   }
 
@@ -327,7 +367,7 @@ function readSavedGame(storage?: StorageLike): StorageResult<SavedGame> {
     return failure('invalidData', '저장 데이터의 버전 정보가 없습니다.')
   }
 
-  if (parsed.schemaVersion !== GAME_SCHEMA_VERSION) {
+  if (parsed.schemaVersion !== GAME_SCHEMA_VERSION && parsed.schemaVersion !== 4) {
     return failure(
       'unsupportedVersion',
       '현재 버전에서 지원하지 않는 저장 데이터입니다.',
@@ -341,7 +381,7 @@ function readSavedGame(storage?: StorageLike): StorageResult<SavedGame> {
     return failure('invalidData', '저장 시각 정보가 올바르지 않습니다.')
   }
 
-  const gameState = parseGameState(parsed.gameState)
+  const gameState = parseGameState(parsed.gameState, parsed.schemaVersion)
   if (!gameState.ok) {
     return gameState
   }

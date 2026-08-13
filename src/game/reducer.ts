@@ -3,10 +3,13 @@ import { cloneGameState } from './state'
 import {
   captureCityAt,
   getAttackableUnits,
+  getDeployablePositions,
+  getFactionIncome,
   getMovementCost,
   isPositionInEnemyZoneOfControl,
   ownsAllCities,
   resolveCombat,
+  UNIT_TYPE_LABELS,
   UNIT_STATS,
 } from './rules'
 import type { GameAction, GameState } from './types'
@@ -176,15 +179,81 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       }
     }
 
-    case 'turnEnded': {
-      const nextFactionId =
-        state.activeFactionId === 'player' ? 'enemy' : 'player'
+    case 'unitProduced': {
+      const city = state.cities.find(
+        (candidate) => candidate.id === action.cityId,
+      )
+      const stats = UNIT_STATS[action.unitType]
+
+      if (
+        !city ||
+        city.ownerId !== state.activeFactionId ||
+        city.lastProducedTurn === state.turn ||
+        !stats ||
+        state.resources[state.activeFactionId] < stats.cost ||
+        !getDeployablePositions(state, city).some(
+          (position) =>
+            position.x === action.destination.x &&
+            position.y === action.destination.y,
+        )
+      ) {
+        return state
+      }
+
+      let sequence = 1
+      let unitId = `${state.activeFactionId}-${action.unitType}-produced-${sequence}`
+      while (state.units.some((unit) => unit.id === unitId)) {
+        sequence += 1
+        unitId = `${state.activeFactionId}-${action.unitType}-produced-${sequence}`
+      }
+
+      const factionLabel =
+        state.activeFactionId === 'player' ? '푸른' : '붉은'
+      const unit = {
+        id: unitId,
+        name: `${factionLabel} ${UNIT_TYPE_LABELS[action.unitType]} ${sequence}`,
+        factionId: state.activeFactionId,
+        type: action.unitType,
+        position: { ...action.destination },
+        hp: 10,
+        maxHp: 10,
+        movementRemaining: 0,
+        hasActed: true,
+      }
 
       return {
         ...state,
-        turn: state.turn + (state.activeFactionId === 'enemy' ? 1 : 0),
+        selectedUnitId: unit.id,
+        resources: {
+          ...state.resources,
+          [state.activeFactionId]:
+            state.resources[state.activeFactionId] - stats.cost,
+        },
+        units: [...state.units, unit],
+        cities: state.cities.map((candidate) =>
+          candidate.id === city.id
+            ? { ...candidate, lastProducedTurn: state.turn }
+            : candidate,
+        ),
+      }
+    }
+
+    case 'turnEnded': {
+      const endingFactionId = state.activeFactionId
+      const nextFactionId =
+        endingFactionId === 'player' ? 'enemy' : 'player'
+
+      return {
+        ...state,
+        turn: state.turn + (endingFactionId === 'enemy' ? 1 : 0),
         activeFactionId: nextFactionId,
         selectedUnitId: undefined,
+        resources: {
+          ...state.resources,
+          [endingFactionId]:
+            state.resources[endingFactionId] +
+            getFactionIncome(state, endingFactionId),
+        },
         units: state.units.map((unit) =>
           unit.factionId === nextFactionId
             ? {

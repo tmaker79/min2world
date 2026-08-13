@@ -16,12 +16,44 @@ export const UNIT_STATS: Record<UnitType, UnitStats> = {
     movement: 2,
     attack: 4,
     counterAttack: 3,
+    range: 1,
+    cost: 10,
   },
   cavalry: {
     movement: 3,
     attack: 5,
     counterAttack: 2,
+    range: 1,
+    cost: 15,
   },
+  archer: {
+    movement: 2,
+    attack: 3,
+    counterAttack: 1,
+    range: 2,
+    cost: 12,
+  },
+  spearman: {
+    movement: 2,
+    attack: 3,
+    counterAttack: 5,
+    range: 1,
+    cost: 12,
+  },
+}
+
+export const UNIT_TYPES: readonly UnitType[] = [
+  'infantry',
+  'cavalry',
+  'archer',
+  'spearman',
+]
+
+export const UNIT_TYPE_LABELS: Record<UnitType, string> = {
+  infantry: '보병',
+  cavalry: '기병',
+  archer: '궁병',
+  spearman: '창병',
 }
 
 export const TERRAIN_MOVEMENT_COST: Record<Terrain, number | null> = {
@@ -66,13 +98,17 @@ export function areOrthogonallyAdjacent(
   return Math.abs(left.x - right.x) + Math.abs(left.y - right.y) === 1
 }
 
-function getOrthogonalNeighbors(position: Position): Position[] {
+export function getOrthogonalNeighbors(position: Position): Position[] {
   return [
     { x: position.x, y: position.y - 1 },
     { x: position.x + 1, y: position.y },
     { x: position.x, y: position.y + 1 },
     { x: position.x - 1, y: position.y },
   ].filter(isPositionOnBoard)
+}
+
+export function getManhattanDistance(left: Position, right: Position): number {
+  return Math.abs(left.x - right.x) + Math.abs(left.y - right.y)
 }
 
 export function getEnemyZoneOfControlPositions(
@@ -216,7 +252,8 @@ export function getAttackableUnits(state: GameState, unit: Unit): Unit[] {
   return state.units.filter(
     (candidate) =>
       candidate.factionId !== unit.factionId &&
-      areOrthogonallyAdjacent(unit.position, candidate.position),
+      getManhattanDistance(unit.position, candidate.position) <=
+        UNIT_STATS[unit.type].range,
   )
 }
 
@@ -226,19 +263,57 @@ export type CombatResult = {
 }
 
 export function resolveCombat(attacker: Unit, defender: Unit): CombatResult {
+  const distance = getManhattanDistance(attacker.position, defender.position)
+  const attackBonus =
+    attacker.type === 'spearman' && defender.type === 'cavalry' ? 2 : 0
   const defenderHp = Math.max(
     0,
-    defender.hp - UNIT_STATS[attacker.type].attack,
+    defender.hp - (UNIT_STATS[attacker.type].attack + attackBonus),
   )
+  const canCounter =
+    distance <= UNIT_STATS[defender.type].range && defenderHp > 0
+  const counterAttackBonus =
+    defender.type === 'spearman' && attacker.type === 'cavalry' ? 2 : 0
   const attackerHp =
-    defenderHp > 0
+    canCounter
       ? Math.max(
           0,
-          attacker.hp - UNIT_STATS[defender.type].counterAttack,
+          attacker.hp -
+            (UNIT_STATS[defender.type].counterAttack + counterAttackBonus),
         )
       : attacker.hp
 
   return { attackerHp, defenderHp }
+}
+
+export function getDeployablePositions(
+  state: GameState,
+  city: City,
+): Position[] {
+  const candidates = [
+    { ...city.position },
+    ...getOrthogonalNeighbors(city.position).sort(
+      (left, right) => left.y - right.y || left.x - right.x,
+    ),
+  ]
+
+  return candidates.filter((position) => {
+    const tile = getTileAt(state, position)
+    return Boolean(
+      tile &&
+        TERRAIN_MOVEMENT_COST[tile.terrain] !== null &&
+        !getUnitAt(state, position),
+    )
+  })
+}
+
+export function getFactionIncome(
+  state: GameState,
+  factionId: FactionId,
+): number {
+  return state.cities
+    .filter((city) => city.ownerId === factionId)
+    .reduce((total, city) => total + city.resourcePerTurn, 0)
 }
 
 export function captureCityAt(

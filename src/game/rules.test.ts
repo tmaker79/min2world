@@ -168,8 +168,50 @@ describe('getReachablePositions', () => {
 describe('combat rules', () => {
   it('유닛 종류별 이동력, 공격력과 반격력을 제공한다', () => {
     expect(UNIT_STATS).toEqual({
-      infantry: { movement: 2, attack: 4, counterAttack: 3 },
-      cavalry: { movement: 3, attack: 5, counterAttack: 2 },
+      infantry: { movement: 2, attack: 4, counterAttack: 3, range: 1, cost: 10 },
+      cavalry: { movement: 3, attack: 5, counterAttack: 2, range: 1, cost: 15 },
+      archer: { movement: 2, attack: 3, counterAttack: 1, range: 2, cost: 12 },
+      spearman: { movement: 2, attack: 3, counterAttack: 5, range: 1, cost: 12 },
+    })
+  })
+
+  it('궁병은 맨해튼 거리 2까지 공격하고 근접 방어자는 반격하지 못한다', () => {
+    const state = createMovementState({
+      unitType: 'archer',
+      blockers: [{ x: 6, y: 6 }],
+    })
+    const [archer, defender] = state.units
+
+    expect(getAttackableUnits(state, archer).map((unit) => unit.id)).toEqual([
+      defender.id,
+    ])
+    expect(resolveCombat(archer, defender)).toEqual({
+      attackerHp: 10,
+      defenderHp: 7,
+    })
+  })
+
+  it('궁병끼리는 거리 2에서도 반격하며 창병은 기병에게 추가 피해를 준다', () => {
+    const state = createMovementState({
+      unitType: 'archer',
+      blockers: [{ x: 5, y: 3 }],
+    })
+    const [archer, defender] = state.units
+    const enemyArcher = { ...defender, type: 'archer' as const }
+    const spearman = { ...archer, type: 'spearman' as const }
+    const cavalry = { ...defender, position: { x: 5, y: 4 }, type: 'cavalry' as const }
+
+    expect(resolveCombat(archer, enemyArcher)).toEqual({
+      attackerHp: 9,
+      defenderHp: 7,
+    })
+    expect(resolveCombat(spearman, cavalry)).toEqual({
+      attackerHp: 8,
+      defenderHp: 5,
+    })
+    expect(resolveCombat(cavalry, spearman)).toEqual({
+      attackerHp: 3,
+      defenderHp: 5,
     })
   })
 

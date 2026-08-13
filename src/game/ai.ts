@@ -1,5 +1,6 @@
 import {
   getAttackableUnits,
+  getDeployablePositions,
   getMovementCost,
   getReachablePositions,
   getTileAt,
@@ -8,8 +9,23 @@ import {
   isPositionOnBoard,
   positionKey,
   TERRAIN_MOVEMENT_COST,
+  UNIT_STATS,
 } from './rules'
-import type { City, GameAction, GameState, Position, Unit } from './types'
+import type {
+  City,
+  GameAction,
+  GameState,
+  Position,
+  Unit,
+  UnitType,
+} from './types'
+
+const AI_PRODUCTION_PRIORITY: readonly UnitType[] = [
+  'spearman',
+  'archer',
+  'cavalry',
+  'infantry',
+]
 
 function compareIds(left: { id: string }, right: { id: string }) {
   return left.id.localeCompare(right.id)
@@ -214,6 +230,49 @@ function chooseMovement(
     : undefined
 }
 
+function chooseProduction(state: GameState): GameAction | undefined {
+  const city = state.cities
+    .filter(
+      (candidate) =>
+        candidate.ownerId === 'enemy' &&
+        candidate.lastProducedTurn !== state.turn &&
+        getDeployablePositions(state, candidate).length > 0,
+    )
+    .sort(compareIds)[0]
+
+  if (!city) {
+    return undefined
+  }
+
+  const unitCounts = new Map<UnitType, number>(
+    AI_PRODUCTION_PRIORITY.map((type) => [
+      type,
+      state.units.filter(
+        (unit) => unit.factionId === 'enemy' && unit.type === type,
+      ).length,
+    ]),
+  )
+  const unitType = AI_PRODUCTION_PRIORITY.filter(
+    (type) => UNIT_STATS[type].cost <= state.resources.enemy,
+  ).sort(
+    (left, right) =>
+      (unitCounts.get(left) ?? 0) - (unitCounts.get(right) ?? 0) ||
+      AI_PRODUCTION_PRIORITY.indexOf(left) -
+        AI_PRODUCTION_PRIORITY.indexOf(right),
+  )[0]
+
+  if (!unitType) {
+    return undefined
+  }
+
+  return {
+    type: 'unitProduced',
+    cityId: city.id,
+    unitType,
+    destination: getDeployablePositions(state, city)[0],
+  }
+}
+
 export function chooseAiAction(state: GameState): GameAction | undefined {
   if (state.phase !== 'playing' || state.activeFactionId !== 'enemy') {
     return undefined
@@ -233,7 +292,7 @@ export function chooseAiAction(state: GameState): GameAction | undefined {
 
     return nextUnit
       ? { type: 'unitSelected', unitId: nextUnit.id }
-      : { type: 'turnEnded' }
+      : (chooseProduction(state) ?? { type: 'turnEnded' })
   }
 
   const attackTarget = getAttackableUnits(state, selectedUnit).sort(

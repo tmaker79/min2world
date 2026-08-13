@@ -7,18 +7,25 @@ import type {
 } from './components/GameMap'
 import { InfoPanel } from './components/InfoPanel'
 import { Legend } from './components/Legend'
+import { ProductionPanel } from './components/ProductionPanel'
 import { SavePanel } from './components/SavePanel'
 import { StatusBar } from './components/StatusBar'
 import { createInitialGameState } from './game/initialState'
 import { gameReducer } from './game/reducer'
-import { getUnitAt, positionKey, resolveCombat } from './game/rules'
+import {
+  getDeployablePositions,
+  getUnitAt,
+  positionKey,
+  resolveCombat,
+  UNIT_TYPE_LABELS,
+} from './game/rules'
 import {
   getSelectedUnit,
   getSelectedUnitAttackableUnits,
   getSelectedUnitEnemyZoneOfControlPositions,
   getSelectedUnitReachablePositions,
 } from './game/selectors'
-import type { GameState, Tile } from './game/types'
+import type { GameState, Tile, UnitType } from './game/types'
 import { useAiTurn } from './hooks/useAiTurn'
 import {
   deleteSavedGame,
@@ -47,6 +54,44 @@ function App({ initialState }: AppProps = {}) {
     type: 'status' | 'error'
     message: string
   }>()
+  const [productionCityId, setProductionCityId] = useState<string>(() =>
+    state.cities.find((city) => city.ownerId === 'player')?.id ?? '',
+  )
+  const [productionUnitType, setProductionUnitType] = useState<UnitType>()
+  const [productionFeedback, setProductionFeedback] = useState<{
+    type: 'status' | 'error'
+    message: string
+  }>()
+  const playerCities = useMemo(
+    () => state.cities.filter((city) => city.ownerId === 'player'),
+    [state.cities],
+  )
+  const availableProductionCityId = playerCities.some(
+    (city) => city.id === productionCityId,
+  )
+    ? productionCityId
+    : playerCities[0]?.id
+  const productionCity = playerCities.find(
+    (city) => city.id === availableProductionCityId,
+  )
+  const activeProductionUnitType =
+    state.phase === 'playing' &&
+    state.activeFactionId === 'player' &&
+    !activeCombat
+      ? productionUnitType
+      : undefined
+  const deployablePositions = useMemo(
+    () =>
+      productionCity ? getDeployablePositions(state, productionCity) : [],
+    [productionCity, state],
+  )
+  const deployableKeys = useMemo(
+    () =>
+      activeProductionUnitType
+        ? new Set(deployablePositions.map(positionKey))
+        : new Set<string>(),
+    [activeProductionUnitType, deployablePositions],
+  )
   const selectedUnit = getSelectedUnit(state)
   const reachablePositions = useMemo(
     () => getSelectedUnitReachablePositions(state),
@@ -87,6 +132,7 @@ function App({ initialState }: AppProps = {}) {
 
       const result = resolveCombat(attacker, defender)
       setCombatPhase('attack')
+      setProductionUnitType(undefined)
       setActiveCombat({
         attackerId: attacker.id,
         defenderId: defender.id,
@@ -160,6 +206,7 @@ function App({ initialState }: AppProps = {}) {
 
     setActiveCombat(undefined)
     setCombatPhase('attack')
+    setProductionUnitType(undefined)
     dispatch({ type: 'gameLoaded', state: result.value.gameState })
     setSaveFeedback({ type: 'status', message: '저장된 게임을 불러왔습니다.' })
   }
@@ -199,7 +246,7 @@ function App({ initialState }: AppProps = {}) {
       window.setTimeout(() => setCombatPhase('defenderHit'), timings.hit),
     )
 
-    if (!activeCombat.defenderDefeated) {
+    if (!activeCombat.defenderDefeated && activeCombat.damageToAttacker > 0) {
       timers.push(
         window.setTimeout(() => setCombatPhase('counter'), timings.counter),
       )
@@ -219,7 +266,7 @@ function App({ initialState }: AppProps = {}) {
           defenderId: activeCombat.defenderId,
         })
         setActiveCombat(undefined)
-      }, activeCombat.defenderDefeated ? timings.counterHit : timings.complete),
+      }, activeCombat.defenderDefeated || activeCombat.damageToAttacker === 0 ? timings.counterHit : timings.complete),
     )
 
     return () => timers.forEach(window.clearTimeout)
@@ -242,6 +289,13 @@ function App({ initialState }: AppProps = {}) {
         target instanceof HTMLSelectElement ||
         (target instanceof HTMLElement && target.isContentEditable)
 
+      if (event.key === 'Escape' && activeProductionUnitType) {
+        event.preventDefault()
+        setProductionUnitType(undefined)
+        setProductionFeedback(undefined)
+        return
+      }
+
       if (
         event.key !== 'Enter' ||
         event.repeat ||
@@ -255,12 +309,18 @@ function App({ initialState }: AppProps = {}) {
       }
 
       event.preventDefault()
+      setProductionUnitType(undefined)
       dispatch({ type: 'turnEnded' })
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [activeCombat, state.activeFactionId, state.phase])
+  }, [
+    activeCombat,
+    activeProductionUnitType,
+    state.activeFactionId,
+    state.phase,
+  ])
 
   const handleTileClick = (tile: Tile) => {
     if (activeCombat || state.activeFactionId !== 'player') {
@@ -268,6 +328,29 @@ function App({ initialState }: AppProps = {}) {
     }
 
     const unit = getUnitAt(state, tile.position)
+
+    if (activeProductionUnitType && productionCity) {
+      if (!deployableKeys.has(positionKey(tile.position))) {
+        setProductionFeedback({
+          type: 'error',
+          message: '선택한 타일에는 부대를 배치할 수 없습니다.',
+        })
+        return
+      }
+
+      dispatch({
+        type: 'unitProduced',
+        cityId: productionCity.id,
+        unitType: activeProductionUnitType,
+        destination: tile.position,
+      })
+      setProductionFeedback({
+        type: 'status',
+        message: `${UNIT_TYPE_LABELS[activeProductionUnitType]} 생산을 완료했습니다.`,
+      })
+      setProductionUnitType(undefined)
+      return
+    }
 
     if (unit?.factionId === 'player') {
       dispatch({ type: 'unitSelected', unitId: unit.id })
@@ -309,7 +392,10 @@ function App({ initialState }: AppProps = {}) {
           state.activeFactionId !== 'player' ||
           Boolean(activeCombat)
         }
-        onEndTurn={() => dispatch({ type: 'turnEnded' })}
+        onEndTurn={() => {
+          setProductionUnitType(undefined)
+          dispatch({ type: 'turnEnded' })
+        }}
       />
 
       <main className="game-layout">
@@ -327,6 +413,7 @@ function App({ initialState }: AppProps = {}) {
               state={state}
               reachableKeys={reachableKeys}
               attackableKeys={attackableKeys}
+              deployableKeys={deployableKeys}
               zoneOfControlKeys={zoneOfControlKeys}
               combatAnimation={
                 activeCombat
@@ -346,13 +433,45 @@ function App({ initialState }: AppProps = {}) {
             <GameResultPanel
               phase={state.phase}
               turn={state.turn}
-              onRestart={() => dispatch({ type: 'gameRestarted' })}
+              onRestart={() => {
+                setProductionUnitType(undefined)
+                setProductionFeedback(undefined)
+                dispatch({ type: 'gameRestarted' })
+              }}
             />
           )}
         </section>
 
         <aside className="side-panel" aria-label="게임 정보">
           <InfoPanel unit={selectedUnit} />
+          <ProductionPanel
+            cities={playerCities}
+            selectedCityId={availableProductionCityId}
+            selectedUnitType={activeProductionUnitType}
+            resource={state.resources.player}
+            turn={state.turn}
+            deployableCount={deployablePositions.length}
+            disabled={
+              state.phase !== 'playing' ||
+              state.activeFactionId !== 'player' ||
+              Boolean(activeCombat)
+            }
+            feedback={productionFeedback}
+            onCitySelected={(cityId) => {
+              setProductionCityId(cityId)
+              setProductionUnitType(undefined)
+              setProductionFeedback(undefined)
+            }}
+            onUnitTypeSelected={(unitType) => {
+              setProductionUnitType(unitType)
+              setProductionFeedback(undefined)
+              dispatch({ type: 'selectionCleared' })
+            }}
+            onCancel={() => {
+              setProductionUnitType(undefined)
+              setProductionFeedback(undefined)
+            }}
+          />
           <SavePanel
             slot={saveSlot}
             canSave={canSave}

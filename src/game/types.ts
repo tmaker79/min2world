@@ -1,6 +1,6 @@
 export type Terrain = 'plain' | 'mountain' | 'water'
 
-export const GAME_SCHEMA_VERSION = 4
+export const GAME_SCHEMA_VERSION = 5
 
 export type Position = {
   x: number
@@ -8,13 +8,15 @@ export type Position = {
 }
 
 export type FactionId = 'player' | 'enemy'
-export type UnitType = 'infantry' | 'cavalry'
+export type UnitType = 'infantry' | 'cavalry' | 'archer' | 'spearman'
 export type GamePhase = 'playing' | 'victory' | 'defeat'
 
 export type UnitStats = {
   movement: number
   attack: number
   counterAttack: number
+  range: number
+  cost: number
 }
 
 export type Tile = {
@@ -42,6 +44,7 @@ export type City = {
   position: Position
   ownerId: FactionId
   resourcePerTurn: number
+  lastProducedTurn?: number
 }
 
 export type GameState = {
@@ -62,6 +65,12 @@ export type GameAction =
   | { type: 'unitMoved'; unitId: string; destination: Position }
   | { type: 'unitAttacked'; attackerId: string; defenderId: string }
   | { type: 'unitWaited'; unitId: string }
+  | {
+      type: 'unitProduced'
+      cityId: string
+      unitType: UnitType
+      destination: Position
+    }
   | { type: 'turnEnded' }
   | { type: 'gameLoaded'; state: GameState }
   | { type: 'gameRestarted' }

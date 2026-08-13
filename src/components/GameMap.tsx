@@ -1,4 +1,9 @@
-import { getCityAt, getUnitAt, positionKey } from '../game/rules'
+import {
+  getCityAt,
+  getUnitAt,
+  positionKey,
+  UNIT_TYPE_LABELS,
+} from '../game/rules'
 import type {
   City,
   GameState,
@@ -32,15 +37,18 @@ const TERRAIN_LABELS: Record<Terrain, string> = {
   water: '물',
 }
 
-const UNIT_LABELS = {
-  infantry: '보병',
-  cavalry: '기병',
+const UNIT_SYMBOLS = {
+  infantry: '보',
+  cavalry: '기',
+  archer: '궁',
+  spearman: '창',
 } as const
 
 type GameMapProps = {
   state: GameState
   reachableKeys: Set<string>
   attackableKeys: Set<string>
+  deployableKeys: Set<string>
   zoneOfControlKeys: Set<string>
   combatAnimation?: CombatAnimation
   disabled: boolean
@@ -54,6 +62,7 @@ type TileButtonProps = {
   selected: boolean
   reachable: boolean
   attackable: boolean
+  deployable: boolean
   inZoneOfControl: boolean
   combatAnimation?: CombatAnimation
   disabled: boolean
@@ -66,6 +75,7 @@ function getTileLabel(
   city?: City,
   attackable = false,
   inZoneOfControl = false,
+  deployable = false,
 ) {
   const parts = [
     `좌표 ${tile.position.x}, ${tile.position.y}`,
@@ -76,12 +86,16 @@ function getTileLabel(
     parts.push('적 통제 구역')
   }
 
+  if (deployable) {
+    parts.push('생산 배치 가능')
+  }
+
   if (city) {
     parts.push(`${city.name}, ${city.ownerId === 'player' ? '푸른 연맹' : '붉은 제국'} 도시`)
   }
 
   if (unit) {
-    parts.push(`${unit.name}, ${UNIT_LABELS[unit.type]}`)
+    parts.push(`${unit.name}, ${UNIT_TYPE_LABELS[unit.type]}`)
     parts.push(`체력 ${unit.hp}/${unit.maxHp}`)
     parts.push(
       unit.hasActed
@@ -105,6 +119,7 @@ function TileButton({
   selected,
   reachable,
   attackable,
+  deployable,
   inZoneOfControl,
   combatAnimation,
   disabled,
@@ -143,6 +158,7 @@ function TileButton({
     reachable ? 'map-tile--reachable' : '',
     inZoneOfControl ? 'map-tile--zoc' : '',
     attackable ? 'map-tile--attackable' : '',
+    deployable ? 'map-tile--deployable' : '',
   ]
     .filter(Boolean)
     .join(' ')
@@ -157,11 +173,13 @@ function TileButton({
         city,
         attackable,
         inZoneOfControl,
+        deployable,
       )}
       aria-pressed={unit ? selected : undefined}
       data-coordinate={positionKey(tile.position)}
       data-reachable={reachable ? 'true' : undefined}
       data-attackable={attackable ? 'true' : undefined}
+      data-deployable={deployable ? 'true' : undefined}
       data-zone-of-control={inZoneOfControl ? 'true' : undefined}
       disabled={disabled}
       onClick={onClick}
@@ -208,7 +226,7 @@ function TileButton({
           }
         >
           <span className="unit-symbol">
-            {unit.type === 'infantry' ? '보' : '기'}
+            {UNIT_SYMBOLS[unit.type]}
           </span>
           <span className={`unit-health-value unit-health-value--${healthLevel}`}>
             {unit.hp}
@@ -237,6 +255,7 @@ export function GameMap({
   state,
   reachableKeys,
   attackableKeys,
+  deployableKeys,
   zoneOfControlKeys,
   combatAnimation,
   disabled,
@@ -250,6 +269,7 @@ export function GameMap({
         const selected = Boolean(unit && unit.id === state.selectedUnitId)
         const reachable = reachableKeys.has(positionKey(tile.position))
         const attackable = attackableKeys.has(positionKey(tile.position))
+        const deployable = deployableKeys.has(positionKey(tile.position))
         const inZoneOfControl = zoneOfControlKeys.has(
           positionKey(tile.position),
         )
@@ -263,6 +283,7 @@ export function GameMap({
             selected={selected}
             reachable={reachable}
             attackable={attackable}
+            deployable={deployable}
             inZoneOfControl={inZoneOfControl}
             combatAnimation={combatAnimation}
             disabled={disabled}

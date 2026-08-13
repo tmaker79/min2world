@@ -212,6 +212,82 @@ describe('saveGame storage', () => {
     expect(loaded.value.gameState.units[0]).not.toHaveProperty('unknownUnit')
   })
 
+  it('스키마 4 저장을 생산 기록이 없는 스키마 5 상태로 변환한다', () => {
+    const storage = new MemoryStorage()
+    saveGame(createInitialGameState(), storage)
+    const envelope = getEnvelope(storage)
+    const state = envelope.gameState as Record<string, unknown>
+    envelope.schemaVersion = 4
+    state.schemaVersion = 4
+    const cities = state.cities as Array<Record<string, unknown>>
+    cities.forEach((city) => delete city.lastProducedTurn)
+    setEnvelope(storage, envelope)
+
+    const loaded = loadGame(storage)
+    expect(loaded.ok).toBe(true)
+    if (!loaded.ok) {
+      return
+    }
+
+    expect(loaded.value.schemaVersion).toBe(5)
+    expect(loaded.value.gameState.schemaVersion).toBe(5)
+    expect(
+      loaded.value.gameState.cities.every(
+        (city) => !Object.hasOwn(city, 'lastProducedTurn'),
+      ),
+    ).toBe(true)
+  })
+
+  it('신규 병종과 도시 생산 기록을 저장하고 잘못된 생산 턴은 거부한다', () => {
+    const storage = new MemoryStorage()
+    const initial = createInitialGameState()
+    const state = {
+      ...initial,
+      units: [
+        ...initial.units,
+        {
+          ...initial.units[0],
+          id: 'saved-archer',
+          name: '저장 궁병',
+          type: 'archer' as const,
+          position: { x: 0, y: 0 },
+          movementRemaining: 0,
+          hasActed: true,
+        },
+      ],
+      cities: initial.cities.map((city) =>
+        city.id === 'city-player'
+          ? { ...city, lastProducedTurn: initial.turn }
+          : city,
+      ),
+    }
+
+    expect(saveGame(state, storage).ok).toBe(true)
+    const loaded = loadGame(storage)
+    expect(loaded.ok && loaded.value.gameState).toMatchObject({
+      units: expect.arrayContaining([
+        expect.objectContaining({ id: 'saved-archer', type: 'archer' }),
+      ]),
+      cities: expect.arrayContaining([
+        expect.objectContaining({
+          id: 'city-player',
+          lastProducedTurn: 1,
+        }),
+      ]),
+    })
+
+    const invalid = getEnvelope(storage)
+    const invalidState = invalid.gameState as {
+      cities: Array<Record<string, unknown>>
+    }
+    invalidState.cities[0].lastProducedTurn = 2
+    setEnvelope(storage, invalid)
+    expect(loadGame(storage)).toMatchObject({
+      ok: false,
+      code: 'invalidData',
+    })
+  })
+
   it('저장소 읽기, 쓰기와 삭제 예외를 안전하게 반환한다', () => {
     const throwingStorage: StorageLike = {
       getItem: () => {

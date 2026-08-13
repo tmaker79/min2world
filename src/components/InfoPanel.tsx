@@ -1,9 +1,11 @@
-import { UNIT_STATS } from '../game/rules'
+import { UNIT_STATS, UNIT_TYPE_LABELS } from '../game/rules'
 import type { Unit } from '../game/types'
 
-const UNIT_TYPE_LABELS = {
-  infantry: '보병',
-  cavalry: '기병',
+const UNIT_SYMBOLS = {
+  infantry: '보',
+  cavalry: '기',
+  archer: '궁',
+  spearman: '창',
 } as const
 
 type InfoPanelProps = {
@@ -22,7 +24,7 @@ export function InfoPanel({ unit }: InfoPanelProps) {
             className={`unit-portrait unit-portrait--${unit.factionId}`}
             aria-hidden="true"
           >
-            {unit.type === 'infantry' ? '보' : '기'}
+            {UNIT_SYMBOLS[unit.type]}
           </div>
           <div className="unit-details__heading">
             <strong>{unit.name}</strong>
@@ -48,6 +50,10 @@ export function InfoPanel({ unit }: InfoPanelProps) {
             <div>
               <dt>반격력</dt>
               <dd>{UNIT_STATS[unit.type].counterAttack}</dd>
+            </div>
+            <div>
+              <dt>공격 사거리</dt>
+              <dd>{UNIT_STATS[unit.type].range}</dd>
             </div>
             <div>
               <dt>상태</dt>

@@ -191,6 +191,53 @@ describe('App', () => {
     expect(document.querySelectorAll('[data-attackable="true"]')).toHaveLength(0)
   })
 
+  it('병종을 선택하고 강조된 도시 타일에 새 부대를 생산한다', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: /궁병.*12 자원/ }))
+    expect(document.querySelectorAll('[data-deployable="true"]')).toHaveLength(
+      3,
+    )
+
+    await user.click(
+      screen.getByRole('button', {
+        name: /좌표 1, 8, 평지, 생산 배치 가능.*푸른 성채/,
+      }),
+    )
+
+    expect(screen.getByText('푸른 궁병 1')).toBeInTheDocument()
+    expect(
+      within(screen.getByText('보유 자원').parentElement!).getByText('3'),
+    ).toBeInTheDocument()
+    expect(
+      document.querySelector('[data-unit-id="player-archer-produced-1"]'),
+    ).toHaveTextContent('궁')
+    expect(screen.getByRole('status')).toHaveTextContent(
+      '궁병 생산을 완료했습니다',
+    )
+    expect(document.querySelectorAll('[data-deployable="true"]')).toHaveLength(
+      0,
+    )
+  })
+
+  it('잘못된 생산 위치를 안내하고 Escape로 배치 모드를 취소한다', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: /보병.*10 자원/ }))
+    await user.click(screen.getByRole('button', { name: '좌표 4, 0, 물' }))
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      '선택한 타일에는 부대를 배치할 수 없습니다',
+    )
+    expect(screen.getByText('15')).toBeInTheDocument()
+
+    await user.keyboard('{Escape}')
+    expect(document.querySelectorAll('[data-deployable="true"]')).toHaveLength(
+      0,
+    )
+  })
+
   it('턴 종료 후 AI가 행동하고 다음 플레이어 라운드를 시작한다', async () => {
     const user = userEvent.setup()
     render(<App />)
@@ -223,7 +270,10 @@ describe('App', () => {
     expect(
       screen.getByRole('button', { name: /청룡 보병대.*행동 가능/ }),
     ).toBeInTheDocument()
-    expect(screen.getByText('0')).toBeInTheDocument()
+    expect(screen.getByText('20')).toBeInTheDocument()
+    expect(
+      document.querySelector('[data-unit-id="enemy-spearman-produced-1"]'),
+    ).toHaveTextContent('창')
   })
 
   it('Enter 키로 턴을 종료한다', async () => {
