@@ -1,5 +1,6 @@
 import { UNIT_STATS, UNIT_TYPE_LABELS, UNIT_TYPES } from '../game/rules'
 import type { City, UnitType } from '../game/types'
+import { UnitIcon } from './UnitIcon'
 
 type ProductionFeedback = {
   type: 'status' | 'error'
@@ -76,7 +77,10 @@ export function ProductionPanel({
                   disabled={unavailable || resource < stats.cost}
                   onClick={() => onUnitTypeSelected(unitType)}
                 >
-                  <strong>{UNIT_TYPE_LABELS[unitType]}</strong>
+                  <strong>
+                    <UnitIcon type={unitType} />
+                    {UNIT_TYPE_LABELS[unitType]}
+                  </strong>
                   <span>{stats.cost} 자원</span>
                   <small>
                     이동 {stats.movement} · 공격 {stats.attack} · 사거리{' '}

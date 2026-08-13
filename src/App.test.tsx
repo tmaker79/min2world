@@ -211,8 +211,10 @@ describe('App', () => {
       within(screen.getByText('보유 자원').parentElement!).getByText('3'),
     ).toBeInTheDocument()
     expect(
-      document.querySelector('[data-unit-id="player-archer-produced-1"]'),
-    ).toHaveTextContent('궁')
+      document.querySelector(
+        '[data-unit-id="player-archer-produced-1"] [data-unit-icon="archer"]',
+      ),
+    ).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent(
       '궁병 생산을 완료했습니다',
     )
@@ -272,8 +274,10 @@ describe('App', () => {
     ).toBeInTheDocument()
     expect(screen.getByText('20')).toBeInTheDocument()
     expect(
-      document.querySelector('[data-unit-id="enemy-spearman-produced-1"]'),
-    ).toHaveTextContent('창')
+      document.querySelector(
+        '[data-unit-id="enemy-spearman-produced-1"] [data-unit-icon="spearman"]',
+      ),
+    ).toBeInTheDocument()
   })
 
   it('Enter 키로 턴을 종료한다', async () => {

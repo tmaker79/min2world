@@ -380,7 +380,18 @@
 }
 
 .unit-symbol {
+  display: grid;
+  width: 23px;
+  height: 23px;
+  place-items: center;
   line-height: 1;
+}
+
+.unit-symbol svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
 }
 
 .unit-health-value {
@@ -641,6 +652,13 @@
   border-color: #e6c0b9;
 }
 
+.unit-portrait svg {
+  width: 31px;
+  height: 31px;
+  overflow: visible;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.35));
+}
+
 .unit-details__heading {
   display: flex;
   flex-direction: column;
@@ -734,6 +752,18 @@
 .production-option small {
   color: var(--muted);
   font-size: 0.63rem;
+}
+
+.production-option strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.production-option strong svg {
+  width: 18px;
+  height: 18px;
+  color: #8fe2d3;
 }
 
 .production-card__deployment {

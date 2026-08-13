@@ -1,12 +1,6 @@
 import { UNIT_STATS, UNIT_TYPE_LABELS } from '../game/rules'
 import type { Unit } from '../game/types'
-
-const UNIT_SYMBOLS = {
-  infantry: '보',
-  cavalry: '기',
-  archer: '궁',
-  spearman: '창',
-} as const
+import { UnitIcon } from './UnitIcon'
 
 type InfoPanelProps = {
   unit?: Unit
@@ -24,7 +18,7 @@ export function InfoPanel({ unit }: InfoPanelProps) {
             className={`unit-portrait unit-portrait--${unit.factionId}`}
             aria-hidden="true"
           >
-            {UNIT_SYMBOLS[unit.type]}
+            <UnitIcon type={unit.type} />
           </div>
           <div className="unit-details__heading">
             <strong>{unit.name}</strong>

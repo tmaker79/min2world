@@ -12,6 +12,7 @@ import type {
   Tile,
   Unit,
 } from '../game/types'
+import { UnitIcon } from './UnitIcon'
 
 export type CombatAnimationPhase =
   | 'attack'
@@ -36,13 +37,6 @@ const TERRAIN_LABELS: Record<Terrain, string> = {
   mountain: '산',
   water: '물',
 }
-
-const UNIT_SYMBOLS = {
-  infantry: '보',
-  cavalry: '기',
-  archer: '궁',
-  spearman: '창',
-} as const
 
 type GameMapProps = {
   state: GameState
@@ -226,7 +220,7 @@ function TileButton({
           }
         >
           <span className="unit-symbol">
-            {UNIT_SYMBOLS[unit.type]}
+            <UnitIcon type={unit.type} />
           </span>
           <span className={`unit-health-value unit-health-value--${healthLevel}`}>
             {unit.hp}
