@@ -1,0 +1,45 @@
+:root {
+  font-family:
+    Pretendard, Inter, "Noto Sans KR", "Apple SD Gothic Neo", system-ui,
+    sans-serif;
+  color: #e8edf2;
+  background: #10171d;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --ink: #e8edf2;
+  --muted: #91a0aa;
+  --panel: rgba(24, 34, 41, 0.94);
+  --panel-border: rgba(199, 217, 226, 0.13);
+  --gold: #e4b95f;
+  --player: #4ea5d9;
+  --enemy: #d46355;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+  background: #10171d;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(48, 91, 102, 0.24), transparent 34rem),
+    linear-gradient(160deg, #121c22 0%, #0c1217 100%);
+}
+
+button {
+  font: inherit;
+}
+
+button:focus-visible {
+  outline: 3px solid #f3d184;
+  outline-offset: 2px;
+}
+
