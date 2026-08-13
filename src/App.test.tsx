@@ -27,6 +27,12 @@ describe('Milestone 06 UI', () => {
     expect(container.querySelector('.seed-controls output')).toHaveTextContent('ui-seed')
     expect(container.querySelectorAll('.site-marker')).toHaveLength(8)
     expect(container.querySelectorAll('.unit-token')).toHaveLength(6)
+    expect(container.querySelector('.map-layer--terrain .map-tile')).toBeInTheDocument()
+    expect(container.querySelector('.map-layer--sites .site-marker')).toBeInTheDocument()
+    expect(container.querySelector('.map-layer--units .unit-token')).toBeInTheDocument()
+    expect(container.querySelector('.map-layer--units .unit-health-bar')).toBeInTheDocument()
+    expect(container.querySelector('.unit-health-bar')?.closest('.map-tile')).toBeNull()
+    expect(container.querySelector('.site-marker')?.closest('.map-tile')).toBeNull()
   })
 
   it('selects a unit with keyboard Enter and exposes reachable hexes', async () => {
@@ -50,11 +56,17 @@ describe('Milestone 06 UI', () => {
     const state = createInitialGameState('ui-move')
     const player = state.units.find((unit) => unit.factionId === 'player')!
     const { container } = renderApp(state)
-    await user.click(container.querySelector(`[data-unit-id="${player.id}"]`)!.closest('button')!)
+    await user.click(container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(player.position)}"]`,
+    )!)
     const destination = container.querySelector<HTMLButtonElement>('[data-reachable="true"]')!
+    const destinationKey = destination.dataset.coordinate
 
     await user.click(destination)
-    expect(destination.querySelector(`[data-unit-id="${player.id}"]`)).toBeInTheDocument()
+    expect(container.querySelector(`[data-unit-id="${player.id}"]`)).toHaveAttribute(
+      'data-coordinate',
+      destinationKey,
+    )
   })
 
   it('starts a deterministic game from a trimmed seed and validates empty input', async () => {
@@ -124,7 +136,9 @@ describe('Milestone 06 UI', () => {
     }
     const { container } = renderApp(state)
 
-    await user.click(container.querySelector(`[data-unit-id="${winner.id}"]`)!.closest('button')!)
+    await user.click(container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(winner.position)}"]`,
+    )!)
     fireEvent.click(container.querySelector(`[data-coordinate="${positionKey(capital.position)}"]`)!)
 
     expect(screen.getByRole('dialog')).toBeInTheDocument()

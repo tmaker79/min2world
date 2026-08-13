@@ -49,7 +49,6 @@ type TileButtonProps = {
   attackable: boolean
   deployable: boolean
   inZoneOfControl: boolean
-  combatAnimation?: CombatAnimation
   disabled: boolean
   style: CSSProperties
   onClick: () => void
@@ -105,6 +104,15 @@ function getTerrainMark(terrain: Tile['terrain']): string | undefined {
   }[terrain]
 }
 
+function getOverlayStyle(
+  position: Position,
+  minimumX: number,
+  minimumY: number,
+): CSSProperties {
+  const pixel = getHexPixelPosition(position)
+  return { left: pixel.x - minimumX, top: pixel.y - minimumY }
+}
+
 function TileButton({
   tile,
   unit,
@@ -114,42 +122,10 @@ function TileButton({
   attackable,
   deployable,
   inZoneOfControl,
-  combatAnimation,
   disabled,
   style,
   onClick,
 }: TileButtonProps) {
-  const healthPercent = unit
-    ? Math.max(0, Math.min(100, (unit.hp / unit.maxHp) * 100))
-    : 0
-  const healthLevel =
-    healthPercent <= 30
-      ? 'critical'
-      : healthPercent < 100
-        ? 'damaged'
-        : 'healthy'
-  const isAttacker = unit?.id === combatAnimation?.attackerId
-  const isDefender = unit?.id === combatAnimation?.defenderId
-  const isStriking =
-    (isAttacker && combatAnimation?.phase === 'attack') ||
-    (isDefender && combatAnimation?.phase === 'counter')
-  const isHit =
-    (isDefender && combatAnimation?.phase === 'defenderHit') ||
-    (isAttacker && combatAnimation?.phase === 'attackerHit')
-  const isDefeated =
-    isHit &&
-    ((isDefender && combatAnimation?.defenderDefeated) ||
-      (isAttacker && combatAnimation?.attackerDefeated))
-  const strikeTarget = isAttacker
-    ? combatAnimation?.defenderPosition
-    : combatAnimation?.attackerPosition
-  const originPixel = unit ? getHexPixelPosition(unit.position) : undefined
-  const targetPixel = strikeTarget ? getHexPixelPosition(strikeTarget) : undefined
-  const deltaX = originPixel && targetPixel ? targetPixel.x - originPixel.x : 0
-  const deltaY = originPixel && targetPixel ? targetPixel.y - originPixel.y : 0
-  const deltaLength = Math.hypot(deltaX, deltaY) || 1
-  const strikeX = (deltaX / deltaLength) * 18
-  const strikeY = (deltaY / deltaLength) * 18
   const terrainMark = getTerrainMark(tile.terrain)
   const classNames = [
     'map-tile',
@@ -178,65 +154,105 @@ function TileButton({
       disabled={disabled}
       onClick={onClick}
     >
-      <span className="tile-coordinate" aria-hidden="true">
-        {tile.position.q},{tile.position.r}
-      </span>
-
       {terrainMark && (
         <span className={`terrain-mark terrain-mark--${tile.terrain}`} aria-hidden="true">
           {terrainMark}
         </span>
       )}
-
-      {site && (
-        <span
-          className={`site-marker site-marker--${site.kind} site-marker--${site.ownerId}`}
-          aria-hidden="true"
-        >
-          {site.kind === 'stronghold'
-            ? '성'
-            : site.kind === 'city'
-              ? '도'
-              : site.kind === 'village'
-                ? '촌'
-                : '광'}
-        </span>
-      )}
-
-      {unit && (
-        <span
-          className={`unit-token unit-token--${unit.factionId} ${
-            unit.hasActed ? 'unit-token--acted' : ''
-          } ${isStriking ? 'unit-token--striking' : ''} ${
-            isHit ? 'unit-token--hit' : ''
-          } ${isDefeated ? 'unit-token--defeated' : ''}`}
-          aria-hidden="true"
-          data-unit-id={unit.id}
-          data-health={`${unit.hp}/${unit.maxHp}`}
-          style={
-            {
-              '--strike-x': `${strikeX}px`,
-              '--strike-y': `${strikeY}px`,
-            } as CSSProperties
-          }
-        >
-          <span className="unit-symbol">
-            <UnitIcon type={unit.type} />
-          </span>
-          <span className="unit-health-bar">
-            <span
-              className={`unit-health-bar__fill unit-health-bar__fill--${healthLevel}`}
-              style={{ width: `${healthPercent}%` }}
-            />
-          </span>
-        </span>
-      )}
-      {unit && isHit && (
-        <span className="damage-popup" aria-hidden="true">
-          -{isDefender ? combatAnimation?.damageToDefender : combatAnimation?.damageToAttacker}
-        </span>
-      )}
     </button>
+  )
+}
+
+function SiteMarker({
+  site,
+  style,
+}: {
+  site: Site
+  style: CSSProperties
+}) {
+  return (
+    <span className="map-overlay-cell" style={style}>
+      <span
+        className={`site-marker site-marker--${site.kind} site-marker--${site.ownerId}`}
+      >
+        {site.kind === 'stronghold'
+          ? '성'
+          : site.kind === 'city'
+            ? '도'
+            : site.kind === 'village'
+              ? '촌'
+              : '광'}
+      </span>
+    </span>
+  )
+}
+
+function UnitMarker({
+  unit,
+  combatAnimation,
+  style,
+}: {
+  unit: Unit
+  combatAnimation?: CombatAnimation
+  style: CSSProperties
+}) {
+  const healthPercent = Math.max(0, Math.min(100, (unit.hp / unit.maxHp) * 100))
+  const healthLevel =
+    healthPercent <= 30
+      ? 'critical'
+      : healthPercent < 100
+        ? 'damaged'
+        : 'healthy'
+  const isAttacker = unit.id === combatAnimation?.attackerId
+  const isDefender = unit.id === combatAnimation?.defenderId
+  const isStriking =
+    (isAttacker && combatAnimation?.phase === 'attack') ||
+    (isDefender && combatAnimation?.phase === 'counter')
+  const isHit =
+    (isDefender && combatAnimation?.phase === 'defenderHit') ||
+    (isAttacker && combatAnimation?.phase === 'attackerHit')
+  const isDefeated =
+    isHit &&
+    ((isDefender && combatAnimation?.defenderDefeated) ||
+      (isAttacker && combatAnimation?.attackerDefeated))
+  const strikeTarget = isAttacker
+    ? combatAnimation?.defenderPosition
+    : combatAnimation?.attackerPosition
+  const originPixel = getHexPixelPosition(unit.position)
+  const targetPixel = strikeTarget ? getHexPixelPosition(strikeTarget) : undefined
+  const deltaX = targetPixel ? targetPixel.x - originPixel.x : 0
+  const deltaY = targetPixel ? targetPixel.y - originPixel.y : 0
+  const deltaLength = Math.hypot(deltaX, deltaY) || 1
+
+  return (
+    <span className="map-overlay-cell" style={style}>
+      <span
+        className={`unit-token unit-token--${unit.factionId} ${
+          unit.hasActed ? 'unit-token--acted' : ''
+        } ${isStriking ? 'unit-token--striking' : ''} ${
+          isHit ? 'unit-token--hit' : ''
+        } ${isDefeated ? 'unit-token--defeated' : ''}`}
+        data-unit-id={unit.id}
+        data-coordinate={positionKey(unit.position)}
+        data-health={`${unit.hp}/${unit.maxHp}`}
+        style={
+          {
+            '--strike-x': `${(deltaX / deltaLength) * 18}px`,
+            '--strike-y': `${(deltaY / deltaLength) * 18}px`,
+          } as CSSProperties
+        }
+      >
+        <span className="unit-symbol">
+          <UnitIcon type={unit.type} />
+        </span>
+        <span className="unit-health-bar">
+          <span
+            className={`unit-health-bar__fill unit-health-bar__fill--${healthLevel}`}
+            style={{ width: `${healthPercent}%` }}
+          />
+        </span>
+      </span>
+    </span>
   )
 }
 
@@ -255,6 +271,16 @@ export function GameMap({
   const minimumY = Math.min(...pixelPositions.map((position) => position.y))
   const maximumX = Math.max(...pixelPositions.map((position) => position.x))
   const maximumY = Math.max(...pixelPositions.map((position) => position.y))
+  const hitUnit = combatAnimation?.phase === 'defenderHit'
+    ? state.units.find((unit) => unit.id === combatAnimation.defenderId)
+    : combatAnimation?.phase === 'attackerHit'
+      ? state.units.find((unit) => unit.id === combatAnimation.attackerId)
+      : undefined
+  const hitDamage = combatAnimation?.phase === 'defenderHit'
+    ? combatAnimation.damageToDefender
+    : combatAnimation?.phase === 'attackerHit'
+      ? combatAnimation.damageToAttacker
+      : undefined
 
   return (
     <div
@@ -265,34 +291,67 @@ export function GameMap({
         height: maximumY - minimumY + HEX_HEIGHT,
       }}
     >
-      {state.tiles.map((tile) => {
-        const unit = getUnitAt(state, tile.position)
-        const site = getSiteAt(state, tile.position)
-        const selected = Boolean(unit && unit.id === state.selectedUnitId)
-        const reachable = reachableKeys.has(positionKey(tile.position))
-        const attackable = attackableKeys.has(positionKey(tile.position))
-        const deployable = deployableKeys.has(positionKey(tile.position))
-        const inZoneOfControl = zoneOfControlKeys.has(positionKey(tile.position))
-        const pixel = getHexPixelPosition(tile.position)
+      <div className="map-layer map-layer--terrain">
+        {state.tiles.map((tile) => {
+          const unit = getUnitAt(state, tile.position)
+          const site = getSiteAt(state, tile.position)
+          const selected = Boolean(unit && unit.id === state.selectedUnitId)
+          const reachable = reachableKeys.has(positionKey(tile.position))
+          const attackable = attackableKeys.has(positionKey(tile.position))
+          const deployable = deployableKeys.has(positionKey(tile.position))
+          const inZoneOfControl = zoneOfControlKeys.has(positionKey(tile.position))
 
-        return (
-          <TileButton
-            key={tile.id}
-            tile={tile}
-            unit={unit}
+          return (
+            <TileButton
+              key={tile.id}
+              tile={tile}
+              unit={unit}
+              site={site}
+              selected={selected}
+              reachable={reachable}
+              attackable={attackable}
+              deployable={deployable}
+              inZoneOfControl={inZoneOfControl}
+              disabled={disabled}
+              style={getOverlayStyle(tile.position, minimumX, minimumY)}
+              onClick={() => onTileClick(tile)}
+            />
+          )
+        })}
+      </div>
+
+      <div className="map-layer map-layer--sites" aria-hidden="true">
+        {state.sites.map((site) => (
+          <SiteMarker
+            key={site.id}
             site={site}
-            selected={selected}
-            reachable={reachable}
-            attackable={attackable}
-            deployable={deployable}
-            inZoneOfControl={inZoneOfControl}
-            combatAnimation={combatAnimation}
-            disabled={disabled}
-            style={{ left: pixel.x - minimumX, top: pixel.y - minimumY }}
-            onClick={() => onTileClick(tile)}
+            style={getOverlayStyle(site.position, minimumX, minimumY)}
           />
-        )
-      })}
+        ))}
+      </div>
+
+      <div className="map-layer map-layer--units" aria-hidden="true">
+        {state.units.map((unit) => (
+          <UnitMarker
+            key={unit.id}
+            unit={unit}
+            combatAnimation={combatAnimation}
+            style={getOverlayStyle(unit.position, minimumX, minimumY)}
+          />
+        ))}
+      </div>
+
+      <div className="map-layer map-layer--effects" aria-hidden="true">
+        {hitUnit && hitDamage !== undefined && (
+          <span
+            className="map-overlay-cell"
+            style={getOverlayStyle(hitUnit.position, minimumX, minimumY)}
+          >
+            <span className="damage-popup">-{hitDamage}</span>
+          </span>
+        )}
+      </div>
+
       {combatAnimation && (
         <span className="sr-only" role="status" aria-live="polite">
           {combatAnimation.phase === 'attack' && '공격 중'}

@@ -241,6 +241,40 @@
     inset 0 0 20px rgba(0, 0, 0, 0.35);
 }
 
+.map-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.map-layer--terrain {
+  z-index: 0;
+}
+
+.map-layer--sites {
+  z-index: 10;
+  pointer-events: none;
+}
+
+.map-layer--units {
+  z-index: 20;
+  pointer-events: none;
+}
+
+.map-layer--effects {
+  z-index: 30;
+  pointer-events: none;
+}
+
+.map-overlay-cell {
+  position: absolute;
+  display: grid;
+  width: 58px;
+  height: 66px;
+  overflow: visible;
+  place-items: center;
+  pointer-events: none;
+}
+
 .map-tile {
   position: absolute;
   display: grid;
@@ -257,7 +291,7 @@
 
 .map-tile::after {
   position: absolute;
-  z-index: 5;
+  z-index: 1;
   inset: 0;
   background: var(--hex-border, transparent);
   content: '';
@@ -313,7 +347,7 @@
 
 .map-tile--zoc::before {
   position: absolute;
-  z-index: -1;
+  z-index: 0;
   inset: 0;
   background: repeating-linear-gradient(
     135deg,
@@ -350,21 +384,9 @@
   z-index: 3;
 }
 
-.tile-coordinate {
-  position: absolute;
-  top: 3px;
-  left: 4px;
-  color: rgba(15, 27, 25, 0.47);
-  font-size: 0.55rem;
-  font-weight: 700;
-}
-
-.map-tile--water .tile-coordinate {
-  color: rgba(232, 246, 249, 0.42);
-}
-
 .terrain-mark {
   position: absolute;
+  z-index: 0;
   opacity: 0.6;
   font-family: Georgia, serif;
   pointer-events: none;
@@ -394,6 +416,7 @@
 
 .site-marker {
   display: grid;
+  position: relative;
   width: 30px;
   height: 28px;
   place-items: center;
