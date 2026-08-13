@@ -122,7 +122,7 @@ export function createInitialGameState(): GameState {
   )
 
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     turn: 1,
     phase: 'playing',
     activeFactionId: 'player',

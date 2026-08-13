@@ -73,7 +73,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       return {
         ...state,
-        phase: ownsAllCities(cities, 'player') ? 'victory' : state.phase,
+        phase: ownsAllCities(cities, unit.factionId)
+          ? unit.factionId === 'player'
+            ? 'victory'
+            : 'defeat'
+          : state.phase,
         selectedUnitId: unit.id,
         cities,
         units: state.units.map((candidate) =>
@@ -145,13 +149,39 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       }
     }
 
-    case 'turnEnded':
+    case 'unitWaited': {
+      if (state.selectedUnitId !== action.unitId) {
+        return state
+      }
+
+      const unit = state.units.find((candidate) => candidate.id === action.unitId)
+
+      if (!unit || unit.factionId !== state.activeFactionId || unit.hasActed) {
+        return state
+      }
+
       return {
         ...state,
-        turn: state.turn + 1,
+        selectedUnitId: undefined,
+        units: state.units.map((candidate) =>
+          candidate.id === unit.id
+            ? { ...candidate, movementRemaining: 0, hasActed: true }
+            : candidate,
+        ),
+      }
+    }
+
+    case 'turnEnded': {
+      const nextFactionId =
+        state.activeFactionId === 'player' ? 'enemy' : 'player'
+
+      return {
+        ...state,
+        turn: state.turn + (state.activeFactionId === 'enemy' ? 1 : 0),
+        activeFactionId: nextFactionId,
         selectedUnitId: undefined,
         units: state.units.map((unit) =>
-          unit.factionId === 'player'
+          unit.factionId === nextFactionId
             ? {
                 ...unit,
                 movementRemaining: UNIT_STATS[unit.type].movement,
@@ -160,5 +190,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             : unit,
         ),
       }
+    }
   }
 }

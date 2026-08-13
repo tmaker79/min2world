@@ -80,6 +80,10 @@
   color: #79c7ed;
 }
 
+.faction-name--enemy {
+  color: #ef9187;
+}
+
 .status-separator {
   width: 1px;
   margin: 16px 0;
@@ -616,6 +620,11 @@
   font-weight: 900;
 }
 
+.unit-portrait--enemy {
+  background: #963f38;
+  border-color: #e6c0b9;
+}
+
 .unit-details__heading {
   display: flex;
   flex-direction: column;
@@ -734,7 +743,7 @@
   line-height: 1.5;
 }
 
-.victory-overlay {
+.result-overlay {
   position: absolute;
   z-index: 10;
   display: grid;
@@ -745,7 +754,7 @@
   backdrop-filter: blur(4px);
 }
 
-.victory-panel {
+.result-panel {
   width: min(400px, 100%);
   padding: 34px;
   color: var(--ink);
@@ -758,11 +767,11 @@
   text-align: center;
 }
 
-.victory-panel .eyebrow {
+.result-panel .eyebrow {
   margin-bottom: 18px;
 }
 
-.victory-emblem {
+.result-emblem {
   display: block;
   margin-bottom: 12px;
   color: var(--gold);
@@ -770,26 +779,26 @@
   text-shadow: 0 0 25px rgba(228, 185, 95, 0.45);
 }
 
-.victory-panel h2 {
+.result-panel h2 {
   margin: 0;
   font-family: Georgia, "Times New Roman", serif;
   font-size: 2rem;
 }
 
-.victory-panel p {
+.result-panel p {
   margin: 14px 0 8px;
   color: var(--muted);
   font-size: 0.9rem;
 }
 
-.victory-panel strong {
+.result-panel strong {
   display: block;
   color: #f1d17e;
   font-family: Georgia, "Times New Roman", serif;
   font-size: 1.05rem;
 }
 
-.victory-panel button {
+.result-panel button {
   width: 100%;
   margin-top: 25px;
   padding: 13px 20px;
@@ -801,8 +810,20 @@
   font-weight: 900;
 }
 
-.victory-panel button:hover {
+.result-panel button:hover {
   filter: brightness(1.08);
+}
+
+.result-panel--defeat {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(185, 67, 57, 0.2), transparent 13rem),
+    #2b2021;
+  border-color: rgba(226, 105, 94, 0.48);
+}
+
+.result-panel--defeat .result-emblem,
+.result-panel--defeat strong {
+  color: #ef9187;
 }
 
 @media (max-width: 980px) {

@@ -1,9 +1,27 @@
-import { render, screen, within } from '@testing-library/react'
+import { StrictMode } from 'react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { createInitialGameState } from './game/initialState'
 import type { GameState } from './game/types'
+
+function setReducedMotion(matches: boolean) {
+  window.matchMedia = ((query: string) =>
+    ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    }) as MediaQueryList) as typeof window.matchMedia
+}
+
+beforeEach(() => setReducedMotion(true))
+afterEach(() => vi.useRealTimers())
 
 function createCombatUiState(
   defenderHp = 10,
@@ -48,6 +66,57 @@ function createVictoryUiState(): GameState {
         factionId: 'player',
         type: 'infantry',
         position: { x: 7, y: 1 },
+        hp: 10,
+        maxHp: 10,
+        movementRemaining: 2,
+        hasActed: false,
+      },
+    ],
+  }
+}
+
+function createAiCombatUiState(): GameState {
+  return {
+    ...createInitialGameState(),
+    units: [
+      {
+        id: 'ai-attacker',
+        name: 'AI 시험 기병대',
+        factionId: 'enemy',
+        type: 'cavalry',
+        position: { x: 5, y: 5 },
+        hp: 10,
+        maxHp: 10,
+        movementRemaining: 3,
+        hasActed: false,
+      },
+      {
+        id: 'player-defender',
+        name: '플레이어 시험 보병대',
+        factionId: 'player',
+        type: 'infantry',
+        position: { x: 5, y: 4 },
+        hp: 10,
+        maxHp: 10,
+        movementRemaining: 2,
+        hasActed: false,
+      },
+    ],
+  }
+}
+
+function createDefeatUiState(): GameState {
+  const initial = createInitialGameState()
+
+  return {
+    ...initial,
+    units: [
+      {
+        id: 'ai-capturer',
+        name: 'AI 점령 부대',
+        factionId: 'enemy',
+        type: 'infantry',
+        position: { x: 1, y: 7 },
         hp: 10,
         maxHp: 10,
         movementRemaining: 2,
@@ -114,7 +183,7 @@ describe('App', () => {
     expect(document.querySelectorAll('[data-attackable="true"]')).toHaveLength(0)
   })
 
-  it('턴 종료 시 턴 번호를 올리고 유닛 행동 상태를 초기화한다', async () => {
+  it('턴 종료 후 AI가 행동하고 다음 플레이어 라운드를 시작한다', async () => {
     const user = userEvent.setup()
     render(<App />)
 
@@ -128,7 +197,21 @@ describe('App', () => {
 
     const turnStatus = screen.getByText('현재 턴').parentElement
     expect(turnStatus).not.toBeNull()
-    expect(within(turnStatus!).getByText('2')).toBeInTheDocument()
+    expect(within(turnStatus!).getByText('1')).toBeInTheDocument()
+    expect(screen.getByText('붉은 제국')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /AI 작전 중/ }),
+    ).toBeDisabled()
+    for (const tile of within(screen.getByTestId('game-map')).getAllByRole(
+      'button',
+    )) {
+      expect(tile).toBeDisabled()
+    }
+
+    expect(
+      await within(turnStatus!).findByText('2', {}, { timeout: 2000 }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('푸른 연맹')).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: /청룡 보병대.*행동 가능/ }),
     ).toBeInTheDocument()
@@ -143,10 +226,40 @@ describe('App', () => {
 
     const turnStatus = screen.getByText('현재 턴').parentElement
     expect(turnStatus).not.toBeNull()
-    expect(within(turnStatus!).getByText('2')).toBeInTheDocument()
+    expect(screen.getByText('붉은 제국')).toBeInTheDocument()
+    await user.keyboard('{Enter}')
+    expect(within(turnStatus!).getByText('1')).toBeInTheDocument()
+    expect(
+      await within(turnStatus!).findByText('2', {}, { timeout: 2000 }),
+    ).toBeInTheDocument()
+  })
+
+  it('AI가 인접한 플레이어 유닛을 기존 전투 흐름으로 공격한다', async () => {
+    const user = userEvent.setup()
+    render(<App initialState={createAiCombatUiState()} />)
+
+    await user.click(screen.getByRole('button', { name: '턴 종료' }))
+
+    expect(
+      await screen.findByRole(
+        'button',
+        { name: /플레이어 시험 보병대.*체력 5\/10/ },
+        { timeout: 3000 },
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /AI 시험 기병대.*체력 7\/10/ }),
+    ).toBeInTheDocument()
+
+    const turnStatus = screen.getByText('현재 턴').parentElement
+    expect(turnStatus).not.toBeNull()
+    expect(
+      await within(turnStatus!).findByText('2', {}, { timeout: 1500 }),
+    ).toBeInTheDocument()
   })
 
   it('공격 가능한 적을 강조하고 클릭 전투 결과를 표시한다', async () => {
+    setReducedMotion(false)
     const user = userEvent.setup()
     render(<App initialState={createCombatUiState()} />)
 
@@ -220,6 +333,7 @@ describe('App', () => {
   })
 
   it('전투에서 사망한 유닛에 제거 모션을 표시한다', async () => {
+    setReducedMotion(false)
     const user = userEvent.setup()
     render(<App initialState={createCombatUiState(4)} />)
 
@@ -266,5 +380,52 @@ describe('App', () => {
     const turnStatus = screen.getByText('현재 턴').parentElement
     expect(turnStatus).not.toBeNull()
     expect(within(turnStatus!).getByText('1')).toBeInTheDocument()
+  })
+
+  it('AI가 마지막 플레이어 도시를 점령하면 패배한다', async () => {
+    const user = userEvent.setup()
+    render(<App initialState={createDefeatUiState()} />)
+
+    await user.click(screen.getByRole('button', { name: '턴 종료' }))
+
+    expect(
+      await screen.findByRole(
+        'dialog',
+        { name: '수도 함락' },
+        { timeout: 1000 },
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText('1턴 만에 패배')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /AI 작전 중/ })).toBeDisabled()
+
+    await user.click(screen.getByRole('button', { name: '새 게임' }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByText('푸른 연맹')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '턴 종료' })).toBeEnabled()
+  })
+
+  it('Strict Mode에서도 AI 예약 행동을 한 번씩만 실행한다', async () => {
+    vi.useFakeTimers()
+    const state = {
+      ...createDefeatUiState(),
+      activeFactionId: 'enemy' as const,
+    }
+
+    render(
+      <StrictMode>
+        <App initialState={state} />
+      </StrictMode>,
+    )
+
+    await act(() => vi.advanceTimersByTimeAsync(50))
+    expect(
+      screen.getByRole('button', { name: /AI 점령 부대/ }),
+    ).toHaveAttribute('aria-pressed', 'true')
+
+    await act(() => vi.advanceTimersByTimeAsync(50))
+    expect(
+      screen.getByRole('dialog', { name: '수도 함락' }),
+    ).toBeInTheDocument()
   })
 })

@@ -18,7 +18,10 @@ export function InfoPanel({ unit }: InfoPanelProps) {
 
       {unit ? (
         <div className="unit-details">
-          <div className="unit-portrait" aria-hidden="true">
+          <div
+            className={`unit-portrait unit-portrait--${unit.factionId}`}
+            aria-hidden="true"
+          >
             {unit.type === 'infantry' ? '보' : '기'}
           </div>
           <div className="unit-details__heading">

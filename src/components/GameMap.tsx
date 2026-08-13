@@ -158,7 +158,7 @@ function TileButton({
         attackable,
         inZoneOfControl,
       )}
-      aria-pressed={unit?.factionId === 'player' ? selected : undefined}
+      aria-pressed={unit ? selected : undefined}
       data-coordinate={positionKey(tile.position)}
       data-reachable={reachable ? 'true' : undefined}
       data-attackable={attackable ? 'true' : undefined}

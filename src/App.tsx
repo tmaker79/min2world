@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useReducer, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
+import { GameResultPanel } from './components/GameResultPanel'
 import { GameMap } from './components/GameMap'
 import type {
   CombatAnimation,
@@ -7,7 +8,6 @@ import type {
 import { InfoPanel } from './components/InfoPanel'
 import { Legend } from './components/Legend'
 import { StatusBar } from './components/StatusBar'
-import { VictoryPanel } from './components/VictoryPanel'
 import { createInitialGameState } from './game/initialState'
 import { gameReducer } from './game/reducer'
 import { getUnitAt, positionKey, resolveCombat } from './game/rules'
@@ -18,6 +18,7 @@ import {
   getSelectedUnitReachablePositions,
 } from './game/selectors'
 import type { GameState, Tile } from './game/types'
+import { useAiTurn } from './hooks/useAiTurn'
 import './App.css'
 
 type AppProps = {
@@ -61,6 +62,38 @@ function App({ initialState }: AppProps = {}) {
       ),
     [state],
   )
+
+  const startCombat = useCallback(
+    (attackerId: string, defenderId: string) => {
+      const attacker = state.units.find((unit) => unit.id === attackerId)
+      const defender = state.units.find((unit) => unit.id === defenderId)
+
+      if (!attacker || !defender) {
+        return
+      }
+
+      const result = resolveCombat(attacker, defender)
+      setCombatPhase('attack')
+      setActiveCombat({
+        attackerId: attacker.id,
+        defenderId: defender.id,
+        attackerPosition: { ...attacker.position },
+        defenderPosition: { ...defender.position },
+        damageToAttacker: attacker.hp - result.attackerHp,
+        damageToDefender: defender.hp - result.defenderHp,
+        attackerDefeated: result.attackerHp === 0,
+        defenderDefeated: result.defenderHp === 0,
+      })
+    },
+    [state.units],
+  )
+
+  const aiAnnouncement = useAiTurn({
+    state,
+    combatActive: Boolean(activeCombat),
+    dispatch,
+    startCombat,
+  })
 
   useEffect(() => {
     if (!activeCombat) {
@@ -106,7 +139,11 @@ function App({ initialState }: AppProps = {}) {
   }, [activeCombat])
 
   useEffect(() => {
-    if (state.phase !== 'playing' || activeCombat) {
+    if (
+      state.phase !== 'playing' ||
+      state.activeFactionId !== 'player' ||
+      activeCombat
+    ) {
       return
     }
 
@@ -136,10 +173,10 @@ function App({ initialState }: AppProps = {}) {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [activeCombat, state.phase])
+  }, [activeCombat, state.activeFactionId, state.phase])
 
   const handleTileClick = (tile: Tile) => {
-    if (activeCombat) {
+    if (activeCombat || state.activeFactionId !== 'player') {
       return
     }
 
@@ -151,18 +188,7 @@ function App({ initialState }: AppProps = {}) {
     }
 
     if (selectedUnit && unit && attackableIds.has(unit.id)) {
-      const result = resolveCombat(selectedUnit, unit)
-      setCombatPhase('attack')
-      setActiveCombat({
-        attackerId: selectedUnit.id,
-        defenderId: unit.id,
-        attackerPosition: { ...selectedUnit.position },
-        defenderPosition: { ...unit.position },
-        damageToAttacker: selectedUnit.hp - result.attackerHp,
-        damageToDefender: unit.hp - result.defenderHp,
-        attackerDefeated: result.attackerHp === 0,
-        defenderDefeated: result.defenderHp === 0,
-      })
+      startCombat(selectedUnit.id, unit.id)
       return
     }
 
@@ -190,7 +216,12 @@ function App({ initialState }: AppProps = {}) {
       <StatusBar
         turn={state.turn}
         resource={state.resources.player}
-        disabled={state.phase !== 'playing' || Boolean(activeCombat)}
+        activeFactionId={state.activeFactionId}
+        disabled={
+          state.phase !== 'playing' ||
+          state.activeFactionId !== 'player' ||
+          Boolean(activeCombat)
+        }
         onEndTurn={() => dispatch({ type: 'turnEnded' })}
       />
 
@@ -215,13 +246,18 @@ function App({ initialState }: AppProps = {}) {
                   ? { ...activeCombat, phase: combatPhase }
                   : undefined
               }
-              disabled={state.phase !== 'playing' || Boolean(activeCombat)}
+              disabled={
+                state.phase !== 'playing' ||
+                state.activeFactionId !== 'player' ||
+                Boolean(activeCombat)
+              }
               onTileClick={handleTileClick}
             />
           </div>
 
-          {state.phase === 'victory' && (
-            <VictoryPanel
+          {state.phase !== 'playing' && (
+            <GameResultPanel
+              phase={state.phase}
               turn={state.turn}
               onRestart={() => dispatch({ type: 'gameRestarted' })}
             />
@@ -244,6 +280,11 @@ function App({ initialState }: AppProps = {}) {
           </section>
         </aside>
       </main>
+      {aiAnnouncement && (
+        <span className="sr-only" role="status" aria-live="polite">
+          {aiAnnouncement}
+        </span>
+      )}
     </div>
   )
 }

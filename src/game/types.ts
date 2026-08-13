@@ -7,7 +7,7 @@ export type Position = {
 
 export type FactionId = 'player' | 'enemy'
 export type UnitType = 'infantry' | 'cavalry'
-export type GamePhase = 'playing' | 'victory'
+export type GamePhase = 'playing' | 'victory' | 'defeat'
 
 export type UnitStats = {
   movement: number
@@ -59,5 +59,6 @@ export type GameAction =
   | { type: 'selectionCleared' }
   | { type: 'unitMoved'; unitId: string; destination: Position }
   | { type: 'unitAttacked'; attackerId: string; defenderId: string }
+  | { type: 'unitWaited'; unitId: string }
   | { type: 'turnEnded' }
   | { type: 'gameRestarted' }

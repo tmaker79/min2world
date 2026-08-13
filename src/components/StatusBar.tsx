@@ -1,6 +1,9 @@
+import type { FactionId } from '../game/types'
+
 type StatusBarProps = {
   turn: number
   resource: number
+  activeFactionId: FactionId
   disabled: boolean
   onEndTurn: () => void
 }
@@ -8,6 +11,7 @@ type StatusBarProps = {
 export function StatusBar({
   turn,
   resource,
+  activeFactionId,
   disabled,
   onEndTurn,
 }: StatusBarProps) {
@@ -20,7 +24,12 @@ export function StatusBar({
       <div className="status-separator" aria-hidden="true" />
       <div className="status-item">
         <span className="status-item__label">활성 세력</span>
-        <strong className="faction-name faction-name--player">푸른 연맹</strong>
+        <strong
+          className={`faction-name faction-name--${activeFactionId}`}
+          aria-live="polite"
+        >
+          {activeFactionId === 'player' ? '푸른 연맹' : '붉은 제국'}
+        </strong>
       </div>
       <div className="status-separator" aria-hidden="true" />
       <div className="status-item">
@@ -33,9 +42,18 @@ export function StatusBar({
         disabled={disabled}
         onClick={onEndTurn}
       >
-        턴 종료
-        <kbd aria-hidden="true">Enter</kbd>
-        <span aria-hidden="true">→</span>
+        {activeFactionId === 'enemy' ? (
+          <>
+            AI 작전 중…
+            <span aria-hidden="true">◆</span>
+          </>
+        ) : (
+          <>
+            턴 종료
+            <kbd aria-hidden="true">Enter</kbd>
+            <span aria-hidden="true">→</span>
+          </>
+        )}
       </button>
     </section>
   )
