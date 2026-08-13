@@ -394,37 +394,6 @@
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
 }
 
-.unit-health-value {
-  position: absolute;
-  z-index: 2;
-  display: grid;
-  top: -8px;
-  right: -8px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 4px;
-  place-items: center;
-  color: #fff;
-  border: 2px solid rgba(255, 255, 255, 0.78);
-  border-radius: 9px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.42);
-  font-size: 0.58rem;
-  font-weight: 900;
-  line-height: 1;
-}
-
-.unit-health-value--healthy {
-  background: #3f8b55;
-}
-
-.unit-health-value--damaged {
-  background: #c57b32;
-}
-
-.unit-health-value--critical {
-  background: #b33d39;
-}
-
 .unit-health-bar {
   position: absolute;
   z-index: 2;

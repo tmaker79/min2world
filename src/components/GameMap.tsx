@@ -222,9 +222,6 @@ function TileButton({
           <span className="unit-symbol">
             <UnitIcon type={unit.type} />
           </span>
-          <span className={`unit-health-value unit-health-value--${healthLevel}`}>
-            {unit.hp}
-          </span>
           <span className="unit-health-bar">
             <span
               className={`unit-health-bar__fill unit-health-bar__fill--${healthLevel}`}
