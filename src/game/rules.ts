@@ -75,6 +75,39 @@ function getOrthogonalNeighbors(position: Position): Position[] {
   ].filter(isPositionOnBoard)
 }
 
+export function getEnemyZoneOfControlPositions(
+  state: GameState,
+  factionId: FactionId,
+): Position[] {
+  const positions = new Map<string, Position>()
+
+  for (const unit of state.units) {
+    if (unit.factionId === factionId) {
+      continue
+    }
+
+    for (const position of getOrthogonalNeighbors(unit.position)) {
+      positions.set(positionKey(position), position)
+    }
+  }
+
+  return [...positions.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([, position]) => position)
+}
+
+export function isPositionInEnemyZoneOfControl(
+  state: GameState,
+  factionId: FactionId,
+  position: Position,
+): boolean {
+  return state.units.some(
+    (unit) =>
+      unit.factionId !== factionId &&
+      areOrthogonallyAdjacent(unit.position, position),
+  )
+}
+
 function getReachablePositionCosts(
   state: GameState,
   unit: Unit,
@@ -93,6 +126,9 @@ function getReachablePositionCosts(
       .filter((candidate) => candidate.id !== unit.id)
       .map((candidate) => positionKey(candidate.position)),
   )
+  const enemyZoneOfControlPositions = new Set(
+    getEnemyZoneOfControlPositions(state, unit.factionId).map(positionKey),
+  )
   const bestCosts = new Map<string, number>([[positionKey(unit.position), 0]])
   const frontier: Array<{ position: Position; cost: number }> = [
     { position: unit.position, cost: 0 },
@@ -107,6 +143,13 @@ function getReachablePositionCosts(
     }
 
     if (current.cost !== bestCosts.get(positionKey(current.position))) {
+      continue
+    }
+
+    if (
+      current.cost > 0 &&
+      enemyZoneOfControlPositions.has(positionKey(current.position))
+    ) {
       continue
     }
 
@@ -128,7 +171,10 @@ function getReachablePositionCosts(
       }
 
       const nextCost = current.cost + movementCost
-      if (nextCost > movement || nextCost >= (bestCosts.get(neighborKey) ?? Infinity)) {
+      if (
+        nextCost > movement ||
+        nextCost >= (bestCosts.get(neighborKey) ?? Infinity)
+      ) {
         continue
       }
 

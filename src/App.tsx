@@ -14,6 +14,7 @@ import { getUnitAt, positionKey, resolveCombat } from './game/rules'
 import {
   getSelectedUnit,
   getSelectedUnitAttackableUnits,
+  getSelectedUnitEnemyZoneOfControlPositions,
   getSelectedUnitReachablePositions,
 } from './game/selectors'
 import type { GameState, Tile } from './game/types'
@@ -52,6 +53,13 @@ function App({ initialState }: AppProps = {}) {
   const attackableKeys = useMemo(
     () => new Set(attackableUnits.map((unit) => positionKey(unit.position))),
     [attackableUnits],
+  )
+  const zoneOfControlKeys = useMemo(
+    () =>
+      new Set(
+        getSelectedUnitEnemyZoneOfControlPositions(state).map(positionKey),
+      ),
+    [state],
   )
 
   useEffect(() => {
@@ -201,6 +209,7 @@ function App({ initialState }: AppProps = {}) {
               state={state}
               reachableKeys={reachableKeys}
               attackableKeys={attackableKeys}
+              zoneOfControlKeys={zoneOfControlKeys}
               combatAnimation={
                 activeCombat
                   ? { ...activeCombat, phase: combatPhase }
@@ -228,6 +237,7 @@ function App({ initialState }: AppProps = {}) {
             <ol>
               <li>푸른 유닛을 선택합니다.</li>
               <li>금색 타일로 이동하거나 붉은 적을 공격합니다.</li>
+              <li>적 통제 구역에 진입하면 이동이 멈춥니다.</li>
               <li>행동 완료 유닛도 선택해 상태를 확인할 수 있습니다.</li>
               <li>모든 행동 후 턴을 종료합니다.</li>
             </ol>

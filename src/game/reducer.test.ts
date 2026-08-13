@@ -207,7 +207,7 @@ describe('gameReducer', () => {
     expect(result.selectedUnitId).toBeUndefined()
   })
 
-  it('이동력이 남으면 이동 후에도 인접한 적을 공격할 수 있다', () => {
+  it('통제 구역 진입 시 이동은 멈추지만 인접한 적을 공격할 수 있다', () => {
     const state = createCombatState({ defenderPosition: { x: 5, y: 3 } })
     const moved = gameReducer(state, {
       type: 'unitMoved',
@@ -222,11 +222,44 @@ describe('gameReducer', () => {
 
     expect(
       moved.units.find((unit) => unit.id === 'attacker')?.movementRemaining,
-    ).toBe(1)
+    ).toBe(0)
+    expect(
+      moved.units.find((unit) => unit.id === 'attacker')?.hasActed,
+    ).toBe(false)
+    expect(
+      gameReducer(moved, {
+        type: 'unitMoved',
+        unitId: 'attacker',
+        destination: { x: 4, y: 4 },
+      }),
+    ).toBe(moved)
     expect(result.units.find((unit) => unit.id === 'defender')?.hp).toBe(6)
     expect(
       result.units.find((unit) => unit.id === 'attacker'),
     ).toMatchObject({ movementRemaining: 0, hasActed: true })
+  })
+
+  it('통제 구역까지 이동력을 모두 사용한 유닛은 공격할 수 없다', () => {
+    const state = createCombatState({ defenderPosition: { x: 5, y: 2 } })
+    const moved = gameReducer(state, {
+      type: 'unitMoved',
+      unitId: 'attacker',
+      destination: { x: 5, y: 3 },
+    })
+    const movedUnit = moved.units.find((unit) => unit.id === 'attacker')
+
+    expect(movedUnit).toMatchObject({
+      position: { x: 5, y: 3 },
+      movementRemaining: 0,
+      hasActed: true,
+    })
+    expect(
+      gameReducer(moved, {
+        type: 'unitAttacked',
+        attackerId: 'attacker',
+        defenderId: 'defender',
+      }),
+    ).toBe(moved)
   })
 
   it('공격으로 방어자가 사망하면 제거하고 반격을 적용하지 않는다', () => {

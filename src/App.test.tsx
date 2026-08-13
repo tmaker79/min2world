@@ -5,7 +5,10 @@ import App from './App'
 import { createInitialGameState } from './game/initialState'
 import type { GameState } from './game/types'
 
-function createCombatUiState(defenderHp = 10): GameState {
+function createCombatUiState(
+  defenderHp = 10,
+  defenderPosition = { x: 5, y: 4 },
+): GameState {
   return {
     ...createInitialGameState(),
     units: [
@@ -25,7 +28,7 @@ function createCombatUiState(defenderHp = 10): GameState {
         name: '화면 시험 기병대',
         factionId: 'enemy',
         type: 'cavalry',
-        position: { x: 5, y: 4 },
+        position: defenderPosition,
         hp: defenderHp,
         maxHp: 10,
         movementRemaining: 3,
@@ -190,6 +193,30 @@ describe('App', () => {
     const turnStatus = screen.getByText('현재 턴').parentElement
     expect(turnStatus).not.toBeNull()
     expect(within(turnStatus!).getByText('1')).toBeInTheDocument()
+  })
+
+  it('통제 구역을 표시하고 진입 후 이동을 멈춘 채 공격을 허용한다', async () => {
+    const user = userEvent.setup()
+    render(<App initialState={createCombatUiState(10, { x: 5, y: 3 })} />)
+
+    await user.click(screen.getByRole('button', { name: /화면 시험 보병대/ }))
+
+    const controlledTile = screen.getByRole('button', {
+      name: /좌표 5, 4, 평지, 적 통제 구역/,
+    })
+    expect(controlledTile).toHaveAttribute('data-reachable', 'true')
+    expect(controlledTile).toHaveAttribute('data-zone-of-control', 'true')
+
+    await user.click(controlledTile)
+
+    expect(screen.getByText('0 / 2')).toBeInTheDocument()
+    expect(screen.getByText('공격만 가능')).toBeInTheDocument()
+    expect(document.querySelectorAll('[data-reachable="true"]')).toHaveLength(0)
+    expect(
+      screen.getByRole('button', {
+        name: /화면 시험 기병대.*공격 가능/,
+      }),
+    ).toHaveAttribute('data-attackable', 'true')
   })
 
   it('전투에서 사망한 유닛에 제거 모션을 표시한다', async () => {

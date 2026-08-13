@@ -3,6 +3,7 @@ import { createInitialGameState } from './initialState'
 import {
   captureCityAt,
   getAttackableUnits,
+  getEnemyZoneOfControlPositions,
   getMovementCost,
   getReachablePositions,
   ownsAllCities,
@@ -131,6 +132,36 @@ describe('getReachablePositions', () => {
     expect(
       getMovementCost(state, state.units[0], { x: 5, y: 3 }),
     ).toBeUndefined()
+  })
+
+  it('적 통제 구역에는 진입할 수 있지만 관통할 수 없다', () => {
+    const state = createMovementState({
+      unitType: 'cavalry',
+      blockers: [{ x: 6, y: 4 }],
+    })
+    const reachable = reachableKeys(state)
+
+    expect(reachable).toContain('5,4')
+    expect(getMovementCost(state, state.units[0], { x: 5, y: 4 })).toBe(1)
+    expect(reachable).not.toContain('5,3')
+  })
+
+  it('턴 시작부터 적 통제 구역에 있으면 구역 밖으로 이동할 수 있다', () => {
+    const state = createMovementState({ blockers: [{ x: 5, y: 4 }] })
+
+    expect(reachableKeys(state)).toContain('5,7')
+  })
+
+  it('적 유닛의 상하좌우 인접 위치만 통제 구역으로 반환한다', () => {
+    const state = createMovementState({ blockers: [{ x: 6, y: 4 }] })
+    const zoneOfControl = new Set(
+      getEnemyZoneOfControlPositions(state, 'player').map(positionKey),
+    )
+
+    expect(zoneOfControl).toEqual(
+      new Set(['6,3', '7,4', '6,5', '5,4']),
+    )
+    expect(zoneOfControl).not.toContain('5,3')
   })
 })
 

@@ -41,6 +41,7 @@ type GameMapProps = {
   state: GameState
   reachableKeys: Set<string>
   attackableKeys: Set<string>
+  zoneOfControlKeys: Set<string>
   combatAnimation?: CombatAnimation
   disabled: boolean
   onTileClick: (tile: Tile) => void
@@ -53,6 +54,7 @@ type TileButtonProps = {
   selected: boolean
   reachable: boolean
   attackable: boolean
+  inZoneOfControl: boolean
   combatAnimation?: CombatAnimation
   disabled: boolean
   onClick: () => void
@@ -63,11 +65,16 @@ function getTileLabel(
   unit?: Unit,
   city?: City,
   attackable = false,
+  inZoneOfControl = false,
 ) {
   const parts = [
     `좌표 ${tile.position.x}, ${tile.position.y}`,
     TERRAIN_LABELS[tile.terrain],
   ]
+
+  if (inZoneOfControl) {
+    parts.push('적 통제 구역')
+  }
 
   if (city) {
     parts.push(`${city.name}, ${city.ownerId === 'player' ? '푸른 연맹' : '붉은 제국'} 도시`)
@@ -76,7 +83,13 @@ function getTileLabel(
   if (unit) {
     parts.push(`${unit.name}, ${UNIT_LABELS[unit.type]}`)
     parts.push(`체력 ${unit.hp}/${unit.maxHp}`)
-    parts.push(unit.hasActed ? '행동 완료' : '행동 가능')
+    parts.push(
+      unit.hasActed
+        ? '행동 완료'
+        : unit.movementRemaining === 0
+          ? '공격만 가능'
+          : '행동 가능',
+    )
     if (attackable) {
       parts.push('공격 가능')
     }
@@ -92,6 +105,7 @@ function TileButton({
   selected,
   reachable,
   attackable,
+  inZoneOfControl,
   combatAnimation,
   disabled,
   onClick,
@@ -127,6 +141,7 @@ function TileButton({
     `map-tile--${tile.terrain}`,
     selected ? 'map-tile--selected' : '',
     reachable ? 'map-tile--reachable' : '',
+    inZoneOfControl ? 'map-tile--zoc' : '',
     attackable ? 'map-tile--attackable' : '',
   ]
     .filter(Boolean)
@@ -136,11 +151,18 @@ function TileButton({
     <button
       className={classNames}
       type="button"
-      aria-label={getTileLabel(tile, unit, city, attackable)}
+      aria-label={getTileLabel(
+        tile,
+        unit,
+        city,
+        attackable,
+        inZoneOfControl,
+      )}
       aria-pressed={unit?.factionId === 'player' ? selected : undefined}
       data-coordinate={positionKey(tile.position)}
       data-reachable={reachable ? 'true' : undefined}
       data-attackable={attackable ? 'true' : undefined}
+      data-zone-of-control={inZoneOfControl ? 'true' : undefined}
       disabled={disabled}
       onClick={onClick}
     >
@@ -215,6 +237,7 @@ export function GameMap({
   state,
   reachableKeys,
   attackableKeys,
+  zoneOfControlKeys,
   combatAnimation,
   disabled,
   onTileClick,
@@ -227,6 +250,9 @@ export function GameMap({
         const selected = Boolean(unit && unit.id === state.selectedUnitId)
         const reachable = reachableKeys.has(positionKey(tile.position))
         const attackable = attackableKeys.has(positionKey(tile.position))
+        const inZoneOfControl = zoneOfControlKeys.has(
+          positionKey(tile.position),
+        )
 
         return (
           <TileButton
@@ -237,6 +263,7 @@ export function GameMap({
             selected={selected}
             reachable={reachable}
             attackable={attackable}
+            inZoneOfControl={inZoneOfControl}
             combatAnimation={combatAnimation}
             disabled={disabled}
             onClick={() => onTileClick(tile)}

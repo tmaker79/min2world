@@ -249,6 +249,19 @@
   border-color: rgba(255, 239, 191, 0.8);
 }
 
+.map-tile--zoc::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(143, 38, 34, 0.2) 0 4px,
+    transparent 4px 9px
+  );
+  content: '';
+  pointer-events: none;
+}
+
 .map-tile--selected {
   z-index: 2;
   box-shadow:
@@ -698,6 +711,17 @@
 .legend-swatch--attackable {
   background: rgba(181, 44, 35, 0.25);
   border: 2px solid #ef7466;
+}
+
+.legend-swatch--zoc {
+  background:
+    repeating-linear-gradient(
+      135deg,
+      rgba(143, 38, 34, 0.55) 0 3px,
+      transparent 3px 6px
+    ),
+    #71865f;
+  border: 1px solid rgba(239, 116, 102, 0.75);
 }
 
 .help-card ol {

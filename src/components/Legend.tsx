@@ -24,6 +24,10 @@ export function Legend() {
           <span className="legend-swatch legend-swatch--attackable" />
           공격 가능
         </li>
+        <li>
+          <span className="legend-swatch legend-swatch--zoc" />
+          적 통제 구역 <small>진입 시 이동 종료</small>
+        </li>
       </ul>
     </section>
   )

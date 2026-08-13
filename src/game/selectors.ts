@@ -1,4 +1,8 @@
-import { getAttackableUnits, getReachablePositions } from './rules'
+import {
+  getAttackableUnits,
+  getEnemyZoneOfControlPositions,
+  getReachablePositions,
+} from './rules'
 import type { GameState } from './types'
 
 export function getSelectedUnit(state: GameState) {
@@ -13,4 +17,11 @@ export function getSelectedUnitReachablePositions(state: GameState) {
 export function getSelectedUnitAttackableUnits(state: GameState) {
   const selectedUnit = getSelectedUnit(state)
   return selectedUnit ? getAttackableUnits(state, selectedUnit) : []
+}
+
+export function getSelectedUnitEnemyZoneOfControlPositions(state: GameState) {
+  const selectedUnit = getSelectedUnit(state)
+  return selectedUnit
+    ? getEnemyZoneOfControlPositions(state, selectedUnit.factionId)
+    : []
 }

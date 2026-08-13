@@ -48,7 +48,13 @@ export function InfoPanel({ unit }: InfoPanelProps) {
             </div>
             <div>
               <dt>상태</dt>
-              <dd>{unit.hasActed ? '행동 완료' : '행동 가능'}</dd>
+              <dd>
+                {unit.hasActed
+                  ? '행동 완료'
+                  : unit.movementRemaining === 0
+                    ? '공격만 가능'
+                    : '행동 가능'}
+              </dd>
             </div>
           </dl>
         </div>

@@ -3,6 +3,7 @@ import {
   captureCityAt,
   getAttackableUnits,
   getMovementCost,
+  isPositionInEnemyZoneOfControl,
   ownsAllCities,
   resolveCombat,
   UNIT_STATS,
@@ -52,7 +53,17 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         return state
       }
 
-      const movementRemaining = unit.movementRemaining - movementCost
+      const movementAfterCost = unit.movementRemaining - movementCost
+      const stoppedByZoneOfControl =
+        movementAfterCost > 0 &&
+        isPositionInEnemyZoneOfControl(
+          state,
+          unit.factionId,
+          action.destination,
+        )
+      const movementRemaining = stoppedByZoneOfControl
+        ? 0
+        : movementAfterCost
 
       const cities = captureCityAt(
         state.cities,
@@ -71,7 +82,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
                 ...candidate,
                 position: { ...action.destination },
                 movementRemaining,
-                hasActed: movementRemaining === 0,
+                hasActed: movementRemaining === 0 && !stoppedByZoneOfControl,
               }
             : candidate,
         ),
