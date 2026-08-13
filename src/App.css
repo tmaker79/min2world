@@ -263,6 +263,11 @@
     0 0 16px rgba(222, 75, 63, 0.62);
 }
 
+.map-tile--attackable:not(:disabled),
+.map-tile--attackable:not(:disabled) * {
+  cursor: url('./assets/crossed-swords.svg') 16 16, crosshair;
+}
+
 .map-tile--attackable::after {
   background: rgba(181, 44, 35, 0.18);
   border-color: rgba(255, 173, 163, 0.88);
@@ -425,6 +430,124 @@
 .unit-token--acted {
   filter: saturate(0.25);
   opacity: 0.76;
+}
+
+.unit-token--striking {
+  z-index: 5;
+  animation: unit-strike 200ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+.unit-token--hit {
+  z-index: 4;
+  animation: unit-hit 260ms ease-out;
+}
+
+.unit-token--defeated {
+  animation: unit-defeat 380ms ease-in forwards;
+}
+
+.damage-popup {
+  position: absolute;
+  z-index: 8;
+  top: 3px;
+  left: 50%;
+  color: #fff2b9;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.05rem;
+  font-weight: 900;
+  line-height: 1;
+  pointer-events: none;
+  text-shadow:
+    0 2px 2px rgba(0, 0, 0, 0.8),
+    0 0 8px rgba(217, 70, 58, 0.9);
+  animation: damage-rise 380ms ease-out forwards;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@keyframes unit-strike {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  45% {
+    transform: translate(var(--strike-x), var(--strike-y)) scale(1.12);
+  }
+}
+
+@keyframes unit-hit {
+  0%,
+  100% {
+    filter: brightness(1);
+    transform: translateX(0);
+  }
+
+  20% {
+    filter: brightness(1.8) sepia(1) saturate(4) hue-rotate(320deg);
+    transform: translateX(-4px);
+  }
+
+  45% {
+    transform: translateX(5px);
+  }
+
+  70% {
+    transform: translateX(-2px);
+  }
+}
+
+@keyframes unit-defeat {
+  0% {
+    filter: brightness(1.7) sepia(1) saturate(4) hue-rotate(320deg);
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+
+  100% {
+    filter: grayscale(1);
+    opacity: 0;
+    transform: scale(0.18) rotate(25deg);
+  }
+}
+
+@keyframes damage-rise {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 8px) scale(0.75);
+  }
+
+  25% {
+    opacity: 1;
+    transform: translate(-50%, -2px) scale(1.15);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -20px) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .unit-token--striking,
+  .unit-token--hit,
+  .unit-token--defeated,
+  .damage-popup {
+    animation-duration: 1ms;
+  }
+
+  .unit-health-bar__fill {
+    transition: none;
+  }
 }
 
 .side-panel {

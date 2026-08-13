@@ -1,12 +1,16 @@
-import { useEffect, useMemo, useReducer } from 'react'
+import { useEffect, useMemo, useReducer, useState } from 'react'
 import { GameMap } from './components/GameMap'
+import type {
+  CombatAnimation,
+  CombatAnimationPhase,
+} from './components/GameMap'
 import { InfoPanel } from './components/InfoPanel'
 import { Legend } from './components/Legend'
 import { StatusBar } from './components/StatusBar'
 import { VictoryPanel } from './components/VictoryPanel'
 import { createInitialGameState } from './game/initialState'
 import { gameReducer } from './game/reducer'
-import { getUnitAt, positionKey } from './game/rules'
+import { getUnitAt, positionKey, resolveCombat } from './game/rules'
 import {
   getSelectedUnit,
   getSelectedUnitAttackableUnits,
@@ -24,6 +28,10 @@ function App({ initialState }: AppProps = {}) {
     gameReducer,
     initialState ?? createInitialGameState(),
   )
+  const [activeCombat, setActiveCombat] = useState<
+    Omit<CombatAnimation, 'phase'>
+  >()
+  const [combatPhase, setCombatPhase] = useState<CombatAnimationPhase>('attack')
   const selectedUnit = getSelectedUnit(state)
   const reachablePositions = useMemo(
     () => getSelectedUnitReachablePositions(state),
@@ -47,7 +55,50 @@ function App({ initialState }: AppProps = {}) {
   )
 
   useEffect(() => {
-    if (state.phase !== 'playing') {
+    if (!activeCombat) {
+      return
+    }
+
+    const reducedMotion = window.matchMedia?.(
+      '(prefers-reduced-motion: reduce)',
+    ).matches
+    const timings = reducedMotion
+      ? { hit: 20, counter: 45, counterHit: 70, complete: 100 }
+      : { hit: 180, counter: 440, counterHit: 620, complete: 900 }
+    const timers: number[] = []
+
+    timers.push(
+      window.setTimeout(() => setCombatPhase('defenderHit'), timings.hit),
+    )
+
+    if (!activeCombat.defenderDefeated) {
+      timers.push(
+        window.setTimeout(() => setCombatPhase('counter'), timings.counter),
+      )
+      timers.push(
+        window.setTimeout(
+          () => setCombatPhase('attackerHit'),
+          timings.counterHit,
+        ),
+      )
+    }
+
+    timers.push(
+      window.setTimeout(() => {
+        dispatch({
+          type: 'unitAttacked',
+          attackerId: activeCombat.attackerId,
+          defenderId: activeCombat.defenderId,
+        })
+        setActiveCombat(undefined)
+      }, activeCombat.defenderDefeated ? timings.counterHit : timings.complete),
+    )
+
+    return () => timers.forEach(window.clearTimeout)
+  }, [activeCombat])
+
+  useEffect(() => {
+    if (state.phase !== 'playing' || activeCombat) {
       return
     }
 
@@ -77,9 +128,13 @@ function App({ initialState }: AppProps = {}) {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [state.phase])
+  }, [activeCombat, state.phase])
 
   const handleTileClick = (tile: Tile) => {
+    if (activeCombat) {
+      return
+    }
+
     const unit = getUnitAt(state, tile.position)
 
     if (unit?.factionId === 'player') {
@@ -88,10 +143,17 @@ function App({ initialState }: AppProps = {}) {
     }
 
     if (selectedUnit && unit && attackableIds.has(unit.id)) {
-      dispatch({
-        type: 'unitAttacked',
+      const result = resolveCombat(selectedUnit, unit)
+      setCombatPhase('attack')
+      setActiveCombat({
         attackerId: selectedUnit.id,
         defenderId: unit.id,
+        attackerPosition: { ...selectedUnit.position },
+        defenderPosition: { ...unit.position },
+        damageToAttacker: selectedUnit.hp - result.attackerHp,
+        damageToDefender: unit.hp - result.defenderHp,
+        attackerDefeated: result.attackerHp === 0,
+        defenderDefeated: result.defenderHp === 0,
       })
       return
     }
@@ -120,7 +182,7 @@ function App({ initialState }: AppProps = {}) {
       <StatusBar
         turn={state.turn}
         resource={state.resources.player}
-        disabled={state.phase !== 'playing'}
+        disabled={state.phase !== 'playing' || Boolean(activeCombat)}
         onEndTurn={() => dispatch({ type: 'turnEnded' })}
       />
 
@@ -139,7 +201,12 @@ function App({ initialState }: AppProps = {}) {
               state={state}
               reachableKeys={reachableKeys}
               attackableKeys={attackableKeys}
-              disabled={state.phase !== 'playing'}
+              combatAnimation={
+                activeCombat
+                  ? { ...activeCombat, phase: combatPhase }
+                  : undefined
+              }
+              disabled={state.phase !== 'playing' || Boolean(activeCombat)}
               onTileClick={handleTileClick}
             />
           </div>

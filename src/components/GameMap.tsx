@@ -1,5 +1,30 @@
 import { getCityAt, getUnitAt, positionKey } from '../game/rules'
-import type { City, GameState, Terrain, Tile, Unit } from '../game/types'
+import type {
+  City,
+  GameState,
+  Position,
+  Terrain,
+  Tile,
+  Unit,
+} from '../game/types'
+
+export type CombatAnimationPhase =
+  | 'attack'
+  | 'defenderHit'
+  | 'counter'
+  | 'attackerHit'
+
+export type CombatAnimation = {
+  attackerId: string
+  defenderId: string
+  attackerPosition: Position
+  defenderPosition: Position
+  damageToAttacker: number
+  damageToDefender: number
+  attackerDefeated: boolean
+  defenderDefeated: boolean
+  phase: CombatAnimationPhase
+}
 
 const TERRAIN_LABELS: Record<Terrain, string> = {
   plain: '평지',
@@ -16,6 +41,7 @@ type GameMapProps = {
   state: GameState
   reachableKeys: Set<string>
   attackableKeys: Set<string>
+  combatAnimation?: CombatAnimation
   disabled: boolean
   onTileClick: (tile: Tile) => void
 }
@@ -27,6 +53,7 @@ type TileButtonProps = {
   selected: boolean
   reachable: boolean
   attackable: boolean
+  combatAnimation?: CombatAnimation
   disabled: boolean
   onClick: () => void
 }
@@ -65,6 +92,7 @@ function TileButton({
   selected,
   reachable,
   attackable,
+  combatAnimation,
   disabled,
   onClick,
 }: TileButtonProps) {
@@ -77,6 +105,23 @@ function TileButton({
       : healthPercent < 100
         ? 'damaged'
         : 'healthy'
+  const isAttacker = unit?.id === combatAnimation?.attackerId
+  const isDefender = unit?.id === combatAnimation?.defenderId
+  const isStriking =
+    (isAttacker && combatAnimation?.phase === 'attack') ||
+    (isDefender && combatAnimation?.phase === 'counter')
+  const isHit =
+    (isDefender && combatAnimation?.phase === 'defenderHit') ||
+    (isAttacker && combatAnimation?.phase === 'attackerHit')
+  const isDefeated =
+    isHit &&
+    ((isDefender && combatAnimation?.defenderDefeated) ||
+      (isAttacker && combatAnimation?.attackerDefeated))
+  const strikeTarget = isAttacker
+    ? combatAnimation?.defenderPosition
+    : combatAnimation?.attackerPosition
+  const strikeX = unit && strikeTarget ? (strikeTarget.x - unit.position.x) * 18 : 0
+  const strikeY = unit && strikeTarget ? (strikeTarget.y - unit.position.y) * 18 : 0
   const classNames = [
     'map-tile',
     `map-tile--${tile.terrain}`,
@@ -127,10 +172,18 @@ function TileButton({
         <span
           className={`unit-token unit-token--${unit.factionId} ${
             unit.hasActed ? 'unit-token--acted' : ''
-          }`}
+          } ${isStriking ? 'unit-token--striking' : ''} ${
+            isHit ? 'unit-token--hit' : ''
+          } ${isDefeated ? 'unit-token--defeated' : ''}`}
           aria-hidden="true"
           data-unit-id={unit.id}
           data-health={`${unit.hp}/${unit.maxHp}`}
+          style={
+            {
+              '--strike-x': `${strikeX}px`,
+              '--strike-y': `${strikeY}px`,
+            } as React.CSSProperties
+          }
         >
           <span className="unit-symbol">
             {unit.type === 'infantry' ? '보' : '기'}
@@ -146,6 +199,14 @@ function TileButton({
           </span>
         </span>
       )}
+      {unit && isHit && (
+        <span className="damage-popup" aria-hidden="true">
+          -
+          {isDefender
+            ? combatAnimation?.damageToDefender
+            : combatAnimation?.damageToAttacker}
+        </span>
+      )}
     </button>
   )
 }
@@ -154,6 +215,7 @@ export function GameMap({
   state,
   reachableKeys,
   attackableKeys,
+  combatAnimation,
   disabled,
   onTileClick,
 }: GameMapProps) {
@@ -175,11 +237,22 @@ export function GameMap({
             selected={selected}
             reachable={reachable}
             attackable={attackable}
+            combatAnimation={combatAnimation}
             disabled={disabled}
             onClick={() => onTileClick(tile)}
           />
         )
       })}
+      {combatAnimation && (
+        <span className="sr-only" role="status" aria-live="polite">
+          {combatAnimation.phase === 'attack' && '공격 중'}
+          {combatAnimation.phase === 'defenderHit' &&
+            `방어 유닛이 ${combatAnimation.damageToDefender} 피해를 받았습니다`}
+          {combatAnimation.phase === 'counter' && '반격 중'}
+          {combatAnimation.phase === 'attackerHit' &&
+            `공격 유닛이 ${combatAnimation.damageToAttacker} 피해를 받았습니다`}
+        </span>
+      )}
     </div>
   )
 }

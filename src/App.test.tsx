@@ -5,7 +5,7 @@ import App from './App'
 import { createInitialGameState } from './game/initialState'
 import type { GameState } from './game/types'
 
-function createCombatUiState(): GameState {
+function createCombatUiState(defenderHp = 10): GameState {
   return {
     ...createInitialGameState(),
     units: [
@@ -26,7 +26,7 @@ function createCombatUiState(): GameState {
         factionId: 'enemy',
         type: 'cavalry',
         position: { x: 5, y: 4 },
-        hp: 10,
+        hp: defenderHp,
         maxHp: 10,
         movementRemaining: 3,
         hasActed: false,
@@ -153,15 +153,25 @@ describe('App', () => {
       name: /화면 시험 기병대.*공격 가능/,
     })
     expect(attackableEnemy).toHaveAttribute('data-attackable', 'true')
+    expect(attackableEnemy).toHaveClass('map-tile--attackable')
     expect(screen.getByText('공격력').parentElement).toHaveTextContent('4')
     expect(screen.getByText('반격력').parentElement).toHaveTextContent('3')
 
     await user.click(attackableEnemy)
 
+    expect(screen.getByRole('button', { name: '턴 종료' })).toBeDisabled()
+    expect(document.querySelector('[data-unit-id="ui-attacker"]')).toHaveClass(
+      'unit-token--striking',
+    )
+    await user.keyboard('{Enter}')
+    expect(await screen.findByText('-4')).toBeInTheDocument()
+
     expect(
-      screen.getByRole('button', {
-        name: /화면 시험 보병대.*체력 8\/10.*행동 완료/,
-      }),
+      await screen.findByRole(
+        'button',
+        { name: /화면 시험 보병대.*체력 8\/10.*행동 완료/ },
+        { timeout: 1500 },
+      ),
     ).toBeInTheDocument()
     expect(
       screen.getByRole('button', {
@@ -177,6 +187,31 @@ describe('App', () => {
       '6/10',
     )
     expect(screen.queryByText('화면 시험 보병대')).not.toBeInTheDocument()
+    const turnStatus = screen.getByText('현재 턴').parentElement
+    expect(turnStatus).not.toBeNull()
+    expect(within(turnStatus!).getByText('1')).toBeInTheDocument()
+  })
+
+  it('전투에서 사망한 유닛에 제거 모션을 표시한다', async () => {
+    const user = userEvent.setup()
+    render(<App initialState={createCombatUiState(4)} />)
+
+    await user.click(screen.getByRole('button', { name: /화면 시험 보병대/ }))
+    await user.click(
+      screen.getByRole('button', { name: /화면 시험 기병대.*공격 가능/ }),
+    )
+
+    expect(await screen.findByText('-4')).toBeInTheDocument()
+    expect(document.querySelector('[data-unit-id="ui-defender"]')).toHaveClass(
+      'unit-token--defeated',
+    )
+    expect(
+      await screen.findByRole(
+        'button',
+        { name: /^좌표 5, 4, 평지$/ },
+        { timeout: 1200 },
+      ),
+    ).toBeInTheDocument()
   })
 
   it('적 도시를 점령하면 승리하고 새 게임으로 초기화한다', async () => {
