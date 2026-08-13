@@ -7,6 +7,13 @@ export type Position = {
 
 export type FactionId = 'player' | 'enemy'
 export type UnitType = 'infantry' | 'cavalry'
+export type GamePhase = 'playing' | 'victory'
+
+export type UnitStats = {
+  movement: number
+  attack: number
+  counterAttack: number
+}
 
 export type Tile = {
   id: string
@@ -23,6 +30,7 @@ export type Unit = {
   position: Position
   hp: number
   maxHp: number
+  movementRemaining: number
   hasActed: boolean
 }
 
@@ -37,6 +45,7 @@ export type City = {
 export type GameState = {
   schemaVersion: number
   turn: number
+  phase: GamePhase
   activeFactionId: FactionId
   selectedUnitId?: string
   resources: Record<FactionId, number>
@@ -49,5 +58,6 @@ export type GameAction =
   | { type: 'unitSelected'; unitId: string }
   | { type: 'selectionCleared' }
   | { type: 'unitMoved'; unitId: string; destination: Position }
+  | { type: 'unitAttacked'; attackerId: string; defenderId: string }
   | { type: 'turnEnded' }
-
+  | { type: 'gameRestarted' }

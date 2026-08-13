@@ -1,4 +1,4 @@
-import { BOARD_SIZE, positionKey } from './rules'
+import { BOARD_SIZE, positionKey, UNIT_STATS } from './rules'
 import type { City, GameState, Position, Terrain, Unit } from './types'
 
 const WATER_POSITIONS = new Set(
@@ -35,7 +35,7 @@ const CITY_DATA: City[] = [
   },
 ]
 
-const UNIT_DATA: Unit[] = [
+const UNIT_DATA: Array<Omit<Unit, 'movementRemaining'>> = [
   {
     id: 'player-infantry-1',
     name: '청룡 보병대',
@@ -122,8 +122,9 @@ export function createInitialGameState(): GameState {
   )
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 3,
     turn: 1,
+    phase: 'playing',
     activeFactionId: 'player',
     resources: {
       player: 0,
@@ -145,8 +146,8 @@ export function createInitialGameState(): GameState {
     units: UNIT_DATA.map((unit) => ({
       ...unit,
       position: { ...unit.position },
+      movementRemaining: UNIT_STATS[unit.type].movement,
     })),
     cities,
   }
 }
-

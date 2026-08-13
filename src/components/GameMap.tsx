@@ -15,6 +15,8 @@ const UNIT_LABELS = {
 type GameMapProps = {
   state: GameState
   reachableKeys: Set<string>
+  attackableKeys: Set<string>
+  disabled: boolean
   onTileClick: (tile: Tile) => void
 }
 
@@ -24,10 +26,17 @@ type TileButtonProps = {
   city?: City
   selected: boolean
   reachable: boolean
+  attackable: boolean
+  disabled: boolean
   onClick: () => void
 }
 
-function getTileLabel(tile: Tile, unit?: Unit, city?: City) {
+function getTileLabel(
+  tile: Tile,
+  unit?: Unit,
+  city?: City,
+  attackable = false,
+) {
   const parts = [
     `좌표 ${tile.position.x}, ${tile.position.y}`,
     TERRAIN_LABELS[tile.terrain],
@@ -39,7 +48,11 @@ function getTileLabel(tile: Tile, unit?: Unit, city?: City) {
 
   if (unit) {
     parts.push(`${unit.name}, ${UNIT_LABELS[unit.type]}`)
+    parts.push(`체력 ${unit.hp}/${unit.maxHp}`)
     parts.push(unit.hasActed ? '행동 완료' : '행동 가능')
+    if (attackable) {
+      parts.push('공격 가능')
+    }
   }
 
   return parts.join(', ')
@@ -51,13 +64,25 @@ function TileButton({
   city,
   selected,
   reachable,
+  attackable,
+  disabled,
   onClick,
 }: TileButtonProps) {
+  const healthPercent = unit
+    ? Math.max(0, Math.min(100, (unit.hp / unit.maxHp) * 100))
+    : 0
+  const healthLevel =
+    healthPercent <= 30
+      ? 'critical'
+      : healthPercent < 100
+        ? 'damaged'
+        : 'healthy'
   const classNames = [
     'map-tile',
     `map-tile--${tile.terrain}`,
     selected ? 'map-tile--selected' : '',
     reachable ? 'map-tile--reachable' : '',
+    attackable ? 'map-tile--attackable' : '',
   ]
     .filter(Boolean)
     .join(' ')
@@ -66,10 +91,12 @@ function TileButton({
     <button
       className={classNames}
       type="button"
-      aria-label={getTileLabel(tile, unit, city)}
+      aria-label={getTileLabel(tile, unit, city, attackable)}
       aria-pressed={unit?.factionId === 'player' ? selected : undefined}
       data-coordinate={positionKey(tile.position)}
       data-reachable={reachable ? 'true' : undefined}
+      data-attackable={attackable ? 'true' : undefined}
+      disabled={disabled}
       onClick={onClick}
     >
       <span className="tile-coordinate" aria-hidden="true">
@@ -102,15 +129,34 @@ function TileButton({
             unit.hasActed ? 'unit-token--acted' : ''
           }`}
           aria-hidden="true"
+          data-unit-id={unit.id}
+          data-health={`${unit.hp}/${unit.maxHp}`}
         >
-          {unit.type === 'infantry' ? '보' : '기'}
+          <span className="unit-symbol">
+            {unit.type === 'infantry' ? '보' : '기'}
+          </span>
+          <span className={`unit-health-value unit-health-value--${healthLevel}`}>
+            {unit.hp}
+          </span>
+          <span className="unit-health-bar">
+            <span
+              className={`unit-health-bar__fill unit-health-bar__fill--${healthLevel}`}
+              style={{ width: `${healthPercent}%` }}
+            />
+          </span>
         </span>
       )}
     </button>
   )
 }
 
-export function GameMap({ state, reachableKeys, onTileClick }: GameMapProps) {
+export function GameMap({
+  state,
+  reachableKeys,
+  attackableKeys,
+  disabled,
+  onTileClick,
+}: GameMapProps) {
   return (
     <div className="game-map" data-testid="game-map">
       {state.tiles.map((tile) => {
@@ -118,6 +164,7 @@ export function GameMap({ state, reachableKeys, onTileClick }: GameMapProps) {
         const city = getCityAt(state, tile.position)
         const selected = Boolean(unit && unit.id === state.selectedUnitId)
         const reachable = reachableKeys.has(positionKey(tile.position))
+        const attackable = attackableKeys.has(positionKey(tile.position))
 
         return (
           <TileButton
@@ -127,6 +174,8 @@ export function GameMap({ state, reachableKeys, onTileClick }: GameMapProps) {
             city={city}
             selected={selected}
             reachable={reachable}
+            attackable={attackable}
+            disabled={disabled}
             onClick={() => onTileClick(tile)}
           />
         )

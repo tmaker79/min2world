@@ -1,10 +1,16 @@
 type StatusBarProps = {
   turn: number
   resource: number
+  disabled: boolean
   onEndTurn: () => void
 }
 
-export function StatusBar({ turn, resource, onEndTurn }: StatusBarProps) {
+export function StatusBar({
+  turn,
+  resource,
+  disabled,
+  onEndTurn,
+}: StatusBarProps) {
   return (
     <section className="status-bar" aria-label="현재 게임 상태">
       <div className="status-item">
@@ -21,11 +27,16 @@ export function StatusBar({ turn, resource, onEndTurn }: StatusBarProps) {
         <span className="status-item__label">보유 자원</span>
         <strong>{resource}</strong>
       </div>
-      <button className="end-turn-button" type="button" onClick={onEndTurn}>
+      <button
+        className="end-turn-button"
+        type="button"
+        disabled={disabled}
+        onClick={onEndTurn}
+      >
         턴 종료
+        <kbd aria-hidden="true">Enter</kbd>
         <span aria-hidden="true">→</span>
       </button>
     </section>
   )
 }
-

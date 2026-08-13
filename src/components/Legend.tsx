@@ -20,8 +20,11 @@ export function Legend() {
           <span className="legend-swatch legend-swatch--reachable" />
           이동 가능
         </li>
+        <li>
+          <span className="legend-swatch legend-swatch--attackable" />
+          공격 가능
+        </li>
       </ul>
     </section>
   )
 }
-

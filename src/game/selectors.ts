@@ -1,4 +1,4 @@
-import { getReachablePositions } from './rules'
+import { getAttackableUnits, getReachablePositions } from './rules'
 import type { GameState } from './types'
 
 export function getSelectedUnit(state: GameState) {
@@ -10,3 +10,7 @@ export function getSelectedUnitReachablePositions(state: GameState) {
   return selectedUnit ? getReachablePositions(state, selectedUnit) : []
 }
 
+export function getSelectedUnitAttackableUnits(state: GameState) {
+  const selectedUnit = getSelectedUnit(state)
+  return selectedUnit ? getAttackableUnits(state, selectedUnit) : []
+}

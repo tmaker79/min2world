@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { createInitialGameState } from './initialState'
-import { getReachablePositions, positionKey } from './rules'
+import {
+  captureCityAt,
+  getAttackableUnits,
+  getMovementCost,
+  getReachablePositions,
+  ownsAllCities,
+  positionKey,
+  resolveCombat,
+  UNIT_STATS,
+} from './rules'
 import type { GameState, Position, Terrain, UnitType } from './types'
 
 function createMovementState({
@@ -32,6 +41,7 @@ function createMovementState({
         position: { x: 5, y: 5 },
         hp: 10,
         maxHp: 10,
+        movementRemaining: UNIT_STATS[unitType].movement,
         hasActed: false,
       },
       ...blockers.map((position, index) => ({
@@ -42,6 +52,7 @@ function createMovementState({
         position,
         hp: 10,
         maxHp: 10,
+        movementRemaining: UNIT_STATS.infantry.movement,
         hasActed: false,
       })),
     ],
@@ -108,5 +119,73 @@ describe('getReachablePositions', () => {
 
     expect(getReachablePositions(state, state.units[0])).toEqual([])
   })
+
+  it('현재 남은 이동력까지만 이동 범위와 비용을 계산한다', () => {
+    const state = createMovementState()
+    state.units[0] = { ...state.units[0], movementRemaining: 1 }
+    const reachable = reachableKeys(state)
+
+    expect(reachable).toContain('5,4')
+    expect(reachable).not.toContain('5,3')
+    expect(getMovementCost(state, state.units[0], { x: 5, y: 4 })).toBe(1)
+    expect(
+      getMovementCost(state, state.units[0], { x: 5, y: 3 }),
+    ).toBeUndefined()
+  })
 })
 
+describe('combat rules', () => {
+  it('유닛 종류별 이동력, 공격력과 반격력을 제공한다', () => {
+    expect(UNIT_STATS).toEqual({
+      infantry: { movement: 2, attack: 4, counterAttack: 3 },
+      cavalry: { movement: 3, attack: 5, counterAttack: 2 },
+    })
+  })
+
+  it('상하좌우로 인접한 적 유닛만 공격 대상으로 반환한다', () => {
+    const state = createMovementState({
+      blockers: [
+        { x: 5, y: 4 },
+        { x: 6, y: 6 },
+        { x: 5, y: 2 },
+      ],
+    })
+
+    expect(getAttackableUnits(state, state.units[0]).map((unit) => unit.id)).toEqual([
+      'blocker-0',
+    ])
+  })
+
+  it('방어자가 생존하면 공격 피해 후 반격 피해를 계산한다', () => {
+    const state = createMovementState({ blockers: [{ x: 5, y: 4 }] })
+    const [attacker, defender] = state.units
+
+    expect(resolveCombat(attacker, defender)).toEqual({
+      attackerHp: 7,
+      defenderHp: 6,
+    })
+  })
+
+  it('방어자가 공격으로 사망하면 반격하지 않는다', () => {
+    const state = createMovementState({ blockers: [{ x: 5, y: 4 }] })
+    const [attacker, defender] = state.units
+
+    expect(resolveCombat(attacker, { ...defender, hp: 4 })).toEqual({
+      attackerHp: 10,
+      defenderHp: 0,
+    })
+  })
+})
+
+describe('city rules', () => {
+  it('도시 소유권을 변경하고 모든 도시 소유 여부를 판정한다', () => {
+    const state = createInitialGameState()
+    const cities = captureCityAt(state.cities, { x: 8, y: 1 }, 'player')
+
+    expect(cities).not.toBe(state.cities)
+    expect(cities.find((city) => city.id === 'city-enemy')?.ownerId).toBe(
+      'player',
+    )
+    expect(ownsAllCities(cities, 'player')).toBe(true)
+  })
+})

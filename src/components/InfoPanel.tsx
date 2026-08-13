@@ -1,4 +1,4 @@
-import { UNIT_MOVEMENT } from '../game/rules'
+import { UNIT_STATS } from '../game/rules'
 import type { Unit } from '../game/types'
 
 const UNIT_TYPE_LABELS = {
@@ -33,8 +33,18 @@ export function InfoPanel({ unit }: InfoPanelProps) {
               </dd>
             </div>
             <div>
-              <dt>이동력</dt>
-              <dd>{UNIT_MOVEMENT[unit.type]}</dd>
+              <dt>남은 이동력</dt>
+              <dd>
+                {unit.movementRemaining} / {UNIT_STATS[unit.type].movement}
+              </dd>
+            </div>
+            <div>
+              <dt>공격력</dt>
+              <dd>{UNIT_STATS[unit.type].attack}</dd>
+            </div>
+            <div>
+              <dt>반격력</dt>
+              <dd>{UNIT_STATS[unit.type].counterAttack}</dd>
             </div>
             <div>
               <dt>상태</dt>
@@ -51,4 +61,3 @@ export function InfoPanel({ unit }: InfoPanelProps) {
     </section>
   )
 }
-

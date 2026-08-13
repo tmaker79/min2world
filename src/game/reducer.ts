@@ -1,12 +1,28 @@
-import { getReachablePositions, positionsEqual } from './rules'
+import { createInitialGameState } from './initialState'
+import {
+  captureCityAt,
+  getAttackableUnits,
+  getMovementCost,
+  ownsAllCities,
+  resolveCombat,
+  UNIT_STATS,
+} from './rules'
 import type { GameAction, GameState } from './types'
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
+  if (action.type === 'gameRestarted') {
+    return createInitialGameState()
+  }
+
+  if (state.phase !== 'playing') {
+    return state
+  }
+
   switch (action.type) {
     case 'unitSelected': {
       const unit = state.units.find((candidate) => candidate.id === action.unitId)
 
-      if (!unit || unit.factionId !== state.activeFactionId || unit.hasActed) {
+      if (!unit || unit.factionId !== state.activeFactionId) {
         return state
       }
 
@@ -30,26 +46,91 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         return state
       }
 
-      const canMove = getReachablePositions(state, unit).some((position) =>
-        positionsEqual(position, action.destination),
-      )
+      const movementCost = getMovementCost(state, unit, action.destination)
 
-      if (!canMove) {
+      if (movementCost === undefined) {
         return state
       }
 
+      const movementRemaining = unit.movementRemaining - movementCost
+
+      const cities = captureCityAt(
+        state.cities,
+        action.destination,
+        unit.factionId,
+      )
+
       return {
         ...state,
-        selectedUnitId: undefined,
+        phase: ownsAllCities(cities, 'player') ? 'victory' : state.phase,
+        selectedUnitId: unit.id,
+        cities,
         units: state.units.map((candidate) =>
           candidate.id === action.unitId
             ? {
                 ...candidate,
                 position: { ...action.destination },
-                hasActed: true,
+                movementRemaining,
+                hasActed: movementRemaining === 0,
               }
             : candidate,
         ),
+      }
+    }
+
+    case 'unitAttacked': {
+      if (state.selectedUnitId !== action.attackerId) {
+        return state
+      }
+
+      const attacker = state.units.find(
+        (unit) => unit.id === action.attackerId,
+      )
+      const defender = state.units.find(
+        (unit) => unit.id === action.defenderId,
+      )
+
+      if (
+        !attacker ||
+        !defender ||
+        attacker.hasActed ||
+        attacker.factionId !== state.activeFactionId ||
+        defender.factionId === attacker.factionId ||
+        !getAttackableUnits(state, attacker).some(
+          (unit) => unit.id === defender.id,
+        )
+      ) {
+        return state
+      }
+
+      const result = resolveCombat(attacker, defender)
+      const units = state.units.flatMap((unit) => {
+        if (unit.id === attacker.id) {
+          return result.attackerHp > 0
+            ? [
+                {
+                  ...unit,
+                  hp: result.attackerHp,
+                  movementRemaining: 0,
+                  hasActed: true,
+                },
+              ]
+            : []
+        }
+
+        if (unit.id === defender.id) {
+          return result.defenderHp > 0
+            ? [{ ...unit, hp: result.defenderHp }]
+            : []
+        }
+
+        return [unit]
+      })
+
+      return {
+        ...state,
+        selectedUnitId: undefined,
+        units,
       }
     }
 
@@ -59,8 +140,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         turn: state.turn + 1,
         selectedUnitId: undefined,
         units: state.units.map((unit) =>
-          unit.factionId === 'player' && unit.hasActed
-            ? { ...unit, hasActed: false }
+          unit.factionId === 'player'
+            ? {
+                ...unit,
+                movementRemaining: UNIT_STATS[unit.type].movement,
+                hasActed: false,
+              }
             : unit,
         ),
       }

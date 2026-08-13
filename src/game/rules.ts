@@ -1,10 +1,27 @@
-import type { GameState, Position, Terrain, Unit, UnitType } from './types'
+import type {
+  City,
+  FactionId,
+  GameState,
+  Position,
+  Terrain,
+  Unit,
+  UnitStats,
+  UnitType,
+} from './types'
 
 export const BOARD_SIZE = 10
 
-export const UNIT_MOVEMENT: Record<UnitType, number> = {
-  infantry: 2,
-  cavalry: 3,
+export const UNIT_STATS: Record<UnitType, UnitStats> = {
+  infantry: {
+    movement: 2,
+    attack: 4,
+    counterAttack: 3,
+  },
+  cavalry: {
+    movement: 3,
+    attack: 5,
+    counterAttack: 2,
+  },
 }
 
 export const TERRAIN_MOVEMENT_COST: Record<Terrain, number | null> = {
@@ -42,6 +59,13 @@ export function getCityAt(state: GameState, position: Position) {
   return state.cities.find((city) => positionsEqual(city.position, position))
 }
 
+export function areOrthogonallyAdjacent(
+  left: Position,
+  right: Position,
+): boolean {
+  return Math.abs(left.x - right.x) + Math.abs(left.y - right.y) === 1
+}
+
 function getOrthogonalNeighbors(position: Position): Position[] {
   return [
     { x: position.x, y: position.y - 1 },
@@ -51,12 +75,19 @@ function getOrthogonalNeighbors(position: Position): Position[] {
   ].filter(isPositionOnBoard)
 }
 
-export function getReachablePositions(state: GameState, unit: Unit): Position[] {
-  if (unit.hasActed || unit.factionId !== state.activeFactionId) {
-    return []
+function getReachablePositionCosts(
+  state: GameState,
+  unit: Unit,
+): Map<string, number> {
+  if (
+    state.phase !== 'playing' ||
+    unit.hasActed ||
+    unit.factionId !== state.activeFactionId
+  ) {
+    return new Map()
   }
 
-  const movement = UNIT_MOVEMENT[unit.type]
+  const movement = unit.movementRemaining
   const occupiedPositions = new Set(
     state.units
       .filter((candidate) => candidate.id !== unit.id)
@@ -106,8 +137,12 @@ export function getReachablePositions(state: GameState, unit: Unit): Position[] 
     }
   }
 
-  return [...bestCosts.entries()]
-    .filter(([key]) => key !== positionKey(unit.position))
+  bestCosts.delete(positionKey(unit.position))
+  return bestCosts
+}
+
+export function getReachablePositions(state: GameState, unit: Unit): Position[] {
+  return [...getReachablePositionCosts(state, unit).entries()]
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([key]) => {
       const [x, y] = key.split(',').map(Number)
@@ -115,3 +150,69 @@ export function getReachablePositions(state: GameState, unit: Unit): Position[] 
     })
 }
 
+export function getMovementCost(
+  state: GameState,
+  unit: Unit,
+  destination: Position,
+): number | undefined {
+  return getReachablePositionCosts(state, unit).get(positionKey(destination))
+}
+
+export function getAttackableUnits(state: GameState, unit: Unit): Unit[] {
+  if (
+    state.phase !== 'playing' ||
+    unit.hasActed ||
+    unit.factionId !== state.activeFactionId
+  ) {
+    return []
+  }
+
+  return state.units.filter(
+    (candidate) =>
+      candidate.factionId !== unit.factionId &&
+      areOrthogonallyAdjacent(unit.position, candidate.position),
+  )
+}
+
+export type CombatResult = {
+  attackerHp: number
+  defenderHp: number
+}
+
+export function resolveCombat(attacker: Unit, defender: Unit): CombatResult {
+  const defenderHp = Math.max(
+    0,
+    defender.hp - UNIT_STATS[attacker.type].attack,
+  )
+  const attackerHp =
+    defenderHp > 0
+      ? Math.max(
+          0,
+          attacker.hp - UNIT_STATS[defender.type].counterAttack,
+        )
+      : attacker.hp
+
+  return { attackerHp, defenderHp }
+}
+
+export function captureCityAt(
+  cities: City[],
+  position: Position,
+  ownerId: FactionId,
+): City[] {
+  let cityCaptured = false
+  const nextCities = cities.map((city) => {
+    if (!positionsEqual(city.position, position) || city.ownerId === ownerId) {
+      return city
+    }
+
+    cityCaptured = true
+    return { ...city, ownerId }
+  })
+
+  return cityCaptured ? nextCities : cities
+}
+
+export function ownsAllCities(cities: City[], factionId: FactionId): boolean {
+  return cities.length > 0 && cities.every((city) => city.ownerId === factionId)
+}
