@@ -371,18 +371,10 @@
   font-weight: 900;
 }
 
-.unit-token::after {
-  position: absolute;
-  inset: 3px;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: 50%;
-  content: '';
-}
-
 .unit-symbol {
   display: grid;
-  width: 23px;
-  height: 23px;
+  width: 26px;
+  height: 26px;
   place-items: center;
   line-height: 1;
 }
@@ -392,6 +384,11 @@
   height: 100%;
   overflow: visible;
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
+}
+
+.unit-symbol svg[data-unit-icon='infantry'] {
+  width: 23px;
+  height: 23px;
 }
 
 .unit-health-bar {
@@ -628,6 +625,11 @@
   filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.35));
 }
 
+.unit-portrait svg:not([data-unit-icon='infantry']) {
+  width: 35px;
+  height: 35px;
+}
+
 .unit-details__heading {
   display: flex;
   flex-direction: column;
@@ -733,6 +735,11 @@
   width: 18px;
   height: 18px;
   color: #8fe2d3;
+}
+
+.production-option strong svg:not([data-unit-icon='infantry']) {
+  width: 20px;
+  height: 20px;
 }
 
 .production-card__deployment {
