@@ -491,4 +491,29 @@ describe('gameReducer', () => {
     expect(restarted.units).not.toBe(state.units)
     expect(restarted.schemaVersion).toBe(4)
   })
+
+  it('승리와 패배 상태에서도 저장된 게임을 독립된 상태로 불러온다', () => {
+    const current = {
+      ...createInitialGameState(),
+      phase: 'victory' as const,
+      turn: 9,
+    }
+    const saved = {
+      ...createInitialGameState(),
+      turn: 3,
+      selectedUnitId: 'player-infantry-1',
+      resources: { player: 8, enemy: 4 },
+    }
+    const loaded = gameReducer(current, { type: 'gameLoaded', state: saved })
+
+    expect(loaded).toMatchObject({
+      phase: 'playing',
+      turn: 3,
+      resources: { player: 8, enemy: 4 },
+    })
+    expect(loaded.selectedUnitId).toBeUndefined()
+    expect(loaded).not.toBe(saved)
+    expect(loaded.units).not.toBe(saved.units)
+    expect(loaded.units[0].position).not.toBe(saved.units[0].position)
+  })
 })

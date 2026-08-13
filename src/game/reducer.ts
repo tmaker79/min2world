@@ -1,4 +1,5 @@
 import { createInitialGameState } from './initialState'
+import { cloneGameState } from './state'
 import {
   captureCityAt,
   getAttackableUnits,
@@ -13,6 +14,10 @@ import type { GameAction, GameState } from './types'
 export function gameReducer(state: GameState, action: GameAction): GameState {
   if (action.type === 'gameRestarted') {
     return createInitialGameState()
+  }
+
+  if (action.type === 'gameLoaded') {
+    return cloneGameState(action.state, true)
   }
 
   if (state.phase !== 'playing') {

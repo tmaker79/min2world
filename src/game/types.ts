@@ -1,5 +1,7 @@
 export type Terrain = 'plain' | 'mountain' | 'water'
 
+export const GAME_SCHEMA_VERSION = 4
+
 export type Position = {
   x: number
   y: number
@@ -61,4 +63,5 @@ export type GameAction =
   | { type: 'unitAttacked'; attackerId: string; defenderId: string }
   | { type: 'unitWaited'; unitId: string }
   | { type: 'turnEnded' }
+  | { type: 'gameLoaded'; state: GameState }
   | { type: 'gameRestarted' }

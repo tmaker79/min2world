@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { createInitialGameState } from './game/initialState'
 import type { GameState } from './game/types'
+import { SAVE_STORAGE_KEY, saveGame } from './storage/saveGame'
 
 function setReducedMotion(matches: boolean) {
   window.matchMedia = ((query: string) =>
@@ -20,8 +21,15 @@ function setReducedMotion(matches: boolean) {
     }) as MediaQueryList) as typeof window.matchMedia
 }
 
-beforeEach(() => setReducedMotion(true))
-afterEach(() => vi.useRealTimers())
+beforeEach(() => {
+  window.localStorage.clear()
+  setReducedMotion(true)
+})
+afterEach(() => {
+  vi.useRealTimers()
+  vi.restoreAllMocks()
+  window.localStorage.clear()
+})
 
 function createCombatUiState(
   defenderHp = 10,
@@ -427,5 +435,150 @@ describe('App', () => {
     expect(
       screen.getByRole('dialog', { name: '수도 함락' }),
     ).toBeInTheDocument()
+  })
+
+  it('게임을 저장하고 이후 진행 상태를 저장 시점으로 복원한다', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    render(<App />)
+
+    expect(screen.getByText('저장된 게임 없음')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '불러오기' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '삭제' })).toBeDisabled()
+
+    await user.click(screen.getByRole('button', { name: /청룡 보병대/ }))
+    await user.click(screen.getByRole('button', { name: /^좌표 1, 6, 평지/ }))
+    await user.click(screen.getByRole('button', { name: '저장' }))
+
+    expect(screen.getByRole('status')).toHaveTextContent('게임을 저장했습니다')
+    expect(screen.getByText('1턴 저장')).toBeInTheDocument()
+    expect(window.localStorage.getItem(SAVE_STORAGE_KEY)).not.toBeNull()
+
+    await user.click(screen.getByRole('button', { name: /^좌표 1, 5, 평지/ }))
+    expect(
+      screen.getByRole('button', { name: /좌표 1, 5, 평지, 청룡 보병대/ }),
+    ).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '불러오기' }))
+
+    expect(window.confirm).toHaveBeenCalledWith(
+      '현재 진행을 중단하고 저장된 게임을 불러올까요?',
+    )
+    expect(
+      screen.getByRole('button', { name: /좌표 1, 6, 평지, 청룡 보병대/ }),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/지도에서 푸른 유닛을 선택/)).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(
+      '저장된 게임을 불러왔습니다',
+    )
+  })
+
+  it('저장 슬롯을 발견하지만 사용자 확인 전에는 자동으로 불러오지 않는다', async () => {
+    const savedState = createInitialGameState()
+    savedState.turn = 4
+    savedState.units = savedState.units.map((unit) =>
+      unit.id === 'player-infantry-1'
+        ? {
+            ...unit,
+            position: { x: 1, y: 6 },
+            movementRemaining: 1,
+          }
+        : unit,
+    )
+    saveGame(savedState, window.localStorage, new Date('2026-08-13T07:30:00Z'))
+    const confirm = vi.spyOn(window, 'confirm')
+    confirm.mockReturnValueOnce(false).mockReturnValueOnce(true)
+    const user = userEvent.setup()
+    render(<App />)
+
+    expect(screen.getByText('4턴 저장')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /좌표 1, 7.*청룡 보병대/ })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '불러오기' }))
+    expect(screen.getByText('현재 턴').parentElement).toHaveTextContent('1')
+    expect(screen.getByRole('button', { name: /좌표 1, 7.*청룡 보병대/ })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '불러오기' }))
+    expect(screen.getByText('현재 턴').parentElement).toHaveTextContent('4')
+    expect(screen.getByRole('button', { name: /좌표 1, 6.*청룡 보병대/ })).toBeInTheDocument()
+  })
+
+  it('삭제 확인을 취소하거나 승인해 저장 슬롯을 관리한다', async () => {
+    saveGame(createInitialGameState())
+    const confirm = vi.spyOn(window, 'confirm')
+    confirm.mockReturnValueOnce(false).mockReturnValueOnce(true)
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: '삭제' }))
+    expect(window.localStorage.getItem(SAVE_STORAGE_KEY)).not.toBeNull()
+    expect(screen.getByText('1턴 저장')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '삭제' }))
+    expect(window.localStorage.getItem(SAVE_STORAGE_KEY)).toBeNull()
+    expect(screen.getByText('저장된 게임 없음')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(
+      '저장된 게임을 삭제했습니다',
+    )
+  })
+
+  it('손상된 저장을 안내하고 삭제할 수 있게 한다', () => {
+    window.localStorage.setItem(SAVE_STORAGE_KEY, '{broken')
+    render(<App />)
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      '저장 데이터가 손상되었습니다',
+    )
+    expect(screen.getByRole('button', { name: '불러오기' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '삭제' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: '저장' })).toBeEnabled()
+  })
+
+  it('AI 턴과 전투 중 저장과 불러오기를 차단한다', async () => {
+    saveGame(createInitialGameState())
+    const user = userEvent.setup()
+    const aiState = {
+      ...createInitialGameState(),
+      activeFactionId: 'enemy' as const,
+    }
+    const { unmount } = render(<App initialState={aiState} />)
+
+    expect(screen.getByRole('button', { name: '저장' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '불러오기' })).toBeDisabled()
+    unmount()
+
+    setReducedMotion(false)
+    render(<App initialState={createCombatUiState()} />)
+    await user.click(screen.getByRole('button', { name: /화면 시험 보병대/ }))
+    await user.click(
+      screen.getByRole('button', { name: /화면 시험 기병대.*공격 가능/ }),
+    )
+
+    expect(screen.getByRole('button', { name: '저장' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '불러오기' })).toBeDisabled()
+  })
+
+  it('결과 화면에서 저장된 플레이어 턴을 불러올 수 있다', async () => {
+    saveGame(createInitialGameState())
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const user = userEvent.setup()
+    render(
+      <App
+        initialState={{
+          ...createInitialGameState(),
+          phase: 'defeat',
+          activeFactionId: 'enemy',
+        }}
+      />,
+    )
+
+    expect(screen.getByRole('dialog', { name: '수도 함락' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '저장' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '불러오기' })).toBeEnabled()
+
+    await user.click(screen.getByRole('button', { name: '불러오기' }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByText('푸른 연맹')).toBeInTheDocument()
   })
 })

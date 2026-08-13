@@ -141,6 +141,7 @@
 
 .board-panel,
 .info-card,
+.save-card,
 .legend-card,
 .help-card {
   background: var(--panel);
@@ -573,6 +574,7 @@
 }
 
 .info-card,
+.save-card,
 .legend-card,
 .help-card {
   padding: 21px;
@@ -671,6 +673,69 @@
 
 .unit-details dd {
   font-weight: 800;
+}
+
+.save-card__summary {
+  display: flex;
+  min-height: 62px;
+  margin-top: 17px;
+  padding: 12px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  color: var(--muted);
+  background: rgba(10, 18, 23, 0.37);
+  border: 1px solid rgba(169, 194, 204, 0.18);
+  border-radius: 4px;
+  font-size: 0.74rem;
+}
+
+.save-card__summary strong {
+  color: var(--ink);
+  font-size: 0.82rem;
+}
+
+.save-card__actions {
+  display: grid;
+  margin-top: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.save-card__actions button {
+  padding: 9px 4px;
+  color: #172029;
+  background: linear-gradient(135deg, #edc86e, #c99b43);
+  border: 0;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.save-card__actions button:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.save-card__actions button:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.75) brightness(0.6);
+}
+
+.save-card__actions .save-card__delete {
+  color: #f4d5d1;
+  background: #713732;
+}
+
+.save-card__message {
+  margin: 10px 0 0;
+  color: #8ed5a0;
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
+.save-card__message--error {
+  color: #ef9187;
 }
 
 .legend-card ul {
@@ -832,7 +897,7 @@
   }
 
   .side-panel {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

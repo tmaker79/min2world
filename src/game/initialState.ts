@@ -1,4 +1,5 @@
 import { BOARD_SIZE, positionKey, UNIT_STATS } from './rules'
+import { GAME_SCHEMA_VERSION } from './types'
 import type { City, GameState, Position, Terrain, Unit } from './types'
 
 const WATER_POSITIONS = new Set(
@@ -122,7 +123,7 @@ export function createInitialGameState(): GameState {
   )
 
   return {
-    schemaVersion: 4,
+    schemaVersion: GAME_SCHEMA_VERSION,
     turn: 1,
     phase: 'playing',
     activeFactionId: 'player',

@@ -7,6 +7,7 @@ import type {
 } from './components/GameMap'
 import { InfoPanel } from './components/InfoPanel'
 import { Legend } from './components/Legend'
+import { SavePanel } from './components/SavePanel'
 import { StatusBar } from './components/StatusBar'
 import { createInitialGameState } from './game/initialState'
 import { gameReducer } from './game/reducer'
@@ -19,6 +20,13 @@ import {
 } from './game/selectors'
 import type { GameState, Tile } from './game/types'
 import { useAiTurn } from './hooks/useAiTurn'
+import {
+  deleteSavedGame,
+  inspectSavedGame,
+  loadGame,
+  saveGame,
+} from './storage/saveGame'
+import type { SavedGame, StorageResult } from './storage/saveGame'
 import './App.css'
 
 type AppProps = {
@@ -34,6 +42,11 @@ function App({ initialState }: AppProps = {}) {
     Omit<CombatAnimation, 'phase'>
   >()
   const [combatPhase, setCombatPhase] = useState<CombatAnimationPhase>('attack')
+  const [saveSlot, setSaveSlot] = useState(() => inspectSavedGame())
+  const [saveFeedback, setSaveFeedback] = useState<{
+    type: 'status' | 'error'
+    message: string
+  }>()
   const selectedUnit = getSelectedUnit(state)
   const reachablePositions = useMemo(
     () => getSelectedUnitReachablePositions(state),
@@ -94,6 +107,80 @@ function App({ initialState }: AppProps = {}) {
     dispatch,
     startCombat,
   })
+
+  const canSave =
+    state.phase === 'playing' &&
+    state.activeFactionId === 'player' &&
+    !activeCombat
+  const canLoad =
+    saveSlot.ok &&
+    !activeCombat &&
+    (state.phase !== 'playing' || state.activeFactionId === 'player')
+  const canDelete =
+    saveSlot.ok ||
+    (!saveSlot.ok &&
+      (saveSlot.code === 'invalidData' ||
+        saveSlot.code === 'unsupportedVersion'))
+
+  const updateSlotFromResult = (
+    result: StorageResult<SavedGame>,
+  ) => {
+    setSaveSlot(result)
+  }
+
+  const handleSave = () => {
+    if (!canSave) {
+      return
+    }
+
+    const result = saveGame(state)
+    updateSlotFromResult(result)
+    setSaveFeedback(
+      result.ok
+        ? { type: 'status', message: '게임을 저장했습니다.' }
+        : { type: 'error', message: result.message },
+    )
+  }
+
+  const handleLoad = () => {
+    if (
+      !canLoad ||
+      !window.confirm('현재 진행을 중단하고 저장된 게임을 불러올까요?')
+    ) {
+      return
+    }
+
+    const result = loadGame()
+    updateSlotFromResult(result)
+
+    if (!result.ok) {
+      setSaveFeedback({ type: 'error', message: result.message })
+      return
+    }
+
+    setActiveCombat(undefined)
+    setCombatPhase('attack')
+    dispatch({ type: 'gameLoaded', state: result.value.gameState })
+    setSaveFeedback({ type: 'status', message: '저장된 게임을 불러왔습니다.' })
+  }
+
+  const handleDeleteSave = () => {
+    if (
+      !canDelete ||
+      !window.confirm('저장된 게임을 삭제할까요? 이 작업은 되돌릴 수 없습니다.')
+    ) {
+      return
+    }
+
+    const result = deleteSavedGame()
+    if (!result.ok) {
+      setSaveFeedback({ type: 'error', message: result.message })
+      return
+    }
+
+    setSaveSlot(inspectSavedGame())
+    setSaveFeedback({ type: 'status', message: '저장된 게임을 삭제했습니다.' })
+  }
 
   useEffect(() => {
     if (!activeCombat) {
@@ -266,6 +353,16 @@ function App({ initialState }: AppProps = {}) {
 
         <aside className="side-panel" aria-label="게임 정보">
           <InfoPanel unit={selectedUnit} />
+          <SavePanel
+            slot={saveSlot}
+            canSave={canSave}
+            canLoad={canLoad}
+            canDelete={canDelete}
+            feedback={saveFeedback}
+            onSave={handleSave}
+            onLoad={handleLoad}
+            onDelete={handleDeleteSave}
+          />
           <Legend />
           <section className="help-card" aria-labelledby="help-heading">
             <p className="eyebrow">HOW TO PLAY</p>
