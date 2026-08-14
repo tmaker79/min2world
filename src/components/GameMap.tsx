@@ -342,7 +342,7 @@ export function GameMap({
   onTileClick,
 }: GameMapProps) {
   const [hoveredUnitId, setHoveredUnitId] = useState<string>()
-  const hoverTimerRef = useRef<number>()
+  const hoverTimerRef = useRef<number | undefined>(undefined)
 
   useEffect(() => {
     return () => window.clearTimeout(hoverTimerRef.current)
