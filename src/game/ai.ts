@@ -58,7 +58,10 @@ function getWeightedPathCost(
   const destinationKeys = new Set(destinations.map(positionKey))
   const occupiedKeys = new Set(
     state.units
-      .filter((candidate) => candidate.id !== unit.id)
+      .filter(
+        (candidate) =>
+          candidate.id !== unit.id && candidate.factionId !== unit.factionId,
+      )
       .map((candidate) => positionKey(candidate.position)),
   )
   const bestCosts = new Map<string, number>([[positionKey(start), 0]])

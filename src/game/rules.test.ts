@@ -79,6 +79,24 @@ describe('hex movement rules', () => {
     const enemy = unit('e1', 'enemy', 'infantry', { q: 0, r: 0 })
     expect(getEnemyZoneOfControlPositions(rulesState([enemy]), 'player')).toHaveLength(6)
   })
+
+  it('allows moving through allies but not stopping on them', () => {
+    const mover = unit('p1', 'player', 'cavalry', { q: 0, r: 0 })
+    const ally = unit('p2', 'player', 'infantry', { q: 1, r: 0 })
+    const state = rulesState([mover, ally])
+
+    expect(getMovementCost(state, mover, ally.position)).toBeUndefined()
+    expect(getMovementCost(state, mover, { q: 2, r: 0 })).toBe(2)
+  })
+
+  it('still blocks enemy-occupied tiles', () => {
+    const mover = unit('p1', 'player', 'cavalry', { q: 0, r: 0 })
+    const enemy = unit('e1', 'enemy', 'infantry', { q: 1, r: 0 })
+    const state = rulesState([mover, enemy])
+
+    expect(getMovementCost(state, mover, { q: 1, r: 0 })).toBeUndefined()
+    expect(getMovementCost(state, mover, { q: 2, r: 0 })).toBeUndefined()
+  })
 })
 
 describe('hex combat rules', () => {

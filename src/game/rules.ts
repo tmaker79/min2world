@@ -145,9 +145,20 @@ function getReachablePositionCosts(
     return new Map()
   }
 
-  const occupiedPositions = new Set(
+  const enemyOccupiedPositions = new Set(
     state.units
-      .filter((candidate) => candidate.id !== unit.id)
+      .filter(
+        (candidate) =>
+          candidate.id !== unit.id && candidate.factionId !== unit.factionId,
+      )
+      .map((candidate) => positionKey(candidate.position)),
+  )
+  const alliedOccupiedPositions = new Set(
+    state.units
+      .filter(
+        (candidate) =>
+          candidate.id !== unit.id && candidate.factionId === unit.factionId,
+      )
       .map((candidate) => positionKey(candidate.position)),
   )
   const enemyZoneOfControlPositions = new Set(
@@ -175,7 +186,7 @@ function getReachablePositionCosts(
 
     for (const neighbor of getHexNeighbors(current.position)) {
       const neighborKey = positionKey(neighbor)
-      if (occupiedPositions.has(neighborKey)) continue
+      if (enemyOccupiedPositions.has(neighborKey)) continue
       const stepCost = getMovementStepCost(state, current.position, neighbor)
       if (stepCost === null) continue
       const nextCost = current.cost + stepCost
@@ -191,6 +202,9 @@ function getReachablePositionCosts(
   }
 
   bestCosts.delete(positionKey(unit.position))
+  for (const alliedKey of alliedOccupiedPositions) {
+    bestCosts.delete(alliedKey)
+  }
   return bestCosts
 }
 
