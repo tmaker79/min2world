@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { getHexPixelPosition, HEX_HEIGHT, HEX_WIDTH } from '../game/hex'
 import {
   getSiteAt,
@@ -12,6 +12,8 @@ import {
 } from '../game/rules'
 import type { GameState, Position, Site, Tile, Unit } from '../game/types'
 import { UnitIcon } from './UnitIcon'
+
+const UNIT_TOOLTIP_SHOW_DELAY_MS = 400
 
 export type CombatAnimationPhase =
   | 'attack'
@@ -54,7 +56,7 @@ type TileButtonProps = {
   disabled: boolean
   style: CSSProperties
   onClick: () => void
-  onUnitHoverChange: (unitId: string | undefined) => void
+  onUnitHoverChange: (unitId: string | undefined, options?: { immediate?: boolean }) => void
 }
 
 function ownerLabel(site: Site): string {
@@ -183,7 +185,7 @@ function TileButton({
       onClick={onClick}
       onMouseEnter={() => onUnitHoverChange(unit?.id)}
       onMouseLeave={() => onUnitHoverChange(undefined)}
-      onFocus={() => onUnitHoverChange(unit?.id)}
+      onFocus={() => onUnitHoverChange(unit?.id, { immediate: true })}
       onBlur={() => onUnitHoverChange(undefined)}
     >
       {terrainMark && (
@@ -251,10 +253,12 @@ function SiteMarker({
 
 function UnitMarker({
   unit,
+  selected,
   combatAnimation,
   style,
 }: {
   unit: Unit
+  selected: boolean
   combatAnimation?: CombatAnimation
   style: CSSProperties
 }) {
@@ -290,13 +294,16 @@ function UnitMarker({
     <span className="map-overlay-cell" style={style}>
       <span
         className={`unit-token unit-token--${unit.factionId} ${
-          unit.hasActed ? 'unit-token--acted' : ''
-        } ${isStriking ? 'unit-token--striking' : ''} ${
-          isHit ? 'unit-token--hit' : ''
-        } ${isDefeated ? 'unit-token--defeated' : ''}`}
+          selected ? 'unit-token--selected' : ''
+        } ${unit.hasActed ? 'unit-token--acted' : ''} ${
+          isStriking ? 'unit-token--striking' : ''
+        } ${isHit ? 'unit-token--hit' : ''} ${
+          isDefeated ? 'unit-token--defeated' : ''
+        }`}
         data-unit-id={unit.id}
         data-coordinate={positionKey(unit.position)}
         data-health={`${unit.hp}/${unit.maxHp}`}
+        data-selected={selected ? 'true' : undefined}
         style={
           {
             '--strike-x': `${(deltaX / deltaLength) * 18}px`,
@@ -329,6 +336,33 @@ export function GameMap({
   onTileClick,
 }: GameMapProps) {
   const [hoveredUnitId, setHoveredUnitId] = useState<string>()
+  const hoverTimerRef = useRef<number>()
+
+  useEffect(() => {
+    return () => window.clearTimeout(hoverTimerRef.current)
+  }, [])
+
+  const handleUnitHoverChange = (
+    unitId: string | undefined,
+    options?: { immediate?: boolean },
+  ) => {
+    window.clearTimeout(hoverTimerRef.current)
+
+    if (!unitId) {
+      setHoveredUnitId(undefined)
+      return
+    }
+
+    if (options?.immediate || hoveredUnitId) {
+      setHoveredUnitId(unitId)
+      return
+    }
+
+    hoverTimerRef.current = window.setTimeout(() => {
+      setHoveredUnitId(unitId)
+    }, UNIT_TOOLTIP_SHOW_DELAY_MS)
+  }
+
   const pixelPositions = state.tiles.map((tile) => getHexPixelPosition(tile.position))
   const minimumX = Math.min(...pixelPositions.map((position) => position.x))
   const minimumY = Math.min(...pixelPositions.map((position) => position.y))
@@ -386,7 +420,7 @@ export function GameMap({
               disabled={disabled}
               style={getOverlayStyle(tile.position, minimumX, minimumY)}
               onClick={() => onTileClick(tile)}
-              onUnitHoverChange={setHoveredUnitId}
+              onUnitHoverChange={handleUnitHoverChange}
             />
           )
         })}
@@ -407,6 +441,7 @@ export function GameMap({
           <UnitMarker
             key={unit.id}
             unit={unit}
+            selected={unit.id === state.selectedUnitId}
             combatAnimation={combatAnimation}
             style={getOverlayStyle(unit.position, minimumX, minimumY)}
           />

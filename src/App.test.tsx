@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
@@ -49,8 +49,13 @@ describe('Milestone 07 UI', () => {
 
     await user.hover(tile)
 
-    const tooltip = container.querySelector(`[data-unit-tooltip="${enemy.id}"]`)
-    expect(tooltip).toBeVisible()
+    expect(container.querySelector(`[data-unit-tooltip="${enemy.id}"]`)).toBeNull()
+
+    const tooltip = await waitFor(() => {
+      const next = container.querySelector(`[data-unit-tooltip="${enemy.id}"]`)
+      expect(next).toBeVisible()
+      return next
+    })
     expect(tooltip).toHaveTextContent(enemy.name)
     expect(tooltip).toHaveTextContent('체력')
     expect(tooltip).toHaveTextContent(`${enemy.hp}/${enemy.maxHp}`)
