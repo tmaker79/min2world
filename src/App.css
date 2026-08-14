@@ -156,9 +156,9 @@
 
 .status-bar {
   display: flex;
-  align-items: stretch;
-  min-height: 56px;
-  margin: 0 0 10px;
+  align-items: center;
+  min-height: 38px;
+  margin: 0 0 8px;
   overflow: hidden;
   background: linear-gradient(90deg, rgba(29, 44, 52, 0.97), rgba(22, 33, 40, 0.97));
   border: 1px solid var(--panel-border);
@@ -167,56 +167,57 @@
 }
 
 .board-panel .status-bar {
-  margin: 0 0 10px;
+  margin: 0 0 8px;
 }
 
-.status-item {
+.status-bar__summary {
   display: flex;
-  min-width: 110px;
-  padding: 12px 16px;
-  flex-direction: column;
-  justify-content: center;
-  gap: 4px;
-}
-
-.status-item__label {
+  min-width: 0;
+  padding: 0 14px;
+  flex: 1;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
   color: var(--muted);
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.09em;
+  font-size: 0.86rem;
+  line-height: 1.2;
 }
 
-.status-item strong {
+.status-bar__summary strong {
+  color: var(--text);
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 1.25rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.status-bar__dot {
+  color: rgba(169, 194, 204, 0.55);
 }
 
 .faction-name--player {
   color: #79c7ed;
+  font-weight: 700;
 }
 
 .faction-name--enemy {
   color: #ef9187;
-}
-
-.status-separator {
-  width: 1px;
-  margin: 16px 0;
-  background: var(--panel-border);
+  font-weight: 700;
 }
 
 .end-turn-button {
   display: flex;
-  min-width: 210px;
+  min-width: 132px;
+  min-height: 38px;
   margin-left: auto;
-  padding: 0 24px;
+  padding: 0 14px;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: center;
+  gap: 8px;
   color: #172029;
   background: linear-gradient(135deg, #edc86e, #c99b43);
   border: 0;
   cursor: pointer;
+  font-size: 0.88rem;
   font-weight: 900;
   letter-spacing: 0.03em;
   transition: filter 150ms ease;
@@ -232,18 +233,18 @@
 }
 
 .end-turn-button span {
-  font-size: 1.35rem;
+  font-size: 0.9rem;
 }
 
 .end-turn-button kbd {
-  padding: 3px 6px;
+  padding: 2px 5px;
   color: rgba(23, 32, 41, 0.72);
   background: rgba(255, 255, 255, 0.28);
   border: 1px solid rgba(23, 32, 41, 0.3);
   border-bottom-width: 2px;
   border-radius: 3px;
   font-family: inherit;
-  font-size: 0.62rem;
+  font-size: 0.58rem;
   line-height: 1;
 }
 
@@ -1368,19 +1369,14 @@
     flex-wrap: wrap;
   }
 
-  .status-item {
-    min-width: 33.333%;
-    flex: 1;
-    padding: 13px;
-  }
-
-  .status-separator {
-    display: none;
+  .status-bar__summary {
+    width: 100%;
+    padding: 8px 12px;
   }
 
   .end-turn-button {
     width: 100%;
-    min-height: 52px;
+    min-height: 40px;
     margin-left: 0;
   }
 

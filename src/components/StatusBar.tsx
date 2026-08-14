@@ -15,26 +15,29 @@ export function StatusBar({
   disabled,
   onEndTurn,
 }: StatusBarProps) {
+  const factionLabel = activeFactionId === 'player' ? '푸른 연맹' : '붉은 제국'
+
   return (
     <section className="status-bar" aria-label="현재 게임 상태">
-      <div className="status-item">
-        <span className="status-item__label">현재 턴</span>
-        <strong>{turn}</strong>
-      </div>
-      <div className="status-separator" aria-hidden="true" />
-      <div className="status-item">
-        <span className="status-item__label">활성 세력</span>
-        <strong
+      <div className="status-bar__summary">
+        <span>
+          턴 <strong>{turn}</strong>
+        </span>
+        <span className="status-bar__dot" aria-hidden="true">
+          ·
+        </span>
+        <span
           className={`faction-name faction-name--${activeFactionId}`}
           aria-live="polite"
         >
-          {activeFactionId === 'player' ? '푸른 연맹' : '붉은 제국'}
-        </strong>
-      </div>
-      <div className="status-separator" aria-hidden="true" />
-      <div className="status-item">
-        <span className="status-item__label">보유 자원</span>
-        <strong>{resource}</strong>
+          {factionLabel}
+        </span>
+        <span className="status-bar__dot" aria-hidden="true">
+          ·
+        </span>
+        <span>
+          자원 <strong>{resource}</strong>
+        </span>
       </div>
       <button
         className="end-turn-button"
@@ -51,7 +54,6 @@ export function StatusBar({
           <>
             턴 종료
             <kbd aria-hidden="true">Enter</kbd>
-            <span aria-hidden="true">→</span>
           </>
         )}
       </button>
