@@ -285,12 +285,6 @@
   font-size: 1.15rem;
 }
 
-.map-size {
-  color: var(--muted);
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 0.85rem;
-}
-
 .map-scroll {
   display: flex;
   justify-content: center;

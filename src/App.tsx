@@ -485,7 +485,6 @@ function App({ initialState }: AppProps = {}) {
               <p className="eyebrow">THE FRONTIER</p>
               <h2 id="map-heading">전략 지도</h2>
             </div>
-            <span className="map-size">144 HEX</span>
           </div>
 
           <StatusBar

@@ -23,7 +23,6 @@ describe('Milestone 07 UI', () => {
 
     expect(tiles).toHaveLength(144)
     expect([...tiles].every((tile) => tile.type === 'button' && !tile.disabled)).toBe(true)
-    expect(container.querySelector('.map-size')).toHaveTextContent('144 HEX')
     expect(container.querySelector('.app-chrome__seed')).toHaveTextContent('ui-seed')
     expect(container.querySelectorAll('.site-marker')).toHaveLength(8)
     expect(container.querySelectorAll('.unit-token')).toHaveLength(6)
