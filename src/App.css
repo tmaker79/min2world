@@ -619,8 +619,14 @@
 }
 
 .unit-token--selected.unit-token--acted {
-  filter: none;
-  opacity: 1;
+  border-color: #c5d0d6;
+  box-shadow:
+    0 0 0 3px rgba(168, 184, 194, 0.9),
+    0 0 10px rgba(120, 140, 150, 0.45),
+    0 6px 12px rgba(0, 0, 0, 0.4);
+  filter: saturate(0.35);
+  opacity: 0.88;
+  animation: unit-selected-acted-pulse 1.8s ease-in-out infinite;
 }
 
 .unit-symbol {
@@ -760,6 +766,23 @@
       0 0 0 5px rgba(255, 229, 138, 0.55),
       0 0 20px rgba(255, 214, 102, 0.9),
       0 6px 12px rgba(0, 0, 0, 0.45);
+  }
+}
+
+@keyframes unit-selected-acted-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 3px rgba(168, 184, 194, 0.9),
+      0 0 10px rgba(120, 140, 150, 0.45),
+      0 6px 12px rgba(0, 0, 0, 0.4);
+  }
+
+  50% {
+    box-shadow:
+      0 0 0 4px rgba(168, 184, 194, 0.5),
+      0 0 14px rgba(120, 140, 150, 0.55),
+      0 6px 12px rgba(0, 0, 0, 0.4);
   }
 }
 
