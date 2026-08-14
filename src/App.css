@@ -64,24 +64,20 @@
   opacity: 0.45;
 }
 
-.app-chrome__button--save {
-  color: #172029;
-  background: linear-gradient(135deg, #edc86e, #c99b43);
-  border: 0;
-}
-
-.new-game-menu {
+.chrome-menu {
   position: relative;
 }
 
-.new-game-menu__panel {
+.chrome-menu__panel {
   position: absolute;
-  z-index: 20;
+  z-index: 30;
   top: calc(100% + 6px);
   right: 0;
   display: grid;
   width: min(320px, calc(100vw - 40px));
+  max-height: min(70vh, 520px);
   padding: 12px;
+  overflow: auto;
   gap: 10px;
   background: rgba(18, 26, 32, 0.98);
   border: 1px solid var(--panel-border);
@@ -89,7 +85,28 @@
   box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35);
 }
 
-.new-game-menu__panel label {
+.chrome-menu__panel--wide {
+  width: min(360px, calc(100vw - 40px));
+}
+
+.chrome-menu__panel > .legend-card,
+.chrome-menu__panel > .save-card,
+.chrome-menu__panel > .help-card {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.chrome-menu__panel .eyebrow {
+  margin-bottom: 4px;
+}
+
+.chrome-menu__panel h2 {
+  font-size: 1rem;
+}
+
+.chrome-menu__panel label {
   display: grid;
   gap: 5px;
   color: var(--muted);
@@ -98,7 +115,7 @@
   letter-spacing: 0.1em;
 }
 
-.new-game-menu__panel input {
+.chrome-menu__panel input {
   min-width: 0;
   padding: 9px 10px;
   color: var(--ink);
@@ -140,22 +157,26 @@
 .status-bar {
   display: flex;
   align-items: stretch;
-  min-height: 64px;
-  margin-bottom: 14px;
+  min-height: 56px;
+  margin: 0 0 10px;
   overflow: hidden;
   background: linear-gradient(90deg, rgba(29, 44, 52, 0.97), rgba(22, 33, 40, 0.97));
   border: 1px solid var(--panel-border);
   border-radius: 8px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.board-panel .status-bar {
+  margin: 0 0 10px;
 }
 
 .status-item {
   display: flex;
-  min-width: 130px;
-  padding: 15px 22px;
+  min-width: 110px;
+  padding: 12px 16px;
   flex-direction: column;
   justify-content: center;
-  gap: 5px;
+  gap: 4px;
 }
 
 .status-item__label {
@@ -238,8 +259,7 @@
 .production-card,
 .save-card,
 .legend-card,
-.help-card,
-.context-tabs {
+.help-card {
   background: var(--panel);
   border: 1px solid var(--panel-border);
   border-radius: 8px;
@@ -787,52 +807,6 @@
   padding: 16px;
 }
 
-.context-tabs {
-  padding: 10px 10px 12px;
-}
-
-.context-tabs__list {
-  display: grid;
-  margin-bottom: 4px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
-}
-
-.context-tabs__tab {
-  padding: 8px 6px;
-  color: var(--muted);
-  background: #141d23;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.72rem;
-  font-weight: 800;
-}
-
-.context-tabs__tab--selected,
-.context-tabs__tab[aria-selected='true'] {
-  color: var(--ink);
-  border-color: rgba(228, 185, 95, 0.45);
-  background: #1c2a33;
-}
-
-.context-tabs__panel > .legend-card,
-.context-tabs__panel > .save-card,
-.context-tabs__panel > .help-card {
-  padding: 10px 4px 2px;
-  background: transparent;
-  border: 0;
-  box-shadow: none;
-}
-
-.context-tabs__panel .eyebrow {
-  margin-bottom: 4px;
-}
-
-.context-tabs__panel h2 {
-  font-size: 1rem;
-}
-
 .empty-selection {
   display: grid;
   min-height: 142px;
@@ -1370,7 +1344,7 @@
     padding: 12px 10px;
   }
 
-  .new-game-menu__panel {
+  .chrome-menu__panel {
     left: 0;
     right: auto;
   }

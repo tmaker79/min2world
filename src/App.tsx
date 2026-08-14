@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
 import { AppChrome } from './components/AppChrome'
-import { ContextTabs } from './components/ContextTabs'
-import type { ContextTabId } from './components/ContextTabs'
+import type { ChromeMenuId } from './components/AppChrome'
 import { GameResultPanel } from './components/GameResultPanel'
 import { GameMap } from './components/GameMap'
 import type {
@@ -9,7 +8,6 @@ import type {
   CombatAnimationPhase,
 } from './components/GameMap'
 import { InfoPanel } from './components/InfoPanel'
-import { Legend } from './components/Legend'
 import { ProductionPanel } from './components/ProductionPanel'
 import { SavePanel } from './components/SavePanel'
 import { StatusBar } from './components/StatusBar'
@@ -73,7 +71,7 @@ function App({ initialState }: AppProps = {}) {
     type: 'status' | 'error'
     message: string
   }>()
-  const [contextTab, setContextTab] = useState<ContextTabId>('legend')
+  const [openChromeMenu, setOpenChromeMenu] = useState<ChromeMenuId | null>(null)
   const playerProductionSites = useMemo(
     () =>
       state.sites.filter(
@@ -445,32 +443,39 @@ function App({ initialState }: AppProps = {}) {
     <div className="app-shell">
       <AppChrome
         mapSeed={state.mapSeed}
+        openMenu={openChromeMenu}
+        onOpenMenuChange={setOpenChromeMenu}
         seedInput={seedInput}
         seedFeedback={seedFeedback}
-        canSave={canSave}
         onSeedInputChange={(value) => {
           setSeedInput(value)
           setSeedFeedback(undefined)
         }}
         onSeedSubmit={() => restartGame(seedInput, true)}
         onRandomRestart={() => restartRandomGame(true)}
-        onOpenSave={() => setContextTab('save')}
-        onSave={handleSave}
-      />
-
-      <StatusBar
-        turn={state.turn}
-        resource={state.resources.player}
-        activeFactionId={state.activeFactionId}
-        disabled={
-          state.phase !== 'playing' ||
-          state.activeFactionId !== 'player' ||
-          Boolean(activeCombat)
+        savePanel={
+          <SavePanel
+            slot={saveSlot}
+            canSave={canSave}
+            canLoad={canLoad}
+            canDelete={canDelete}
+            feedback={saveFeedback}
+            onSave={handleSave}
+            onLoad={handleLoad}
+            onDelete={handleDeleteSave}
+          />
         }
-        onEndTurn={() => {
-          setProductionUnitType(undefined)
-          dispatch({ type: 'turnEnded' })
-        }}
+        helpPanel={
+          <section className="help-card" aria-labelledby="help-heading">
+            <p className="eyebrow">HOW TO PLAY</p>
+            <h2 id="help-heading">작전 지침</h2>
+            <ol>
+              <li>푸른 유닛을 선택해 금색 칸으로 이동하거나 붉은 적을 공격합니다.</li>
+              <li>성·도시에서 생산하고, 상단 메뉴에서 새 지도·저장·범례를 엽니다.</li>
+              <li>모든 행동 후 턴을 종료합니다. 상세 규칙은 README를 참고하세요.</li>
+            </ol>
+          </section>
+        }
       />
 
       <main className="game-layout">
@@ -482,6 +487,21 @@ function App({ initialState }: AppProps = {}) {
             </div>
             <span className="map-size">144 HEX</span>
           </div>
+
+          <StatusBar
+            turn={state.turn}
+            resource={state.resources.player}
+            activeFactionId={state.activeFactionId}
+            disabled={
+              state.phase !== 'playing' ||
+              state.activeFactionId !== 'player' ||
+              Boolean(activeCombat)
+            }
+            onEndTurn={() => {
+              setProductionUnitType(undefined)
+              dispatch({ type: 'turnEnded' })
+            }}
+          />
 
           <div className="map-scroll">
             <GameMap
@@ -544,36 +564,6 @@ function App({ initialState }: AppProps = {}) {
             onCancel={() => {
               setProductionUnitType(undefined)
               setProductionFeedback(undefined)
-            }}
-          />
-          <ContextTabs
-            activeTab={contextTab}
-            onTabChange={setContextTab}
-            panels={{
-              legend: <Legend />,
-              save: (
-                <SavePanel
-                  slot={saveSlot}
-                  canSave={canSave}
-                  canLoad={canLoad}
-                  canDelete={canDelete}
-                  feedback={saveFeedback}
-                  onSave={handleSave}
-                  onLoad={handleLoad}
-                  onDelete={handleDeleteSave}
-                />
-              ),
-              help: (
-                <section className="help-card" aria-labelledby="help-heading">
-                  <p className="eyebrow">HOW TO PLAY</p>
-                  <h2 id="help-heading">작전 지침</h2>
-                  <ol>
-                    <li>푸른 유닛을 선택해 금색 칸으로 이동하거나 붉은 적을 공격합니다.</li>
-                    <li>성·도시에서 생산하고, 상단에서 새 지도와 저장을 관리합니다.</li>
-                    <li>모든 행동 후 턴을 종료합니다. 상세 규칙은 README를 참고하세요.</li>
-                  </ol>
-                </section>
-              ),
             }}
           />
         </aside>

@@ -33,8 +33,9 @@ describe('Milestone 07 UI', () => {
     expect(container.querySelector('.map-layer--units .unit-health-bar')).toBeInTheDocument()
     expect(container.querySelector('.unit-health-bar')?.closest('.map-tile')).toBeNull()
     expect(container.querySelector('.site-marker')?.closest('.map-tile')).toBeNull()
-    expect(screen.getByRole('tab', { name: '범례' })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('tab', { name: '저장' })).toHaveAttribute('aria-selected', 'false')
+    expect(screen.getByRole('button', { name: '범례' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '저장' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '도움말' })).toBeInTheDocument()
   })
 
   it('shows a compact unit summary tooltip on hover without changing selection', async () => {
@@ -147,19 +148,21 @@ describe('Milestone 07 UI', () => {
     expect(container.querySelector('.status-bar')).toHaveTextContent('5')
   })
 
-  it('switches context tabs without showing every auxiliary panel at once', async () => {
+  it('opens chrome utility menus one at a time from the top bar', async () => {
     const user = userEvent.setup()
     renderApp()
 
+    await user.click(screen.getByRole('button', { name: '범례' }))
     expect(screen.getByRole('heading', { name: '지도 범례' })).toBeVisible()
     expect(screen.queryByRole('heading', { name: '저장 관리' })).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('tab', { name: '저장' }))
+    await user.click(screen.getByRole('button', { name: '저장' }))
     expect(screen.getByRole('heading', { name: '저장 관리' })).toBeVisible()
     expect(screen.queryByRole('heading', { name: '지도 범례' })).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('tab', { name: '도움말' }))
+    await user.click(screen.getByRole('button', { name: '도움말' }))
     expect(screen.getByRole('heading', { name: '작전 지침' })).toBeVisible()
+    expect(screen.queryByRole('heading', { name: '저장 관리' })).not.toBeInTheDocument()
   })
 
   it('shows victory immediately after occupying the enemy stronghold', async () => {

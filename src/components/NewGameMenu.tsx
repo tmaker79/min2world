@@ -1,6 +1,9 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useId } from 'react'
 
 type NewGameMenuProps = {
+  open: boolean
+  onToggle: () => void
+  onClose: () => void
   seedInput: string
   seedFeedback?: string
   onSeedInputChange: (value: string) => void
@@ -9,59 +12,36 @@ type NewGameMenuProps = {
 }
 
 export function NewGameMenu({
+  open,
+  onToggle,
+  onClose,
   seedInput,
   seedFeedback,
   onSeedInputChange,
   onSeedSubmit,
   onRandomRestart,
 }: NewGameMenuProps) {
-  const [open, setOpen] = useState(false)
-  const rootRef = useRef<HTMLDivElement>(null)
   const menuId = useId()
 
-  useEffect(() => {
-    if (!open) {
-      return
-    }
-
-    const handlePointerDown = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false)
-      }
-    }
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handlePointerDown)
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [open])
-
   return (
-    <div className="new-game-menu" ref={rootRef}>
+    <div className="chrome-menu new-game-menu">
       <button
         type="button"
         className="app-chrome__button"
         aria-expanded={open}
         aria-controls={menuId}
-        onClick={() => setOpen((value) => !value)}
+        onClick={onToggle}
       >
         새 게임
       </button>
       {open && (
         <form
           id={menuId}
-          className="new-game-menu__panel seed-controls"
+          className="chrome-menu__panel seed-controls"
           onSubmit={(event) => {
             event.preventDefault()
             if (onSeedSubmit()) {
-              setOpen(false)
+              onClose()
             }
           }}
         >
@@ -81,7 +61,7 @@ export function NewGameMenu({
               type="button"
               onClick={() => {
                 if (onRandomRestart()) {
-                  setOpen(false)
+                  onClose()
                 }
               }}
             >
