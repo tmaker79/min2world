@@ -125,15 +125,21 @@ function getUnitStatusLabel(unit: Unit) {
 }
 
 function getUnitTooltipRows(unit: Unit) {
+  const stats = UNIT_STATS[unit.type]
   const rows = [
     { label: '병종', value: UNIT_TYPE_LABELS[unit.type] },
     { label: '체력', value: `${unit.hp}/${unit.maxHp}` },
+    { label: '근접', value: String(stats.melee) },
   ]
+
+  if (stats.ranged > 0) {
+    rows.push({ label: '원거리', value: String(stats.ranged) })
+  }
 
   if (unit.factionId === 'player') {
     rows.push({
       label: '이동',
-      value: `${unit.movementRemaining}/${UNIT_STATS[unit.type].movement}`,
+      value: `${unit.movementRemaining}/${stats.movement}`,
     })
   }
 

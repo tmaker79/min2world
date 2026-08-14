@@ -83,7 +83,8 @@ export function ProductionPanel({
                   </strong>
                   <span>{stats.cost} 자원</span>
                   <small>
-                    이동 {stats.movement} · 공격 {stats.attack} · 사거리{' '}
+                    이동 {stats.movement} · 근접 {stats.melee}
+                    {stats.ranged > 0 ? ` · 원거리 ${stats.ranged}` : ''} · 사거리{' '}
                     {stats.range}
                   </small>
                 </button>

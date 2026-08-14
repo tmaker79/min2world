@@ -5,6 +5,7 @@ import {
   getOppositeBoardPosition,
   positionKey,
 } from './hex'
+import { UNIT_MAX_HP, UNIT_STATS } from './rules'
 import { MAP_GENERATION_VERSION } from './types'
 import type {
   FactionId,
@@ -343,9 +344,9 @@ function createUnits(
       position: {
         ...(factionId === 'player' ? playerPositions[index] : enemyPositions[index]),
       },
-      hp: 10,
-      maxHp: 10,
-      movementRemaining: type === 'cavalry' ? 3 : 2,
+      hp: UNIT_MAX_HP,
+      maxHp: UNIT_MAX_HP,
+      movementRemaining: UNIT_STATS[type].movement,
       hasActed: false,
     })),
   )

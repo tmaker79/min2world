@@ -9,6 +9,7 @@ import {
   getMovementCost,
   isPositionInEnemyZoneOfControl,
   resolveCombat,
+  UNIT_MAX_HP,
   UNIT_TYPE_LABELS,
   UNIT_STATS,
 } from './rules'
@@ -211,8 +212,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         factionId: state.activeFactionId,
         type: action.unitType,
         position: { ...action.destination },
-        hp: 10,
-        maxHp: 10,
+        hp: UNIT_MAX_HP,
+        maxHp: UNIT_MAX_HP,
         movementRemaining: 0,
         hasActed: true,
       }

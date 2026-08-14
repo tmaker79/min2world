@@ -21,8 +21,8 @@ export type GamePhase = 'playing' | 'victory' | 'defeat'
 
 export type UnitStats = {
   movement: number
-  attack: number
-  counterAttack: number
+  melee: number
+  ranged: number
   range: number
   cost: number
 }

@@ -12,6 +12,8 @@ import {
   getReachablePositions,
   resolveCombat,
   SITE_STATS,
+  UNIT_MAX_HP,
+  UNIT_STATS,
 } from './rules'
 import type { GameState, Position, Terrain, Unit, UnitType } from './types'
 
@@ -28,9 +30,9 @@ function unit(
     factionId,
     type,
     position,
-    hp: 10,
-    maxHp: 10,
-    movementRemaining: type === 'cavalry' ? 3 : 2,
+    hp: UNIT_MAX_HP,
+    maxHp: UNIT_MAX_HP,
+    movementRemaining: UNIT_STATS[type].movement,
     hasActed: false,
     ...overrides,
   }
@@ -108,34 +110,62 @@ describe('hex combat rules', () => {
     expect(getAttackableUnits(rulesState([archer, nearby, far]), archer).map(({ id }) => id)).toEqual(['e1'])
   })
 
-  it.each([
-    ['plain', 6],
-    ['forest', 7],
-    ['hill', 7],
-    ['mountain', 8],
-  ] as const)('applies %s defense to incoming damage', (terrain, expectedHp) => {
+  it('applies forest and hill combat bonus to the striking unit', () => {
     const attacker = unit('p1', 'player', 'infantry', { q: 0, r: 0 })
     const defender = unit('e1', 'enemy', 'infantry', { q: 1, r: 0 })
-    const state = withTerrain(rulesState([attacker, defender]), defender.position, terrain)
+    const plain = resolveCombat(rulesState([attacker, defender]), attacker, defender)
+    const forestState = withTerrain(
+      rulesState([attacker, defender]),
+      attacker.position,
+      'forest',
+    )
+    const forest = resolveCombat(forestState, attacker, defender)
 
-    expect(resolveCombat(state, attacker, defender).defenderHp).toBe(expectedHp)
+    expect(plain.defenderHp).toBe(55)
+    expect(forest.defenderHp).toBe(52)
+    expect(plain.attackerHp - forest.attackerHp).toBe(0)
   })
 
-  it('keeps attack and counterattack damage at a minimum of 1', () => {
+  it('never lets defenders counter archer attacks and uses ranged power', () => {
     const attacker = unit('p1', 'player', 'archer', { q: 0, r: 0 })
-    const defender = unit('e1', 'enemy', 'archer', { q: 1, r: 0 })
-    let state = withTerrain(rulesState([attacker, defender]), defender.position, 'mountain')
-    state = withTerrain(state, attacker.position, 'mountain')
-    const result = resolveCombat(state, attacker, defender)
+    const defender = unit('e1', 'enemy', 'infantry', { q: 1, r: 0 })
+    const result = resolveCombat(rulesState([attacker, defender]), attacker, defender)
 
-    expect(result.defenderHp).toBe(9)
-    expect(result.attackerHp).toBe(9)
+    expect(result.defenderHp).toBe(60)
+    expect(result.attackerHp).toBe(UNIT_MAX_HP)
   })
 
-  it('gives spearmen their cavalry bonus', () => {
-    const attacker = unit('p1', 'player', 'spearman', { q: 0, r: 0 })
-    const defender = unit('e1', 'enemy', 'cavalry', { q: 1, r: 0 })
-    expect(resolveCombat(rulesState([attacker, defender]), attacker, defender).defenderHp).toBe(5)
+  it('uses archer melee power when defending', () => {
+    const attacker = unit('p1', 'player', 'infantry', { q: 0, r: 0 })
+    const defender = unit('e1', 'enemy', 'archer', { q: 1, r: 0 })
+    const result = resolveCombat(rulesState([attacker, defender]), attacker, defender)
+
+    expect(result.defenderHp).toBe(55)
+    expect(result.attackerHp).toBe(70)
+  })
+
+  it('applies infantry bonus against spearmen on attack and counter', () => {
+    const infantry = unit('p1', 'player', 'infantry', { q: 0, r: 0 })
+    const spearman = unit('e1', 'enemy', 'spearman', { q: 1, r: 0 })
+    const attack = resolveCombat(rulesState([infantry, spearman]), infantry, spearman)
+    const counter = resolveCombat(rulesState([spearman, infantry]), spearman, infantry)
+
+    expect(attack.defenderHp).toBe(50)
+    expect(attack.attackerHp).toBe(55)
+    expect(counter.defenderHp).toBe(55)
+    expect(counter.attackerHp).toBe(50)
+  })
+
+  it('applies spearman bonus against cavalry on attack and counter', () => {
+    const spearman = unit('p1', 'player', 'spearman', { q: 0, r: 0 })
+    const cavalry = unit('e1', 'enemy', 'cavalry', { q: 1, r: 0 })
+    const attack = resolveCombat(rulesState([spearman, cavalry]), spearman, cavalry)
+    const counter = resolveCombat(rulesState([cavalry, spearman]), cavalry, spearman)
+
+    expect(attack.defenderHp).toBe(45)
+    expect(attack.attackerHp).toBe(50)
+    expect(counter.defenderHp).toBe(50)
+    expect(counter.attackerHp).toBe(45)
   })
 })
 

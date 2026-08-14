@@ -31,7 +31,7 @@ describe('gameReducer on a hex map', () => {
     )!
     const mover: Unit = {
       id: 'capture-unit', name: 'capture', factionId: 'player', type: 'cavalry',
-      position: start, hp: 10, maxHp: 10, movementRemaining: 3, hasActed: false,
+      position: start, hp: 100, maxHp: 100, movementRemaining: 4, hasActed: false,
     }
     const state: GameState = {
       ...initial,
@@ -48,7 +48,7 @@ describe('gameReducer on a hex map', () => {
     })
 
     expect(moved.units[0].position).toEqual(neutral.position)
-    expect(moved.units[0].movementRemaining).toBe(2)
+    expect(moved.units[0].movementRemaining).toBe(3)
     expect(moved.sites.find((site) => site.id === neutral.id)?.ownerId).toBe('player')
   })
 
@@ -58,7 +58,7 @@ describe('gameReducer on a hex map', () => {
     const start = getHexNeighbors(capital.position)[0]
     const attacker: Unit = {
       id: 'winner', name: 'winner', factionId: 'player', type: 'infantry',
-      position: start, hp: 10, maxHp: 10, movementRemaining: 2, hasActed: false,
+      position: start, hp: 100, maxHp: 100, movementRemaining: 2, hasActed: false,
     }
     const state = {
       ...initial,
@@ -90,11 +90,11 @@ describe('gameReducer on a hex map', () => {
     const initial = createInitialGameState('reducer-combat')
     const attacker: Unit = {
       id: 'attacker', name: 'attacker', factionId: 'player', type: 'infantry',
-      position: { q: 0, r: 0 }, hp: 10, maxHp: 10, movementRemaining: 2, hasActed: false,
+      position: { q: 0, r: 0 }, hp: 100, maxHp: 100, movementRemaining: 2, hasActed: false,
     }
     const defender: Unit = {
       id: 'defender', name: 'defender', factionId: 'enemy', type: 'infantry',
-      position: { q: 1, r: 0 }, hp: 10, maxHp: 10, movementRemaining: 2, hasActed: false,
+      position: { q: 1, r: 0 }, hp: 100, maxHp: 100, movementRemaining: 2, hasActed: false,
     }
     const state = {
       ...initial,
@@ -110,8 +110,8 @@ describe('gameReducer on a hex map', () => {
       type: 'unitAttacked', attackerId: attacker.id, defenderId: defender.id,
     })
 
-    expect(result.units.find((unit) => unit.id === attacker.id)).toMatchObject({ hp: 7, hasActed: true })
-    expect(result.units.find((unit) => unit.id === defender.id)?.hp).toBeLessThan(10)
+    expect(result.units.find((unit) => unit.id === attacker.id)).toMatchObject({ hp: 55, hasActed: true })
+    expect(result.units.find((unit) => unit.id === defender.id)?.hp).toBe(55)
     expect(result.selectedUnitId).toBeUndefined()
   })
 

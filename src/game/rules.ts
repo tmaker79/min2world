@@ -21,11 +21,13 @@ import type {
 
 export { getHexDistance, getHexNeighbors, isPositionOnBoard, positionKey, positionsEqual }
 
+export const UNIT_MAX_HP = 100
+
 export const UNIT_STATS: Record<UnitType, UnitStats> = {
-  infantry: { movement: 2, attack: 4, counterAttack: 3, range: 1, cost: 10 },
-  cavalry: { movement: 3, attack: 5, counterAttack: 2, range: 1, cost: 15 },
-  archer: { movement: 2, attack: 3, counterAttack: 1, range: 2, cost: 12 },
-  spearman: { movement: 2, attack: 3, counterAttack: 5, range: 1, cost: 12 },
+  infantry: { movement: 2, melee: 45, ranged: 0, range: 1, cost: 10 },
+  spearman: { movement: 2, melee: 45, ranged: 0, range: 1, cost: 13 },
+  archer: { movement: 2, melee: 30, ranged: 40, range: 2, cost: 15 },
+  cavalry: { movement: 4, melee: 50, ranged: 0, range: 1, cost: 18 },
 }
 
 export const UNIT_TYPES: readonly UnitType[] = [
@@ -64,12 +66,12 @@ export const TERRAIN_MOVEMENT_COST: Record<Terrain, number | null> = {
   forest: 2,
 }
 
-export const TERRAIN_DEFENSE: Record<Terrain, number> = {
+export const TERRAIN_COMBAT_BONUS: Record<Terrain, number> = {
   plain: 0,
-  mountain: 2,
+  mountain: 0,
   water: 0,
-  hill: 1,
-  forest: 1,
+  hill: 3,
+  forest: 3,
 }
 
 export const TERRAIN_LABELS: Record<Terrain, string> = {
@@ -247,33 +249,42 @@ export type CombatResult = {
   defenderHp: number
 }
 
+export function getMatchupBonus(strikerType: UnitType, targetType: UnitType) {
+  if (strikerType === 'infantry' && targetType === 'spearman') return 5
+  if (strikerType === 'spearman' && targetType === 'cavalry') return 10
+  return 0
+}
+
+function getStrikePower(
+  state: GameState,
+  striker: Unit,
+  target: Unit,
+  mode: 'attack' | 'counter',
+) {
+  const stats = UNIT_STATS[striker.type]
+  const terrain =
+    getTileAt(state, striker.position)?.terrain ?? 'plain'
+  const base =
+    mode === 'attack' && striker.type === 'archer' ? stats.ranged : stats.melee
+  const matchup =
+    mode === 'attack' && striker.type === 'archer'
+      ? 0
+      : getMatchupBonus(striker.type, target.type)
+
+  return Math.max(1, base + matchup + TERRAIN_COMBAT_BONUS[terrain])
+}
+
 export function resolveCombat(
   state: GameState,
   attacker: Unit,
   defender: Unit,
 ): CombatResult {
-  const distance = getHexDistance(attacker.position, defender.position)
-  const attackBonus =
-    attacker.type === 'spearman' && defender.type === 'cavalry' ? 2 : 0
-  const defenderTerrain = getTileAt(state, defender.position)?.terrain ?? 'plain'
-  const damageToDefender = Math.max(
-    1,
-    UNIT_STATS[attacker.type].attack +
-      attackBonus -
-      TERRAIN_DEFENSE[defenderTerrain],
-  )
+  const damageToDefender = getStrikePower(state, attacker, defender, 'attack')
   const defenderHp = Math.max(0, defender.hp - damageToDefender)
-  const canCounter =
-    distance <= UNIT_STATS[defender.type].range && defenderHp > 0
-  const counterAttackBonus =
-    defender.type === 'spearman' && attacker.type === 'cavalry' ? 2 : 0
-  const attackerTerrain = getTileAt(state, attacker.position)?.terrain ?? 'plain'
-  const damageToAttacker = Math.max(
-    1,
-    UNIT_STATS[defender.type].counterAttack +
-      counterAttackBonus -
-      TERRAIN_DEFENSE[attackerTerrain],
-  )
+  const canCounter = attacker.type !== 'archer' && defenderHp > 0
+  const damageToAttacker = canCounter
+    ? getStrikePower(state, defender, attacker, 'counter')
+    : 0
   const attackerHp = canCounter
     ? Math.max(0, attacker.hp - damageToAttacker)
     : attacker.hp

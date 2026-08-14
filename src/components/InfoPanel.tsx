@@ -38,13 +38,15 @@ export function InfoPanel({ unit }: InfoPanelProps) {
               </dd>
             </div>
             <div>
-              <dt>공격력</dt>
-              <dd>{UNIT_STATS[unit.type].attack}</dd>
+              <dt>근접 전투력</dt>
+              <dd>{UNIT_STATS[unit.type].melee}</dd>
             </div>
-            <div>
-              <dt>반격력</dt>
-              <dd>{UNIT_STATS[unit.type].counterAttack}</dd>
-            </div>
+            {UNIT_STATS[unit.type].ranged > 0 && (
+              <div>
+                <dt>원거리 전투력</dt>
+                <dd>{UNIT_STATS[unit.type].ranged}</dd>
+              </div>
+            )}
             <div>
               <dt>공격 사거리</dt>
               <dd>{UNIT_STATS[unit.type].range}</dd>

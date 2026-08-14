@@ -29,11 +29,11 @@ describe('hex-map AI', () => {
   it('attacks an enemy in axial range before moving', () => {
     const enemy: Unit = {
       id: 'enemy-archer', name: 'archer', factionId: 'enemy', type: 'archer',
-      position: { q: 0, r: 0 }, hp: 10, maxHp: 10, movementRemaining: 2, hasActed: false,
+      position: { q: 0, r: 0 }, hp: 100, maxHp: 100, movementRemaining: 2, hasActed: false,
     }
     const player: Unit = {
       id: 'player-target', name: 'target', factionId: 'player', type: 'infantry',
-      position: { q: 2, r: -1 }, hp: 3, maxHp: 10, movementRemaining: 2, hasActed: false,
+      position: { q: 2, r: -1 }, hp: 30, maxHp: 100, movementRemaining: 2, hasActed: false,
     }
     const state = { ...enemyTurn(), selectedUnitId: enemy.id, units: [enemy, player] }
 

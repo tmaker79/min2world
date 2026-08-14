@@ -177,7 +177,7 @@ describe('Milestone 07 UI', () => {
     const start = getHexNeighbors(capital.position)[0]
     const winner: Unit = {
       id: 'winner', name: 'winner', factionId: 'player', type: 'infantry',
-      position: start, hp: 10, maxHp: 10, movementRemaining: 2, hasActed: false,
+      position: start, hp: 100, maxHp: 100, movementRemaining: 2, hasActed: false,
     }
     const state = {
       ...initial,
