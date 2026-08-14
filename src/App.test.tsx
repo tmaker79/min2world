@@ -37,6 +37,27 @@ describe('Milestone 07 UI', () => {
     expect(screen.getByRole('tab', { name: '저장' })).toHaveAttribute('aria-selected', 'false')
   })
 
+  it('shows a compact unit summary tooltip on hover without changing selection', async () => {
+    const user = userEvent.setup()
+    const state = createInitialGameState('ui-tooltip')
+    const enemy = state.units.find((unit) => unit.factionId === 'enemy')!
+    const { container } = renderApp(state)
+    const tile = container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(enemy.position)}"]`,
+    )!
+
+    await user.hover(tile)
+
+    const tooltip = container.querySelector(`[data-unit-tooltip="${enemy.id}"]`)
+    expect(tooltip).toBeVisible()
+    expect(tooltip).toHaveTextContent(enemy.name)
+    expect(tooltip).toHaveTextContent('체력')
+    expect(tooltip).toHaveTextContent(`${enemy.hp}/${enemy.maxHp}`)
+    expect(screen.getByRole('heading', { name: '부대 정보' }).closest('section')).toHaveTextContent(
+      '지도에서 푸른 유닛을 선택하면',
+    )
+  })
+
   it('selects a unit with keyboard Enter and exposes reachable hexes', async () => {
     const user = userEvent.setup()
     const state = createInitialGameState('ui-keyboard')

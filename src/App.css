@@ -254,7 +254,7 @@
   position: relative;
   min-width: 0;
   padding: 14px 14px 12px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .section-heading {
@@ -278,12 +278,13 @@
 .map-scroll {
   overflow: auto;
   max-height: min(78vh, 900px);
-  padding: 2px 2px 8px;
+  padding: 48px 2px 8px;
 }
 
 .game-map {
   position: relative;
   padding: 8px;
+  overflow: visible;
   background: #11191e;
   border: 1px solid rgba(233, 220, 181, 0.2);
   box-shadow:
@@ -315,6 +316,12 @@
   pointer-events: none;
 }
 
+.map-layer--tooltips {
+  z-index: 40;
+  pointer-events: none;
+  overflow: visible;
+}
+
 .map-overlay-cell {
   position: absolute;
   display: grid;
@@ -323,6 +330,10 @@
   overflow: visible;
   place-items: center;
   pointer-events: none;
+}
+
+.map-overlay-cell--tooltip {
+  align-items: start;
 }
 
 .map-tile {
@@ -388,6 +399,60 @@
 
 .map-tile:disabled:hover {
   filter: none;
+}
+
+.unit-tooltip {
+  position: absolute;
+  z-index: 6;
+  top: 0;
+  left: 50%;
+  display: grid;
+  min-width: 132px;
+  padding: 8px 10px;
+  gap: 6px;
+  color: #f3f7fa;
+  background: rgba(14, 20, 24, 0.96);
+  border: 1px solid rgba(228, 185, 95, 0.45);
+  border-radius: 6px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -100%) translateY(-6px);
+  visibility: hidden;
+}
+
+.unit-tooltip--visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.unit-tooltip strong {
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+
+.unit-tooltip dl {
+  display: grid;
+  margin: 0;
+  gap: 2px;
+}
+
+.unit-tooltip dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 0.62rem;
+}
+
+.unit-tooltip dt {
+  margin: 0;
+}
+
+.unit-tooltip dd {
+  margin: 0;
+  color: #e8edf2;
+  font-weight: 700;
 }
 
 .map-tile--reachable {
