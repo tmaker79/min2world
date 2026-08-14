@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
+import { AppChrome } from './components/AppChrome'
+import { ContextTabs } from './components/ContextTabs'
+import type { ContextTabId } from './components/ContextTabs'
 import { GameResultPanel } from './components/GameResultPanel'
 import { GameMap } from './components/GameMap'
 import type {
@@ -11,7 +14,6 @@ import { ProductionPanel } from './components/ProductionPanel'
 import { SavePanel } from './components/SavePanel'
 import { StatusBar } from './components/StatusBar'
 import { createInitialGameState } from './game/initialState'
-import { HEX_TILE_COUNT } from './game/hex'
 import { createRandomMapSeed, normalizeMapSeed } from './game/mapGenerator'
 import { gameReducer } from './game/reducer'
 import {
@@ -71,6 +73,7 @@ function App({ initialState }: AppProps = {}) {
     type: 'status' | 'error'
     message: string
   }>()
+  const [contextTab, setContextTab] = useState<ContextTabId>('legend')
   const playerProductionSites = useMemo(
     () =>
       state.sites.filter(
@@ -414,14 +417,14 @@ function App({ initialState }: AppProps = {}) {
     const normalizedSeed = normalizeMapSeed(seed)
     if (!normalizedSeed) {
       setSeedFeedback('seed는 공백이 아닌 1~64자로 입력해 주세요.')
-      return
+      return false
     }
     if (
       confirmProgress &&
       hasProgress &&
       !window.confirm('현재 진행을 중단하고 새 지도를 시작할까요?')
     ) {
-      return
+      return false
     }
     setActiveCombat(undefined)
     setCombatPhase('attack')
@@ -431,23 +434,29 @@ function App({ initialState }: AppProps = {}) {
     setSeedInput(normalizedSeed)
     setSeedFeedback(undefined)
     dispatch({ type: 'gameRestarted', seed: normalizedSeed })
+    return true
   }
 
   const restartRandomGame = (confirmProgress: boolean) => {
-    restartGame(createRandomMapSeed(), confirmProgress)
+    return restartGame(createRandomMapSeed(), confirmProgress)
   }
 
   return (
     <div className="app-shell">
-      <header className="site-header">
-        <div>
-          <p className="eyebrow">TURN-BASED STRATEGY</p>
-          <h1>min2world</h1>
-        </div>
-        <p className="site-header__mission">
-          푸른 세력의 부대를 지휘해 대륙을 탐색하세요.
-        </p>
-      </header>
+      <AppChrome
+        mapSeed={state.mapSeed}
+        seedInput={seedInput}
+        seedFeedback={seedFeedback}
+        canSave={canSave}
+        onSeedInputChange={(value) => {
+          setSeedInput(value)
+          setSeedFeedback(undefined)
+        }}
+        onSeedSubmit={() => restartGame(seedInput, true)}
+        onRandomRestart={() => restartRandomGame(true)}
+        onOpenSave={() => setContextTab('save')}
+        onSave={handleSave}
+      />
 
       <StatusBar
         turn={state.turn}
@@ -471,39 +480,8 @@ function App({ initialState }: AppProps = {}) {
               <p className="eyebrow">THE FRONTIER</p>
               <h2 id="map-heading">전략 지도</h2>
             </div>
-            <span className="map-size">{HEX_TILE_COUNT} HEX</span>
+            <span className="map-size">144 HEX</span>
           </div>
-
-          <form
-            className="seed-controls"
-            onSubmit={(event) => {
-              event.preventDefault()
-              restartGame(seedInput, true)
-            }}
-          >
-            <label>
-              <span>MAP SEED</span>
-              <input
-                value={seedInput}
-                maxLength={64}
-                aria-describedby={seedFeedback ? 'seed-feedback' : undefined}
-                onChange={(event) => {
-                  setSeedInput(event.target.value)
-                  setSeedFeedback(undefined)
-                }}
-              />
-            </label>
-            <button type="submit">seed로 새 게임</button>
-            <button type="button" onClick={() => restartRandomGame(true)}>
-              무작위 지도
-            </button>
-            <output>현재 seed: {state.mapSeed}</output>
-            {seedFeedback && (
-              <span id="seed-feedback" className="seed-controls__error" role="alert">
-                {seedFeedback}
-              </span>
-            )}
-          </form>
 
           <div className="map-scroll">
             <GameMap
@@ -568,28 +546,36 @@ function App({ initialState }: AppProps = {}) {
               setProductionFeedback(undefined)
             }}
           />
-          <SavePanel
-            slot={saveSlot}
-            canSave={canSave}
-            canLoad={canLoad}
-            canDelete={canDelete}
-            feedback={saveFeedback}
-            onSave={handleSave}
-            onLoad={handleLoad}
-            onDelete={handleDeleteSave}
+          <ContextTabs
+            activeTab={contextTab}
+            onTabChange={setContextTab}
+            panels={{
+              legend: <Legend />,
+              save: (
+                <SavePanel
+                  slot={saveSlot}
+                  canSave={canSave}
+                  canLoad={canLoad}
+                  canDelete={canDelete}
+                  feedback={saveFeedback}
+                  onSave={handleSave}
+                  onLoad={handleLoad}
+                  onDelete={handleDeleteSave}
+                />
+              ),
+              help: (
+                <section className="help-card" aria-labelledby="help-heading">
+                  <p className="eyebrow">HOW TO PLAY</p>
+                  <h2 id="help-heading">작전 지침</h2>
+                  <ol>
+                    <li>푸른 유닛을 선택해 금색 칸으로 이동하거나 붉은 적을 공격합니다.</li>
+                    <li>성·도시에서 생산하고, 상단에서 새 지도와 저장을 관리합니다.</li>
+                    <li>모든 행동 후 턴을 종료합니다. 상세 규칙은 README를 참고하세요.</li>
+                  </ol>
+                </section>
+              ),
+            }}
           />
-          <Legend />
-          <section className="help-card" aria-labelledby="help-heading">
-            <p className="eyebrow">HOW TO PLAY</p>
-            <h2 id="help-heading">작전 지침</h2>
-            <ol>
-              <li>푸른 유닛을 선택합니다.</li>
-              <li>금색 타일로 이동하거나 붉은 적을 공격합니다.</li>
-              <li>적 통제 구역에 진입하면 이동이 멈춥니다.</li>
-              <li>행동 완료 유닛도 선택해 상태를 확인할 수 있습니다.</li>
-              <li>모든 행동 후 턴을 종료합니다.</li>
-            </ol>
-          </section>
         </aside>
       </main>
       {aiAnnouncement && (

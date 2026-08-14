@@ -10,7 +10,7 @@ function renderApp(state: GameState = createInitialGameState('ui-seed')) {
   return render(<App initialState={state} />)
 }
 
-describe('Milestone 06 UI', () => {
+describe('Milestone 07 UI', () => {
   beforeEach(() => {
     localStorage.clear()
     vi.restoreAllMocks()
@@ -24,7 +24,7 @@ describe('Milestone 06 UI', () => {
     expect(tiles).toHaveLength(144)
     expect([...tiles].every((tile) => tile.type === 'button' && !tile.disabled)).toBe(true)
     expect(container.querySelector('.map-size')).toHaveTextContent('144 HEX')
-    expect(container.querySelector('.seed-controls output')).toHaveTextContent('ui-seed')
+    expect(container.querySelector('.app-chrome__seed')).toHaveTextContent('ui-seed')
     expect(container.querySelectorAll('.site-marker')).toHaveLength(8)
     expect(container.querySelectorAll('.unit-token')).toHaveLength(6)
     expect(container.querySelector('.map-layer--terrain .map-tile')).toBeInTheDocument()
@@ -33,6 +33,8 @@ describe('Milestone 06 UI', () => {
     expect(container.querySelector('.map-layer--units .unit-health-bar')).toBeInTheDocument()
     expect(container.querySelector('.unit-health-bar')?.closest('.map-tile')).toBeNull()
     expect(container.querySelector('.site-marker')?.closest('.map-tile')).toBeNull()
+    expect(screen.getByRole('tab', { name: '범례' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: '저장' })).toHaveAttribute('aria-selected', 'false')
   })
 
   it('selects a unit with keyboard Enter and exposes reachable hexes', async () => {
@@ -72,8 +74,12 @@ describe('Milestone 06 UI', () => {
   it('starts a deterministic game from a trimmed seed and validates empty input', async () => {
     const user = userEvent.setup()
     const { container } = renderApp()
+
+    await user.click(screen.getByRole('button', { name: '새 게임' }))
     const input = container.querySelector<HTMLInputElement>('.seed-controls input')!
-    const submit = container.querySelector<HTMLButtonElement>('.seed-controls button[type="submit"]')!
+    const submit = container.querySelector<HTMLButtonElement>(
+      '.seed-controls button[type="submit"]',
+    )!
 
     await user.clear(input)
     await user.click(submit)
@@ -81,7 +87,7 @@ describe('Milestone 06 UI', () => {
 
     await user.type(input, '  next-map  ')
     await user.click(submit)
-    expect(container.querySelector('.seed-controls output')).toHaveTextContent('next-map')
+    expect(container.querySelector('.app-chrome__seed')).toHaveTextContent('next-map')
     expect(container.querySelectorAll('.map-tile')).toHaveLength(144)
   })
 
@@ -91,14 +97,18 @@ describe('Milestone 06 UI', () => {
     state.turn = 2
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
     const { container } = renderApp(state)
+
+    await user.click(screen.getByRole('button', { name: '새 게임' }))
     const input = container.querySelector<HTMLInputElement>('.seed-controls input')!
 
     await user.clear(input)
     await user.type(input, 'blocked-seed')
-    await user.click(container.querySelector<HTMLButtonElement>('.seed-controls button[type="submit"]')!)
+    await user.click(
+      container.querySelector<HTMLButtonElement>('.seed-controls button[type="submit"]')!,
+    )
 
     expect(confirm).toHaveBeenCalledOnce()
-    expect(container.querySelector('.seed-controls output')).toHaveTextContent('progress')
+    expect(container.querySelector('.app-chrome__seed')).toHaveTextContent('progress')
   })
 
   it('offers production only from a production-capable owned site', async () => {
@@ -114,6 +124,21 @@ describe('Milestone 06 UI', () => {
 
     expect(container.querySelectorAll('.unit-token')).toHaveLength(7)
     expect(container.querySelector('.status-bar')).toHaveTextContent('5')
+  })
+
+  it('switches context tabs without showing every auxiliary panel at once', async () => {
+    const user = userEvent.setup()
+    renderApp()
+
+    expect(screen.getByRole('heading', { name: '지도 범례' })).toBeVisible()
+    expect(screen.queryByRole('heading', { name: '저장 관리' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('tab', { name: '저장' }))
+    expect(screen.getByRole('heading', { name: '저장 관리' })).toBeVisible()
+    expect(screen.queryByRole('heading', { name: '지도 범례' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('tab', { name: '도움말' }))
+    expect(screen.getByRole('heading', { name: '작전 지침' })).toBeVisible()
   })
 
   it('shows victory immediately after occupying the enemy stronghold', async () => {
