@@ -198,13 +198,19 @@ function TileButton({
 function UnitTooltip({
   unit,
   style,
+  placement,
 }: {
   unit: Unit
   style: CSSProperties
+  placement: 'above' | 'below'
 }) {
   return (
     <span className="map-overlay-cell map-overlay-cell--tooltip" style={style}>
-      <span className="unit-tooltip unit-tooltip--visible" role="tooltip" data-unit-tooltip={unit.id}>
+      <span
+        className={`unit-tooltip unit-tooltip--${placement}`}
+        role="tooltip"
+        data-unit-tooltip={unit.id}
+      >
         <strong>{unit.name}</strong>
         <dl>
           {getUnitTooltipRows(unit).map((row) => (
@@ -341,6 +347,11 @@ export function GameMap({
   const hoveredUnit = hoveredUnitId
     ? state.units.find((unit) => unit.id === hoveredUnitId)
     : undefined
+  const hoveredTooltipPlacement =
+    hoveredUnit &&
+    getHexPixelPosition(hoveredUnit.position).y - minimumY < HEX_HEIGHT
+      ? 'below'
+      : 'above'
 
   return (
     <div
@@ -417,6 +428,7 @@ export function GameMap({
         {hoveredUnit && (
           <UnitTooltip
             unit={hoveredUnit}
+            placement={hoveredTooltipPlacement}
             style={getOverlayStyle(hoveredUnit.position, minimumX, minimumY)}
           />
         )}

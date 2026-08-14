@@ -26,7 +26,6 @@ export function AppChrome({
   return (
     <header className="app-chrome">
       <div className="app-chrome__brand">
-        <p className="eyebrow">TURN-BASED STRATEGY</p>
         <h1>min2world</h1>
       </div>
 

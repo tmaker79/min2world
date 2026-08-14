@@ -26,10 +26,6 @@
   line-height: 1;
 }
 
-.app-chrome__brand .eyebrow {
-  margin-bottom: 4px;
-}
-
 .app-chrome__meta {
   display: flex;
   align-items: center;
@@ -276,13 +272,18 @@
 }
 
 .map-scroll {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
   overflow: auto;
   max-height: min(78vh, 900px);
-  padding: 48px 2px 8px;
+  padding: 8px 2px;
 }
 
 .game-map {
   position: relative;
+  flex: 0 0 auto;
+  margin: 0 auto;
   padding: 8px;
   overflow: visible;
   background: #11191e;
@@ -334,6 +335,59 @@
 
 .map-overlay-cell--tooltip {
   align-items: start;
+}
+
+.unit-tooltip {
+  position: absolute;
+  z-index: 6;
+  top: 0;
+  left: 50%;
+  display: grid;
+  min-width: 132px;
+  padding: 8px 10px;
+  gap: 6px;
+  color: #f3f7fa;
+  background: rgba(14, 20, 24, 0.96);
+  border: 1px solid rgba(228, 185, 95, 0.45);
+  border-radius: 6px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  transform: translate(-50%, -100%) translateY(-6px);
+}
+
+.unit-tooltip--below {
+  top: auto;
+  bottom: 0;
+  transform: translate(-50%, 100%) translateY(8px);
+}
+
+.unit-tooltip strong {
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+
+.unit-tooltip dl {
+  display: grid;
+  margin: 0;
+  gap: 2px;
+}
+
+.unit-tooltip dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 0.62rem;
+}
+
+.unit-tooltip dt {
+  margin: 0;
+}
+
+.unit-tooltip dd {
+  margin: 0;
+  color: #e8edf2;
+  font-weight: 700;
 }
 
 .map-tile {
@@ -399,60 +453,6 @@
 
 .map-tile:disabled:hover {
   filter: none;
-}
-
-.unit-tooltip {
-  position: absolute;
-  z-index: 6;
-  top: 0;
-  left: 50%;
-  display: grid;
-  min-width: 132px;
-  padding: 8px 10px;
-  gap: 6px;
-  color: #f3f7fa;
-  background: rgba(14, 20, 24, 0.96);
-  border: 1px solid rgba(228, 185, 95, 0.45);
-  border-radius: 6px;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
-  opacity: 0;
-  pointer-events: none;
-  transform: translate(-50%, -100%) translateY(-6px);
-  visibility: hidden;
-}
-
-.unit-tooltip--visible {
-  opacity: 1;
-  visibility: visible;
-}
-
-.unit-tooltip strong {
-  font-size: 0.72rem;
-  line-height: 1.3;
-}
-
-.unit-tooltip dl {
-  display: grid;
-  margin: 0;
-  gap: 2px;
-}
-
-.unit-tooltip dl div {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  color: var(--muted);
-  font-size: 0.62rem;
-}
-
-.unit-tooltip dt {
-  margin: 0;
-}
-
-.unit-tooltip dd {
-  margin: 0;
-  color: #e8edf2;
-  font-weight: 700;
 }
 
 .map-tile--reachable {
