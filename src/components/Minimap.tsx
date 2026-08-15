@@ -94,7 +94,11 @@ const MinimapTerrain = memo(function MinimapTerrain({
   return <canvas ref={canvasRef} className="minimap__terrain" aria-hidden="true" />
 })
 
-function MinimapComponent({ state, scrollElement, zoom = 1 }: MinimapProps) {
+function MinimapComponent({
+  state,
+  scrollElement,
+  zoom = 1,
+}: MinimapProps) {
   const bodyRef = useRef<HTMLDivElement>(null)
   const [collapsed, setCollapsed] = useState(false)
   const [viewport, setViewport] = useState<Viewport>()

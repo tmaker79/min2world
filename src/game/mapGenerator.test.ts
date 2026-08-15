@@ -59,6 +59,7 @@ describe('procedural map generation', () => {
   })
 
   it.each([
+    [BOARD_SIZE_PRESETS.tiny, 2],
     [BOARD_SIZE_PRESETS.small, 2],
     [BOARD_SIZE_PRESETS.standard, 3],
     [BOARD_SIZE_PRESETS.large, 4],
@@ -74,6 +75,17 @@ describe('procedural map generation', () => {
     expect(state.factionOrder).toHaveLength(factionCount)
     expect(state.sites.filter((site) => site.capitalFor)).toHaveLength(factionCount)
     expect(state.units).toHaveLength(factionCount * 3)
+  })
+
+  it('forces tiny boards to duel (2 factions)', () => {
+    const state = generateGameState('tiny-duel-only', {
+      boardSize: BOARD_SIZE_PRESETS.tiny,
+      factionCount: 4,
+      humanFactionId: 'f1',
+    })
+
+    expect(state.factionCount).toBe(2)
+    expect(state.factionOrder).toEqual(['f1', 'f2'])
   })
 
   it('keeps adjacent forest tiles on the same tree variant', () => {

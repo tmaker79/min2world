@@ -69,6 +69,12 @@
   background: rgb(86 215 194 / 12%);
 }
 
+.start-screen__choice--disabled,
+.start-screen__choice:has(input:disabled) {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .start-screen__choice input {
   accent-color: #56d7c2;
 }
@@ -422,6 +428,11 @@
   touch-action: none;
   scrollbar-width: none;
   -ms-overflow-style: none;
+}
+
+.map-scroll--fit {
+  align-items: center;
+  max-height: min(88vh, 920px);
 }
 
 .map-scroll::-webkit-scrollbar {

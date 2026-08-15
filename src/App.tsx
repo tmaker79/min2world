@@ -15,6 +15,7 @@ import { SavePanel } from './components/SavePanel'
 import { StatusBar } from './components/StatusBar'
 import { StartScreen } from './components/StartScreen'
 import { createInitialGameState } from './game/initialState'
+import { BOARD_SIZE_PRESETS } from './game/hex'
 import { createRandomMapSeed, normalizeMapSeed } from './game/mapGenerator'
 import { gameReducer } from './game/reducer'
 import {
@@ -82,6 +83,11 @@ function GameApp({ initialState }: { initialState: GameState }) {
     null,
   )
   const mapDragMovedRef = useMapPan(mapScrollElement)
+  const isCompactBoard =
+    (state.boardSize.columns === BOARD_SIZE_PRESETS.tiny.columns &&
+      state.boardSize.rows === BOARD_SIZE_PRESETS.tiny.rows) ||
+    (state.boardSize.columns === BOARD_SIZE_PRESETS.small.columns &&
+      state.boardSize.rows === BOARD_SIZE_PRESETS.small.rows)
   const mapZoom = useMapZoom(mapScrollElement)
   const playerProductionSites = useMemo(
     () =>
@@ -609,7 +615,10 @@ function GameApp({ initialState }: { initialState: GameState }) {
           />
 
           <div className="map-stage">
-            <div className="map-scroll" ref={setMapScrollElement}>
+            <div
+              className={`map-scroll${isCompactBoard ? ' map-scroll--fit' : ''}`}
+              ref={setMapScrollElement}
+            >
               <GameMap
                 state={state}
                 scrollElement={mapScrollElement}

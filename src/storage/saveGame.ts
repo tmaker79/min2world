@@ -206,7 +206,15 @@ function parseBoardSize(value: unknown): BoardSize | undefined {
     return undefined
   }
   const boardSize = { columns: value.columns, rows: value.rows }
-  return Object.values(BOARD_SIZE_PRESETS).some(
+  const allowedSizes = [
+    ...Object.values(BOARD_SIZE_PRESETS),
+    // Legacy presets from earlier schema 7 builds.
+    { columns: 18, rows: 12 },
+    { columns: 24, rows: 16 },
+    { columns: 48, rows: 32 },
+    { columns: 96, rows: 64 },
+  ]
+  return allowedSizes.some(
     (preset) =>
       preset.columns === boardSize.columns && preset.rows === boardSize.rows,
   )
@@ -392,7 +400,7 @@ function readSavedGame(storage?: StorageLike): StorageResult<SavedGame> {
         ...legacyState,
         schemaVersion: GAME_SCHEMA_VERSION,
         mapGenerationVersion: MAP_GENERATION_VERSION,
-        boardSize: { ...DEFAULT_BOARD_SIZE },
+        boardSize: { columns: 48, rows: 32 },
         factionCount: 2,
         humanFactionId: 'f1',
         factionOrder: ['f1', 'f2'],

@@ -1,9 +1,10 @@
 import type { BoardSize, Position } from './types'
 
 export const BOARD_SIZE_PRESETS = {
-  small: { columns: 24, rows: 16 },
-  standard: { columns: 48, rows: 32 },
-  large: { columns: 96, rows: 64 },
+  tiny: { columns: 15, rows: 10 },
+  small: { columns: 21, rows: 14 },
+  standard: { columns: 42, rows: 28 },
+  large: { columns: 84, rows: 56 },
 } as const satisfies Record<string, BoardSize>
 export const DEFAULT_BOARD_SIZE: BoardSize = BOARD_SIZE_PRESETS.standard
 /** @deprecated Use DEFAULT_BOARD_SIZE.columns. */
