@@ -53,13 +53,16 @@ describe('hex coordinates', () => {
     expect(new Set(neighbors)).toHaveLength(6)
   })
 
-  it('picks a stable terrain icon variant from hex coordinates', () => {
-    expect(getTerrainVariantIndex({ q: 1, r: -2 }, 7)).toBe(
-      getTerrainVariantIndex({ q: 1, r: -2 }, 7),
+  it('picks a stable terrain icon variant from hex coordinates and seed', () => {
+    expect(getTerrainVariantIndex({ q: 1, r: -2 }, 7, 'seed-a')).toBe(
+      getTerrainVariantIndex({ q: 1, r: -2 }, 7, 'seed-a'),
+    )
+    expect(getTerrainVariantIndex({ q: 1, r: -2 }, 7, 'seed-a')).not.toBe(
+      getTerrainVariantIndex({ q: 1, r: -2 }, 7, 'seed-b'),
     )
     const variants = new Set(
       Array.from({ length: 24 }, (_, index) =>
-        getTerrainVariantIndex({ q: index - 12, r: 1 }, 4),
+        getTerrainVariantIndex({ q: index - 12, r: 1 }, 4, 'map'),
       ),
     )
     expect(variants.size).toBeGreaterThan(1)

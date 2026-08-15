@@ -51,6 +51,7 @@ type TileButtonProps = {
   tile: Tile
   unit?: Unit
   site?: Site
+  mapSeed: string
   selected: boolean
   reachable: boolean
   attackable: boolean
@@ -147,6 +148,7 @@ function TileButton({
   tile,
   unit,
   site,
+  mapSeed,
   selected,
   reachable,
   attackable,
@@ -191,7 +193,11 @@ function TileButton({
     >
       {hasTerrainImage(tile.terrain) && (
         <span className={`terrain-mark terrain-mark--${tile.terrain}`} aria-hidden="true">
-          <TerrainIcon terrain={tile.terrain} position={tile.position} />
+          <TerrainIcon
+            terrain={tile.terrain}
+            position={tile.position}
+            seed={mapSeed}
+          />
         </span>
       )}
     </button>
@@ -411,6 +417,7 @@ export function GameMap({
               tile={tile}
               unit={unit}
               site={site}
+              mapSeed={state.mapSeed}
               selected={selected}
               reachable={reachable}
               attackable={attackable}
