@@ -612,11 +612,17 @@
   pointer-events: none;
 }
 
+.map-zoom-shell {
+  position: relative;
+  flex: 0 0 auto;
+  margin: 0 auto;
+}
+
 .game-map {
   position: relative;
   box-sizing: content-box;
   flex: 0 0 auto;
-  margin: 0 auto;
+  margin: 0;
   padding: 8px;
   overflow: visible;
   background: #11191e;

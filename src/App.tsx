@@ -36,6 +36,7 @@ import {
 import type { GameState, Tile, UnitType } from './game/types'
 import { useAiTurn } from './hooks/useAiTurn'
 import { useMapPan } from './hooks/useMapPan'
+import { useMapZoom } from './hooks/useMapZoom'
 import {
   deleteSavedGame,
   inspectSavedGame,
@@ -81,6 +82,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     null,
   )
   const mapDragMovedRef = useMapPan(mapScrollElement)
+  const mapZoom = useMapZoom(mapScrollElement)
   const playerProductionSites = useMemo(
     () =>
       state.sites.filter(
@@ -611,6 +613,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
               <GameMap
                 state={state}
                 scrollElement={mapScrollElement}
+                zoom={mapZoom}
                 reachableKeys={reachableKeys}
                 attackableKeys={attackableKeys}
                 deployableKeys={deployableKeys}
@@ -633,7 +636,11 @@ function GameApp({ initialState }: { initialState: GameState }) {
                 onTileHoverChange={setHoveredTile}
               />
             </div>
-            <Minimap state={state} scrollElement={mapScrollElement} />
+            <Minimap
+              state={state}
+              scrollElement={mapScrollElement}
+              zoom={mapZoom}
+            />
             <aside className="map-hud" aria-label="선택 정보">
               {productionPanelOpen && (
                 <ProductionPanel

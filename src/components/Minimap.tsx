@@ -30,6 +30,7 @@ type Viewport = {
 type MinimapProps = {
   state: GameState
   scrollElement: HTMLElement | null
+  zoom?: number
 }
 
 type MinimapLayout = {
@@ -93,7 +94,7 @@ const MinimapTerrain = memo(function MinimapTerrain({
   return <canvas ref={canvasRef} className="minimap__terrain" aria-hidden="true" />
 })
 
-function MinimapComponent({ state, scrollElement }: MinimapProps) {
+function MinimapComponent({ state, scrollElement, zoom = 1 }: MinimapProps) {
   const bodyRef = useRef<HTMLDivElement>(null)
   const [collapsed, setCollapsed] = useState(false)
   const [viewport, setViewport] = useState<Viewport>()
@@ -195,7 +196,7 @@ function MinimapComponent({ state, scrollElement }: MinimapProps) {
       scrollElement.removeEventListener('scroll', updateViewport)
       window.removeEventListener('resize', updateViewport)
     }
-  }, [collapsed, scrollElement, state.mapSeed, state.tiles.length])
+  }, [collapsed, scrollElement, state.mapSeed, state.tiles.length, zoom])
 
   const panTo = (clientX: number, clientY: number) => {
     if (!scrollElement || !bodyRef.current) {

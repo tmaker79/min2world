@@ -21,6 +21,8 @@ import { UnitIcon } from './UnitIcon'
 const UNIT_TOOLTIP_SHOW_DELAY_MS = 400
 const UNIT_TOOLTIP_TOP_SAFE_PX = 120
 const VIEWPORT_OVERSCAN_PX = Math.max(HEX_WIDTH, HEX_HEIGHT) * 2
+/** Matches `.game-map` content-box padding (8*2) + border (1*2). */
+const MAP_FRAME_PX = 18
 
 export type CombatAnimationPhase = 'attack' | 'hit'
 
@@ -39,6 +41,7 @@ export type CombatAnimation = {
 type GameMapProps = {
   state: GameState
   scrollElement: HTMLElement | null
+  zoom?: number
   reachableKeys: Set<string>
   attackableKeys: Set<string>
   deployableKeys: Set<string>
@@ -379,6 +382,7 @@ function UnitMarker({
 function GameMapComponent({
   state,
   scrollElement,
+  zoom = 1,
   reachableKeys,
   attackableKeys,
   deployableKeys,
@@ -508,11 +512,14 @@ function GameMapComponent({
     }
   }, [state.tiles])
   const { minimumX, minimumY, maximumX, maximumY } = layout
+  const logicalWidth = maximumX - minimumX + HEX_WIDTH
+  const logicalHeight = maximumY - minimumY + HEX_HEIGHT
   const visibleTiles = useMemo(() => {
-    const left = viewport.left - VIEWPORT_OVERSCAN_PX
-    const top = viewport.top - VIEWPORT_OVERSCAN_PX
-    const right = viewport.left + viewport.width + VIEWPORT_OVERSCAN_PX
-    const bottom = viewport.top + viewport.height + VIEWPORT_OVERSCAN_PX
+    const left = viewport.left / zoom - VIEWPORT_OVERSCAN_PX
+    const top = viewport.top / zoom - VIEWPORT_OVERSCAN_PX
+    const right = (viewport.left + viewport.width) / zoom + VIEWPORT_OVERSCAN_PX
+    const bottom =
+      (viewport.top + viewport.height) / zoom + VIEWPORT_OVERSCAN_PX
     const visible = new Map<
       string,
       { tile: Tile; left: number; top: number; style: CSSProperties }
@@ -560,6 +567,7 @@ function GameMapComponent({
     state.units,
     viewport,
     zoneOfControlKeys,
+    zoom,
   ])
   const hitEffects =
     combatAnimation?.phase === 'hit'
@@ -590,11 +598,20 @@ function GameMapComponent({
 
   return (
     <div
+      className="map-zoom-shell"
+      style={{
+        width: (logicalWidth + MAP_FRAME_PX) * zoom,
+        height: (logicalHeight + MAP_FRAME_PX) * zoom,
+      }}
+    >
+    <div
       className="game-map"
       data-testid="game-map"
       style={{
-        width: maximumX - minimumX + HEX_WIDTH,
-        height: maximumY - minimumY + HEX_HEIGHT,
+        width: logicalWidth,
+        height: logicalHeight,
+        transform: `scale(${zoom})`,
+        transformOrigin: '0 0',
       }}
       onMouseLeave={() => onTileHoverChange?.(undefined)}
     >
@@ -692,6 +709,7 @@ function GameMapComponent({
               : `방어 유닛이 ${combatAnimation.damageToDefender} 피해를 받았습니다`)}
         </span>
       )}
+    </div>
     </div>
   )
 }
