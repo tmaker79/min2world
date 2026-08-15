@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
+import { getHexNeighbors, positionKey } from './hex'
 import {
   createRandomMapSeed,
   generateGameState,
   normalizeMapSeed,
   validateGeneratedMap,
 } from './mapGenerator'
+import { FOREST_TERRAIN_VARIANT_COUNT } from './types'
 
 describe('procedural map generation', () => {
   it('reproduces an identical state from the same seed', () => {
@@ -49,5 +51,31 @@ describe('procedural map generation', () => {
     expect(normalizeMapSeed('')).toBeUndefined()
     expect(normalizeMapSeed('x'.repeat(65))).toBeUndefined()
     expect(createRandomMapSeed()).toMatch(/^[0-9a-f]{8}$/)
+  })
+
+  it('keeps adjacent forest tiles on the same tree variant', () => {
+    const state = generateGameState('hex-world')
+    const forests = state.tiles.filter((tile) => tile.terrain === 'forest')
+    const byKey = new Map(
+      state.tiles.map((tile) => [positionKey(tile.position), tile]),
+    )
+
+    expect(forests.length).toBeGreaterThan(0)
+    expect(
+      forests.every(
+        (tile) =>
+          tile.terrainVariant !== undefined &&
+          tile.terrainVariant >= 0 &&
+          tile.terrainVariant < FOREST_TERRAIN_VARIANT_COUNT,
+      ),
+    ).toBe(true)
+
+    for (const tile of forests) {
+      for (const neighbor of getHexNeighbors(tile.position)) {
+        const adjacent = byKey.get(positionKey(neighbor))
+        if (adjacent?.terrain !== 'forest') continue
+        expect(adjacent.terrainVariant).toBe(tile.terrainVariant)
+      }
+    }
   })
 })

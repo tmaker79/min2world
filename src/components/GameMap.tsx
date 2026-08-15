@@ -193,6 +193,7 @@ function TileButton({
             terrain={tile.terrain}
             position={tile.position}
             seed={mapSeed}
+            variantIndex={tile.terrainVariant}
           />
         </span>
       )}

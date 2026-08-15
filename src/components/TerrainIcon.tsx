@@ -1,5 +1,7 @@
 import type { Position, Terrain } from '../game/types'
+import { FOREST_TERRAIN_VARIANT_COUNT } from '../game/types'
 import forestTile from '../assets/terrain/forest-tile.png'
+import forestTileFull from '../assets/terrain/forest-tile-full.png'
 import hillTile from '../assets/terrain/hill-tile.png'
 import hillTileFew from '../assets/terrain/hill-tile-few.png'
 import mountainTileFull from '../assets/terrain/mountain-tile-full.png'
@@ -23,10 +25,16 @@ const TERRAIN_VARIANTS: Partial<Record<Terrain, readonly string[]>> = {
     plainTile,
     plainTileBush,
   ],
-  forest: [forestTile],
+  forest: [forestTile, forestTileFull],
   hill: [hillTileFew, hillTile],
   mountain: [mountainTileFull, mountainTilePeak],
   water: [waterTile],
+}
+
+if (TERRAIN_VARIANTS.forest?.length !== FOREST_TERRAIN_VARIANT_COUNT) {
+  throw new Error(
+    'Forest terrain variant assets must match FOREST_TERRAIN_VARIANT_COUNT',
+  )
 }
 
 export function hasTerrainImage(terrain: Terrain): boolean {
@@ -52,6 +60,7 @@ type TerrainIconProps = {
   terrain: Terrain
   position?: Position
   seed?: string
+  variantIndex?: number
   className?: string
 }
 
@@ -59,13 +68,17 @@ export function TerrainIcon({
   terrain,
   position,
   seed,
+  variantIndex,
   className,
 }: TerrainIconProps) {
   const variants = TERRAIN_VARIANTS[terrain]
   if (variants?.length) {
-    const index = position
-      ? getTerrainVariantIndex(position, variants.length, seed)
-      : 0
+    const index =
+      variantIndex !== undefined
+        ? ((variantIndex % variants.length) + variants.length) % variants.length
+        : position
+          ? getTerrainVariantIndex(position, variants.length, seed)
+          : 0
     return (
       <img
         src={variants[index]}

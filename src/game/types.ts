@@ -7,6 +7,7 @@ export type Terrain =
 
 export const GAME_SCHEMA_VERSION = 6
 export const MAP_GENERATION_VERSION = 1
+export const FOREST_TERRAIN_VARIANT_COUNT = 2
 
 export type Position = {
   q: number
@@ -36,6 +37,8 @@ export type Tile = {
   id: string
   position: Position
   terrain: Terrain
+  /** Visual variant within a terrain type (e.g. forest tree style). */
+  terrainVariant?: number
   siteId?: string
 }
 

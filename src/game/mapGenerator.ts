@@ -6,7 +6,7 @@ import {
   positionKey,
 } from './hex'
 import { UNIT_MAX_HP, UNIT_STATS } from './rules'
-import { MAP_GENERATION_VERSION } from './types'
+import { FOREST_TERRAIN_VARIANT_COUNT, MAP_GENERATION_VERSION } from './types'
 import type {
   FactionId,
   GameState,
@@ -352,6 +352,57 @@ function createUnits(
   )
 }
 
+function assignForestTerrainVariants(tiles: Tile[], seed: string) {
+  const forestByKey = new Map(
+    tiles
+      .filter((tile) => tile.terrain === 'forest')
+      .map((tile) => [positionKey(tile.position), tile]),
+  )
+  const visited = new Set<string>()
+
+  for (const start of forestByKey.values()) {
+    const startKey = positionKey(start.position)
+    if (visited.has(startKey)) continue
+
+    const component: Tile[] = []
+    const queue = [start]
+    visited.add(startKey)
+
+    while (queue.length > 0) {
+      const tile = queue.shift()!
+      component.push(tile)
+
+      for (const neighbor of getHexNeighbors(tile.position)) {
+        const neighborKey = positionKey(neighbor)
+        if (visited.has(neighborKey)) continue
+        const forestNeighbor = forestByKey.get(neighborKey)
+        if (!forestNeighbor) continue
+        visited.add(neighborKey)
+        queue.push(forestNeighbor)
+      }
+    }
+
+    const representative = component.reduce((best, tile) => {
+      if (
+        tile.position.q < best.position.q ||
+        (tile.position.q === best.position.q &&
+          tile.position.r < best.position.r)
+      ) {
+        return tile
+      }
+      return best
+    })
+    const variant =
+      hashSeed(
+        `${seed}:forest-variant:${representative.position.q},${representative.position.r}`,
+      ) % FOREST_TERRAIN_VARIANT_COUNT
+
+    for (const tile of component) {
+      tile.terrainVariant = variant
+    }
+  }
+}
+
 function buildCandidate(seed: string, attempt: number, fallback = false): GameState | undefined {
   const random = createRandom(hashSeed(`${seed}:${MAP_GENERATION_VERSION}:${attempt}`))
   const positions = getAllHexPositions()
@@ -378,6 +429,8 @@ function buildCandidate(seed: string, attempt: number, fallback = false): GameSt
       if (tile.terrain === 'mountain') tile.terrain = 'hill'
     }
   }
+
+  assignForestTerrainVariants(tiles, seed)
 
   const neutralSites = chooseNeutralSites(tiles, capitals, random)
   if (!neutralSites) return undefined

@@ -82,7 +82,9 @@ function parseTile(value: unknown): Tile | undefined {
     !position ||
     typeof value.terrain !== 'string' ||
     !TERRAINS.has(value.terrain as Terrain) ||
-    (value.siteId !== undefined && !isNonEmptyString(value.siteId))
+    (value.siteId !== undefined && !isNonEmptyString(value.siteId)) ||
+    (value.terrainVariant !== undefined &&
+      !isIntegerInRange(value.terrainVariant, 0))
   ) {
     return undefined
   }
@@ -90,6 +92,9 @@ function parseTile(value: unknown): Tile | undefined {
     id: value.id,
     position,
     terrain: value.terrain as Terrain,
+    ...(value.terrainVariant === undefined
+      ? {}
+      : { terrainVariant: value.terrainVariant as number }),
     ...(value.siteId === undefined ? {} : { siteId: value.siteId as string }),
   }
 }
