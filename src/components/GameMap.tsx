@@ -71,9 +71,16 @@ type TileButtonProps = {
 }
 
 function ownerLabel(site: Site): string {
-  if (site.ownerId === 'player') return '푸른 연맹'
-  if (site.ownerId === 'enemy') return '붉은 제국'
-  return '중립'
+  const labels: Record<string, string> = {
+    player: '푸른 연맹',
+    enemy: '붉은 제국',
+    f1: '청색 연맹',
+    f2: '적색 제국',
+    f3: '황금 왕국',
+    f4: '자색 공국',
+    neutral: '중립',
+  }
+  return labels[site.ownerId]
 }
 
 function getTileLabel(
@@ -140,12 +147,10 @@ function getUnitTooltipRows(unit: Unit) {
     })
   }
 
-  if (unit.factionId === 'player') {
-    rows.push({
-      label: '이동',
-      value: `${unit.movementRemaining}/${stats.movement}`,
-    })
-  }
+  rows.push({
+    label: '이동',
+    value: `${unit.movementRemaining}/${stats.movement}`,
+  })
 
   rows.push({ label: '상태', value: getUnitStatusLabel(unit) })
   return rows

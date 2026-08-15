@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { getHexNeighbors, positionKey } from './hex'
+import { BOARD_SIZE_PRESETS, getHexNeighbors, positionKey } from './hex'
 import {
   createRandomMapSeed,
   generateGameState,
   normalizeMapSeed,
   validateGeneratedMap,
 } from './mapGenerator'
-import { FOREST_TERRAIN_VARIANT_COUNT } from './types'
+import {
+  FOREST_TERRAIN_VARIANT_COUNT,
+  GAME_SCHEMA_VERSION,
+  MAP_GENERATION_VERSION,
+} from './types'
 import { HEX_TILE_COUNT } from './hex'
 
 describe('procedural map generation', () => {
@@ -42,8 +46,8 @@ describe('procedural map generation', () => {
       expect(state.sites.filter((site) => site.kind === 'city')).toHaveLength(2)
       expect(state.sites.filter((site) => site.kind === 'village')).toHaveLength(2)
       expect(state.sites.filter((site) => site.kind === 'mine')).toHaveLength(2)
-      expect(state.mapGenerationVersion).toBe(4)
-      expect(state.schemaVersion).toBe(6)
+      expect(state.mapGenerationVersion).toBe(MAP_GENERATION_VERSION)
+      expect(state.schemaVersion).toBe(GAME_SCHEMA_VERSION)
     },
   )
 
@@ -52,6 +56,24 @@ describe('procedural map generation', () => {
     expect(normalizeMapSeed('')).toBeUndefined()
     expect(normalizeMapSeed('x'.repeat(65))).toBeUndefined()
     expect(createRandomMapSeed()).toMatch(/^[0-9a-f]{8}$/)
+  })
+
+  it.each([
+    [BOARD_SIZE_PRESETS.small, 2],
+    [BOARD_SIZE_PRESETS.standard, 3],
+    [BOARD_SIZE_PRESETS.large, 4],
+  ] as const)('generates a valid %sx%s map for %s factions', (boardSize, factionCount) => {
+    const state = generateGameState('preset-factions', {
+      boardSize,
+      factionCount,
+      humanFactionId: 'f1',
+    })
+
+    expect(validateGeneratedMap(state)).toEqual([])
+    expect(state.tiles).toHaveLength(boardSize.columns * boardSize.rows)
+    expect(state.factionOrder).toHaveLength(factionCount)
+    expect(state.sites.filter((site) => site.capitalFor)).toHaveLength(factionCount)
+    expect(state.units).toHaveLength(factionCount * 3)
   })
 
   it('keeps adjacent forest tiles on the same tree variant', () => {

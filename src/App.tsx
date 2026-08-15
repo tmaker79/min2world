@@ -13,6 +13,7 @@ import { Minimap } from './components/Minimap'
 import { ProductionPanel } from './components/ProductionPanel'
 import { SavePanel } from './components/SavePanel'
 import { StatusBar } from './components/StatusBar'
+import { StartScreen } from './components/StartScreen'
 import { createInitialGameState } from './game/initialState'
 import { createRandomMapSeed, normalizeMapSeed } from './game/mapGenerator'
 import { gameReducer } from './game/reducer'
@@ -48,12 +49,8 @@ type AppProps = {
   initialState?: GameState
 }
 
-function initializeGameState(initialState?: GameState): GameState {
-  return initialState ?? createInitialGameState(createRandomMapSeed())
-}
-
-function App({ initialState }: AppProps = {}) {
-  const [state, dispatch] = useReducer(gameReducer, initialState, initializeGameState)
+function GameApp({ initialState }: { initialState: GameState }) {
+  const [state, dispatch] = useReducer(gameReducer, initialState)
   const [activeCombat, setActiveCombat] = useState<
     Omit<CombatAnimation, 'phase'>
   >()
@@ -67,7 +64,9 @@ function App({ initialState }: AppProps = {}) {
   const [seedFeedback, setSeedFeedback] = useState<string>()
   const [productionSiteId, setProductionSiteId] = useState<string>(() =>
     state.sites.find(
-      (site) => site.ownerId === 'player' && SITE_STATS[site.kind].canProduce,
+      (site) =>
+        site.ownerId === state.humanFactionId &&
+        SITE_STATS[site.kind].canProduce,
     )?.id ?? '',
   )
   const [productionPanelOpen, setProductionPanelOpen] = useState(false)
@@ -86,9 +85,10 @@ function App({ initialState }: AppProps = {}) {
     () =>
       state.sites.filter(
         (site) =>
-          site.ownerId === 'player' && SITE_STATS[site.kind].canProduce,
+          site.ownerId === state.humanFactionId &&
+          SITE_STATS[site.kind].canProduce,
       ),
-    [state.sites],
+    [state.humanFactionId, state.sites],
   )
   const availableProductionSiteId = playerProductionSites.some(
     (site) => site.id === productionSiteId,
@@ -100,7 +100,7 @@ function App({ initialState }: AppProps = {}) {
   )
   const activeProductionUnitType =
     state.phase === 'playing' &&
-    state.activeFactionId === 'player' &&
+    state.activeFactionId === state.humanFactionId &&
     !activeCombat
       ? productionUnitType
       : undefined
@@ -118,7 +118,7 @@ function App({ initialState }: AppProps = {}) {
   )
   const selectedUnit = getSelectedUnit(state)
   const playerCapital = state.sites.find(
-    (site) => site.capitalFor === 'player',
+    (site) => site.capitalFor === state.humanFactionId,
   )
   const playerCapitalPosition = playerCapital?.position
   const inspectedTile = selectedUnit ? undefined : hoveredTile
@@ -224,12 +224,12 @@ function App({ initialState }: AppProps = {}) {
 
   const canSave =
     state.phase === 'playing' &&
-    state.activeFactionId === 'player' &&
+    state.activeFactionId === state.humanFactionId &&
     !activeCombat
   const canLoad =
     saveSlot.ok &&
     !activeCombat &&
-    (state.phase !== 'playing' || state.activeFactionId === 'player')
+    (state.phase !== 'playing' || state.activeFactionId === state.humanFactionId)
   const canDelete =
     saveSlot.ok ||
     (!saveSlot.ok &&
@@ -279,7 +279,9 @@ function App({ initialState }: AppProps = {}) {
     setProductionPanelOpen(false)
     setProductionSiteId(
       result.value.gameState.sites.find(
-        (site) => site.ownerId === 'player' && SITE_STATS[site.kind].canProduce,
+        (site) =>
+          site.ownerId === result.value.gameState.humanFactionId &&
+          SITE_STATS[site.kind].canProduce,
       )?.id ?? '',
     )
     setSeedInput(result.value.gameState.mapSeed)
@@ -340,7 +342,7 @@ function App({ initialState }: AppProps = {}) {
   useEffect(() => {
     if (
       state.phase !== 'playing' ||
-      state.activeFactionId !== 'player' ||
+      state.activeFactionId !== state.humanFactionId ||
       activeCombat
     ) {
       return
@@ -389,11 +391,12 @@ function App({ initialState }: AppProps = {}) {
     activeCombat,
     activeProductionUnitType,
     state.activeFactionId,
+    state.humanFactionId,
     state.phase,
   ])
 
   const handleTileClick = useCallback((tile: Tile) => {
-    if (activeCombat || state.activeFactionId !== 'player') {
+    if (activeCombat || state.activeFactionId !== state.humanFactionId) {
       return
     }
 
@@ -437,10 +440,10 @@ function App({ initialState }: AppProps = {}) {
       return
     }
 
-    if (unit?.factionId === 'player') {
+    if (unit?.factionId === state.humanFactionId) {
       const canSelectSite =
         site &&
-        site.ownerId === 'player' &&
+        site.ownerId === state.humanFactionId &&
         SITE_STATS[site.kind].canProduce
 
       if (selectedUnit?.id === unit.id && canSelectSite) {
@@ -461,7 +464,7 @@ function App({ initialState }: AppProps = {}) {
 
     if (
       site &&
-      site.ownerId === 'player' &&
+      site.ownerId === state.humanFactionId &&
       SITE_STATS[site.kind].canProduce
     ) {
       dispatch({ type: 'selectionCleared' })
@@ -490,7 +493,7 @@ function App({ initialState }: AppProps = {}) {
 
   const hasProgress =
     state.turn > 1 ||
-    state.units.length !== 6 ||
+    state.units.length !== state.factionCount * 3 ||
     state.units.some(
       (unit) =>
         unit.hasActed ||
@@ -525,7 +528,17 @@ function App({ initialState }: AppProps = {}) {
     setSaveFeedback(undefined)
     setSeedInput(normalizedSeed)
     setSeedFeedback(undefined)
-    dispatch({ type: 'gameRestarted', seed: normalizedSeed })
+    dispatch(
+      state.humanFactionId === 'player'
+        ? { type: 'gameRestarted', seed: normalizedSeed }
+        : {
+            type: 'gameRestarted',
+            seed: normalizedSeed,
+            boardSize: state.boardSize,
+            factionCount: state.factionCount,
+            humanFactionId: state.humanFactionId,
+          },
+    )
     return true
   }
 
@@ -577,11 +590,12 @@ function App({ initialState }: AppProps = {}) {
         <section className="board-panel" aria-label="전략 지도">
           <StatusBar
             turn={state.turn}
-            resource={state.resources.player}
+            resource={state.resources[state.humanFactionId] ?? 0}
             activeFactionId={state.activeFactionId}
+            humanFactionId={state.humanFactionId}
             disabled={
               state.phase !== 'playing' ||
-              state.activeFactionId !== 'player' ||
+              state.activeFactionId !== state.humanFactionId ||
               Boolean(activeCombat)
             }
             onEndTurn={() => {
@@ -611,7 +625,7 @@ function App({ initialState }: AppProps = {}) {
                 }
                 disabled={
                   state.phase !== 'playing' ||
-                  state.activeFactionId !== 'player' ||
+                  state.activeFactionId !== state.humanFactionId ||
                   Boolean(activeCombat)
                 }
                 suppressClickRef={mapDragMovedRef}
@@ -626,12 +640,12 @@ function App({ initialState }: AppProps = {}) {
                   sites={playerProductionSites}
                   selectedSiteId={availableProductionSiteId}
                   selectedUnitType={activeProductionUnitType}
-                  resource={state.resources.player}
+                  resource={state.resources[state.humanFactionId] ?? 0}
                   turn={state.turn}
                   deployableCount={deployablePositions.length}
                   disabled={
                     state.phase !== 'playing' ||
-                    state.activeFactionId !== 'player' ||
+                    state.activeFactionId !== state.humanFactionId ||
                     Boolean(activeCombat)
                   }
                   feedback={productionFeedback}
@@ -679,6 +693,28 @@ function App({ initialState }: AppProps = {}) {
       )}
     </div>
   )
+}
+
+function App({ initialState }: AppProps = {}) {
+  const [gameState, setGameState] = useState<GameState | undefined>(initialState)
+
+  if (!gameState) {
+    return (
+      <StartScreen
+        onStart={({ seed, boardSize, factionCount, humanFactionId }) => {
+          setGameState(
+            createInitialGameState(seed, {
+              boardSize,
+              factionCount,
+              humanFactionId,
+            }),
+          )
+        }}
+      />
+    )
+  }
+
+  return <GameApp initialState={gameState} />
 }
 
 export default App

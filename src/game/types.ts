@@ -5,8 +5,8 @@ export type Terrain =
   | 'hill'
   | 'forest'
 
-export const GAME_SCHEMA_VERSION = 6
-export const MAP_GENERATION_VERSION = 4
+export const GAME_SCHEMA_VERSION = 7
+export const MAP_GENERATION_VERSION = 5
 export const FOREST_TERRAIN_VARIANT_COUNT = 2
 
 export type Position = {
@@ -14,7 +14,13 @@ export type Position = {
   r: number
 }
 
-export type FactionId = 'player' | 'enemy'
+/** Legacy IDs remain in the type temporarily so schema 6 fixtures can migrate. */
+export type FactionId = 'f1' | 'f2' | 'f3' | 'f4' | 'player' | 'enemy'
+export type FactionCount = 2 | 3 | 4
+export type BoardSize = {
+  columns: number
+  rows: number
+}
 export type SiteOwnerId = FactionId | 'neutral'
 export type SiteType = 'stronghold' | 'city' | 'village' | 'mine'
 export type UnitType = 'infantry' | 'cavalry' | 'archer' | 'spearman'
@@ -68,6 +74,10 @@ export type GameState = {
   schemaVersion: number
   mapSeed: string
   mapGenerationVersion: number
+  boardSize: BoardSize
+  factionCount: FactionCount
+  humanFactionId: FactionId
+  factionOrder: FactionId[]
   turn: number
   phase: GamePhase
   activeFactionId: FactionId
@@ -92,4 +102,10 @@ export type GameAction =
     }
   | { type: 'turnEnded' }
   | { type: 'gameLoaded'; state: GameState }
-  | { type: 'gameRestarted'; seed: string }
+  | {
+      type: 'gameRestarted'
+      seed: string
+      boardSize?: BoardSize
+      factionCount?: FactionCount
+      humanFactionId?: FactionId
+    }

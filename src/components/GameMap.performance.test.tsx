@@ -16,13 +16,17 @@ function createLargeRenderState(columns: number, rows: number): GameState {
   }
 
   return {
-    schemaVersion: 6,
+    schemaVersion: 7,
     mapSeed: 'large-render',
-    mapGenerationVersion: 4,
+    mapGenerationVersion: 5,
+    boardSize: { columns, rows },
+    factionCount: 2,
+    humanFactionId: 'f1',
+    factionOrder: ['f1', 'f2'],
     turn: 1,
     phase: 'playing',
-    activeFactionId: 'player',
-    resources: { player: 0, enemy: 0 },
+    activeFactionId: 'f1',
+    resources: { f1: 0, f2: 0, f3: 0, f4: 0, player: 0, enemy: 0 },
     tiles,
     units: [],
     sites: [],

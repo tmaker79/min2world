@@ -12,7 +12,7 @@ const sitePositionIndexCache = new WeakMap<Site[], SiteIndex>()
 const siteIdIndexCache = new WeakMap<Site[], SiteIndex>()
 const zoneOfControlCache = new WeakMap<
   Unit[],
-  Record<FactionId, ReadonlyMap<string, Position>>
+  Map<FactionId, ReadonlyMap<string, Position>>
 >()
 
 function getOrCreateIndex<T extends { position: Position }>(
@@ -65,19 +65,23 @@ export function getZoneOfControlIndex(
 ): ReadonlyMap<string, Position> {
   let cached = zoneOfControlCache.get(state.units)
   if (!cached) {
-    const player = new Map<string, Position>()
-    const enemy = new Map<string, Position>()
+    const zones = new Map<FactionId, Map<string, Position>>(
+      state.factionOrder.map((id) => [id, new Map()]),
+    )
 
     for (const unit of state.units) {
-      const affectedFaction = unit.factionId === 'player' ? enemy : player
-      for (const position of getHexNeighbors(unit.position)) {
-        affectedFaction.set(positionKey(position), position)
+      for (const affectedFactionId of state.factionOrder) {
+        if (affectedFactionId === unit.factionId) continue
+        const zone = zones.get(affectedFactionId)!
+        for (const position of getHexNeighbors(unit.position, state.boardSize)) {
+          zone.set(positionKey(position), position)
+        }
       }
     }
 
-    cached = { player, enemy }
+    cached = zones
     zoneOfControlCache.set(state.units, cached)
   }
 
-  return cached[factionId]
+  return cached.get(factionId) ?? new Map()
 }

@@ -13,7 +13,7 @@ type UseAiTurnOptions = {
 
 function getActionAnnouncement(state: GameState, action: GameAction): string {
   if (action.type === 'turnEnded') {
-    return 'AI 작전이 끝났습니다. 플레이어 턴을 시작합니다.'
+    return 'AI 작전이 끝났습니다.'
   }
 
   if ('unitId' in action) {
@@ -68,13 +68,13 @@ export function useAiTurn({
   useEffect(() => {
     if (
       state.phase !== 'playing' ||
-      state.activeFactionId !== 'enemy' ||
+      state.activeFactionId === state.humanFactionId ||
       combatActive
     ) {
       return
     }
 
-    const action = chooseAiAction(state)
+    const action = chooseAiAction(state, state.activeFactionId)
     if (!action) {
       return
     }

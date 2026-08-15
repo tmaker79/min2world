@@ -16,6 +16,19 @@ describe('Milestone 07 UI', () => {
     vi.restoreAllMocks()
   })
 
+  it('opens with setup and starts a selected faction configuration', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    expect(screen.getByRole('heading', { name: 'min2world' })).toBeInTheDocument()
+    await user.click(screen.getByRole('radio', { name: /3 세력/ }))
+    await user.click(screen.getByRole('radio', { name: '적색 제국' }))
+    await user.click(screen.getByRole('button', { name: '게임 시작' }))
+
+    const map = await screen.findByTestId('game-map')
+    expect(map.querySelector('.unit-token--f2')).toBeInTheDocument()
+  })
+
   it('renders visible keyboard-focusable pointy hex tiles and the current seed', () => {
     const { container } = renderApp()
     const map = screen.getByTestId('game-map')

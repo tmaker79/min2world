@@ -1,4 +1,5 @@
 import {
+  DEFAULT_BOARD_SIZE,
   getAllHexPositions,
   getHexDistance,
   getHexNeighbors,
@@ -7,8 +8,14 @@ import {
 } from './hex'
 import { MinPriorityQueue } from './priorityQueue'
 import { UNIT_MAX_HP, UNIT_STATS } from './rules'
-import { FOREST_TERRAIN_VARIANT_COUNT, MAP_GENERATION_VERSION } from './types'
+import {
+  FOREST_TERRAIN_VARIANT_COUNT,
+  GAME_SCHEMA_VERSION,
+  MAP_GENERATION_VERSION,
+} from './types'
 import type {
+  BoardSize,
+  FactionCount,
   FactionId,
   GameState,
   Position,
@@ -24,7 +31,7 @@ export const DEFAULT_MAP_SEED = 'min2world'
 
 const STARTING_RESOURCES = 15
 const MAX_GENERATION_ATTEMPTS = 128
-const CAPITAL_DISTANCE_FROM_CENTER = 18
+const STANDARD_CAPITAL_DISTANCE = 18
 const SITE_PAIR_TYPES: readonly SiteType[] = ['city', 'village', 'mine']
 const STARTING_UNIT_TYPES: readonly UnitType[] = [
   'infantry',
@@ -93,6 +100,7 @@ function shuffled<T>(items: readonly T[], random: () => number): T[] {
 function createClusteredValues(
   positions: Position[],
   random: () => number,
+  boardSize: BoardSize,
 ): Map<string, number> {
   let values = new Map(
     positions.map((position) => [positionKey(position), random()]),
@@ -103,7 +111,7 @@ function createClusteredValues(
       positions.map((position) => {
         const samples = [
           values.get(positionKey(position)) ?? 0.5,
-          ...getHexNeighbors(position).map(
+          ...getHexNeighbors(position, boardSize).map(
             (neighbor) => values.get(positionKey(neighbor)) ?? 0.5,
           ),
         ]
@@ -126,21 +134,61 @@ function terrainFromNoise(elevation: number, moisture: number): Terrain {
   return 'plain'
 }
 
-function opposite(position: Position): Position {
-  return getOppositeBoardPosition(position)
+function opposite(position: Position, boardSize: BoardSize): Position {
+  return getOppositeBoardPosition(position, boardSize)
 }
 
-function chooseCapitals(random: () => number): Record<FactionId, Position> {
-  const candidates = getAllHexPositions().filter(
-    (position) =>
-      getHexDistance(position, { q: 0, r: 0 }) ===
-        CAPITAL_DISTANCE_FROM_CENTER &&
-      positionKey(position) < positionKey(opposite(position)),
-  )
-  const selected = candidates[Math.floor(random() * candidates.length)]
-  const player = random() < 0.5 ? selected : opposite(selected)
+function getFactionIds(factionCount: FactionCount): FactionId[] {
+  return (['f1', 'f2', 'f3', 'f4'] as const).slice(0, factionCount)
+}
 
-  return { player, enemy: opposite(player) }
+function getCapitalDistance(boardSize: BoardSize): number {
+  return Math.max(
+    6,
+    Math.round(
+      (STANDARD_CAPITAL_DISTANCE * boardSize.columns) /
+        DEFAULT_BOARD_SIZE.columns,
+    ),
+  )
+}
+
+function chooseCapitals(
+  random: () => number,
+  boardSize: BoardSize,
+  factionCount: FactionCount,
+): Record<FactionId, Position> | undefined {
+  const distance = getCapitalDistance(boardSize)
+  const candidates = getAllHexPositions(boardSize).filter(
+    (position) => getHexDistance(position, { q: 0, r: 0 }) === distance,
+  )
+  const factionIds = getFactionIds(factionCount)
+
+  if (factionCount === 2) {
+    const uniqueCandidates = candidates.filter(
+      (position) =>
+        positionKey(position) < positionKey(opposite(position, boardSize)),
+    )
+    const selected = uniqueCandidates[Math.floor(random() * uniqueCandidates.length)]
+    if (!selected) return undefined
+    const first = random() < 0.5 ? selected : opposite(selected, boardSize)
+    return { f1: first, f2: opposite(first, boardSize) } as Record<
+      FactionId,
+      Position
+    >
+  }
+
+  const minimumDistance = Math.max(7, Math.floor(distance * 0.9))
+  const selected: Position[] = []
+  for (const candidate of shuffled(candidates, random)) {
+    if (selected.every((existing) => getHexDistance(existing, candidate) >= minimumDistance)) {
+      selected.push(candidate)
+      if (selected.length === factionCount) break
+    }
+  }
+  if (selected.length !== factionCount) return undefined
+  return Object.fromEntries(
+    factionIds.map((factionId, index) => [factionId, selected[index]]),
+  ) as Record<FactionId, Position>
 }
 
 function getPassableKeys(tiles: Tile[]): Set<string> {
@@ -151,7 +199,11 @@ function getPassableKeys(tiles: Tile[]): Set<string> {
   )
 }
 
-function getConnectedKeys(tiles: Tile[], start: Position): Set<string> {
+function getConnectedKeys(
+  tiles: Tile[],
+  start: Position,
+  boardSize: BoardSize,
+): Set<string> {
   const passable = getPassableKeys(tiles)
   const connected = new Set<string>()
   const frontier = [start]
@@ -163,7 +215,7 @@ function getConnectedKeys(tiles: Tile[], start: Position): Set<string> {
     const key = positionKey(current)
     if (connected.has(key) || !passable.has(key)) continue
     connected.add(key)
-    frontier.push(...getHexNeighbors(current))
+    frontier.push(...getHexNeighbors(current, boardSize))
   }
 
   return connected
@@ -173,49 +225,50 @@ function chooseNeutralSites(
   tiles: Tile[],
   capitals: Record<FactionId, Position>,
   random: () => number,
+  boardSize: BoardSize,
+  factionCount: FactionCount,
 ): Site[] | undefined {
-  const connected = getConnectedKeys(tiles, capitals.player)
-  const chosen: Position[] = [capitals.player, capitals.enemy]
-  const pairs: Array<{ kind: SiteType; position: Position }> = []
+  const factionIds = getFactionIds(factionCount)
+  const connected = getConnectedKeys(tiles, capitals[factionIds[0]], boardSize)
+  const chosen: Position[] = factionIds.map((factionId) => capitals[factionId])
+  const sites: Array<{ kind: SiteType; position: Position }> = []
   const candidates = shuffled(
     tiles
       .map((tile) => tile.position)
       .filter((position) => {
-        const reflected = opposite(position)
         return (
-          positionKey(position) < positionKey(reflected) &&
           connected.has(positionKey(position)) &&
-          connected.has(positionKey(reflected)) &&
           getHexDistance(position, { q: 0, r: 0 }) >= 2
         )
       }),
     random,
   )
 
-  for (const kind of SITE_PAIR_TYPES) {
+  for (let index = 0; index < factionCount * SITE_PAIR_TYPES.length; index += 1) {
+    const kind = SITE_PAIR_TYPES[index % SITE_PAIR_TYPES.length]
     const position = candidates.find((candidate) => {
-      const reflected = opposite(candidate)
-      return [candidate, reflected].every((item) =>
-        chosen.every((existing) => getHexDistance(item, existing) >= 3),
-      )
+      return chosen.every((existing) => getHexDistance(candidate, existing) >= 3)
     })
 
     if (!position) return undefined
-    const reflected = opposite(position)
-    chosen.push(position, reflected)
-    pairs.push({ kind, position }, { kind, position: reflected })
+    chosen.push(position)
+    sites.push({ kind, position })
   }
 
-  return pairs.map(({ kind, position }, index) => ({
+  return sites.map(({ kind, position }, index) => ({
     id: `site-${kind}-${index + 1}`,
-    name: `${kind === 'city' ? '중립 마을' : kind === 'village' ? '중립 농장' : '중립 광산'} ${Math.floor(index / 2) + 1}`,
+    name: `${kind === 'city' ? '중립 마을' : kind === 'village' ? '중립 농장' : '중립 광산'} ${Math.floor(index / SITE_PAIR_TYPES.length) + 1}`,
     kind,
     position: { ...position },
     ownerId: 'neutral',
   }))
 }
 
-function getWeightedCosts(tiles: Tile[], start: Position): Map<string, number> {
+function getWeightedCosts(
+  tiles: Tile[],
+  start: Position,
+  boardSize: BoardSize,
+): Map<string, number> {
   const tileByKey = new Map(tiles.map((tile) => [positionKey(tile.position), tile]))
   const costs = new Map<string, number>([[positionKey(start), 0]])
   const frontier = new MinPriorityQueue<{ position: Position; cost: number }>(
@@ -231,7 +284,7 @@ function getWeightedCosts(tiles: Tile[], start: Position): Map<string, number> {
     const currentKey = positionKey(current.position)
     if (current.cost !== costs.get(currentKey)) continue
 
-    for (const neighbor of getHexNeighbors(current.position)) {
+    for (const neighbor of getHexNeighbors(current.position, boardSize)) {
       const neighborKey = positionKey(neighbor)
       const terrain = tileByKey.get(neighborKey)?.terrain
       if (!terrain || TERRAIN_COST[terrain] === null) continue
@@ -248,8 +301,11 @@ function getWeightedCosts(tiles: Tile[], start: Position): Map<string, number> {
 
 export function validateGeneratedMap(state: GameState): string[] {
   const issues: string[] = []
-  if (state.tiles.length !== getAllHexPositions().length) issues.push('tileCount')
-  if (state.sites.length !== 8) issues.push('siteCount')
+  const factionIds = state.factionOrder
+  if (state.tiles.length !== getAllHexPositions(state.boardSize).length) issues.push('tileCount')
+  if (state.sites.length !== state.factionCount * (SITE_PAIR_TYPES.length + 1)) {
+    issues.push('siteCount')
+  }
 
   const tileKeys = state.tiles.map((tile) => positionKey(tile.position))
   const siteKeys = state.sites.map((site) => positionKey(site.position))
@@ -262,17 +318,25 @@ export function validateGeneratedMap(state: GameState): string[] {
       .map((site) => [site.capitalFor!, site.position]),
   ) as Partial<Record<FactionId, Position>>
 
-  if (!capitals.player || !capitals.enemy) return [...issues, 'capitals']
+  if (factionIds.some((factionId) => !capitals[factionId])) {
+    return [...issues, 'capitals']
+  }
 
-  const connected = getConnectedKeys(state.tiles, capitals.player)
+  const connected = getConnectedKeys(
+    state.tiles,
+    capitals[factionIds[0]]!,
+    state.boardSize,
+  )
   if (
-    !connected.has(positionKey(capitals.enemy)) ||
+    factionIds.some(
+      (factionId) => !connected.has(positionKey(capitals[factionId]!)),
+    ) ||
     state.sites.some((site) => !connected.has(positionKey(site.position)))
   ) {
     issues.push('connectivity')
   }
 
-  const localCounts = (['player', 'enemy'] as const).map((factionId) =>
+  const localCounts = factionIds.map((factionId) =>
     state.tiles.filter(
       (tile) =>
         TERRAIN_COST[tile.terrain] !== null &&
@@ -280,7 +344,7 @@ export function validateGeneratedMap(state: GameState): string[] {
     ).length,
   )
   if (localCounts.some((count) => count < 10)) issues.push('startingArea')
-  if (Math.abs(localCounts[0] - localCounts[1]) > 2) issues.push('localBalance')
+  if (Math.max(...localCounts) - Math.min(...localCounts) > 2) issues.push('localBalance')
 
   for (let left = 0; left < state.sites.length; left += 1) {
     for (let right = left + 1; right < state.sites.length; right += 1) {
@@ -292,36 +356,46 @@ export function validateGeneratedMap(state: GameState): string[] {
     }
   }
 
-  const neutralKeys = state.sites
-    .filter((site) => site.ownerId === 'neutral')
-    .map((site) => positionKey(site.position))
-  const nearestCosts = (['player', 'enemy'] as const).map((factionId) => {
-    const costs = getWeightedCosts(state.tiles, capitals[factionId]!)
-    return Math.min(...neutralKeys.map((key) => costs.get(key) ?? Infinity))
-  })
-  if (Math.abs(nearestCosts[0] - nearestCosts[1]) > 2) issues.push('costBalance')
+  if (state.factionCount === 2) {
+    const neutralKeys = state.sites
+      .filter((site) => site.ownerId === 'neutral')
+      .map((site) => positionKey(site.position))
+    const nearestCosts = factionIds.map((factionId) => {
+      const costs = getWeightedCosts(
+        state.tiles,
+        capitals[factionId]!,
+        state.boardSize,
+      )
+      return Math.min(...neutralKeys.map((key) => costs.get(key) ?? Infinity))
+    })
+    if (Math.max(...nearestCosts) - Math.min(...nearestCosts) > 4) {
+      issues.push('costBalance')
+    }
+  }
 
   return [...new Set(issues)]
 }
 
-function createSites(capitals: Record<FactionId, Position>, neutrals: Site[]): Site[] {
+function createSites(
+  capitals: Record<FactionId, Position>,
+  neutrals: Site[],
+  factionCount: FactionCount,
+): Site[] {
+  const names: Partial<Record<FactionId, string>> = {
+    f1: '청색 성채',
+    f2: '적색 요새',
+    f3: '황금 성채',
+    f4: '자색 성채',
+  }
   return [
-    {
-      id: 'site-player-stronghold',
-      name: '푸른 성채',
-      kind: 'stronghold',
-      position: { ...capitals.player },
-      ownerId: 'player',
-      capitalFor: 'player',
-    },
-    {
-      id: 'site-enemy-stronghold',
-      name: '붉은 요새',
-      kind: 'stronghold',
-      position: { ...capitals.enemy },
-      ownerId: 'enemy',
-      capitalFor: 'enemy',
-    },
+    ...getFactionIds(factionCount).map((factionId) => ({
+      id: `site-${factionId}-stronghold`,
+      name: names[factionId] ?? factionId,
+      kind: 'stronghold' as const,
+      position: { ...capitals[factionId] },
+      ownerId: factionId,
+      capitalFor: factionId,
+    })),
     ...neutrals,
   ]
 }
@@ -329,36 +403,42 @@ function createSites(capitals: Record<FactionId, Position>, neutrals: Site[]): S
 function createUnits(
   capitals: Record<FactionId, Position>,
   tiles: Tile[],
+  boardSize: BoardSize,
+  factionCount: FactionCount,
 ): Unit[] {
   const passable = getPassableKeys(tiles)
-  const playerPositions = getHexNeighbors(capitals.player)
-    .filter((position) => passable.has(positionKey(position)))
-    .sort((left, right) => left.r - right.r || left.q - right.q)
-    .slice(0, 3)
-  const enemyPositions = playerPositions.map(opposite)
-  const names: Record<FactionId, readonly string[]> = {
-    player: ['청룡 보병대', '백호 보병대', '바람 기병대'],
-    enemy: ['적월 보병대', '철창 보병대', '흑염 기병대'],
+  const names: Partial<Record<FactionId, readonly string[]>> = {
+    f1: ['청룡 보병대', '백호 보병대', '바람 기병대'],
+    f2: ['적월 보병대', '철창 보병대', '흑염 기병대'],
+    f3: ['금빛 보병대', '사자 보병대', '태양 기병대'],
+    f4: ['보랏빛 보병대', '까마귀 보병대', '황혼 기병대'],
   }
 
-  return (['player', 'enemy'] as const).flatMap((factionId) =>
-    STARTING_UNIT_TYPES.map((type, index) => ({
+  return getFactionIds(factionCount).flatMap((factionId) => {
+    const positions = getHexNeighbors(capitals[factionId], boardSize)
+      .filter((position) => passable.has(positionKey(position)))
+      .sort((left, right) => left.r - right.r || left.q - right.q)
+      .slice(0, STARTING_UNIT_TYPES.length)
+    if (positions.length !== STARTING_UNIT_TYPES.length) return []
+    return STARTING_UNIT_TYPES.map((type, index) => ({
       id: `${factionId}-${type}-${index + 1}`,
-      name: names[factionId][index],
+      name: names[factionId]?.[index] ?? `${factionId} 부대 ${index + 1}`,
       factionId,
       type,
-      position: {
-        ...(factionId === 'player' ? playerPositions[index] : enemyPositions[index]),
-      },
+      position: { ...positions[index] },
       hp: UNIT_MAX_HP,
       maxHp: UNIT_MAX_HP,
       movementRemaining: UNIT_STATS[type].movement,
       hasActed: false,
-    })),
-  )
+    }))
+  })
 }
 
-function assignForestTerrainVariants(tiles: Tile[], seed: string) {
+function assignForestTerrainVariants(
+  tiles: Tile[],
+  seed: string,
+  boardSize: BoardSize,
+) {
   const forestByKey = new Map(
     tiles
       .filter((tile) => tile.terrain === 'forest')
@@ -380,7 +460,7 @@ function assignForestTerrainVariants(tiles: Tile[], seed: string) {
       queueIndex += 1
       component.push(tile)
 
-      for (const neighbor of getHexNeighbors(tile.position)) {
+      for (const neighbor of getHexNeighbors(tile.position, boardSize)) {
         const neighborKey = positionKey(neighbor)
         if (visited.has(neighborKey)) continue
         const forestNeighbor = forestByKey.get(neighborKey)
@@ -411,12 +491,55 @@ function assignForestTerrainVariants(tiles: Tile[], seed: string) {
   }
 }
 
-function buildCandidate(seed: string, attempt: number, fallback = false): GameState | undefined {
-  const random = createRandom(hashSeed(`${seed}:${MAP_GENERATION_VERSION}:${attempt}`))
-  const positions = getAllHexPositions()
-  const elevation = createClusteredValues(positions, random)
-  const moisture = createClusteredValues(positions, random)
-  const capitals = chooseCapitals(random)
+export type MapGenerationOptions = {
+  boardSize?: BoardSize
+  factionCount?: FactionCount
+  humanFactionId?: FactionId
+}
+
+function toLegacyTwoFactionState(state: GameState): GameState {
+  const remap = (factionId: FactionId) =>
+    factionId === 'f1' ? 'player' : factionId === 'f2' ? 'enemy' : factionId
+  return {
+    ...state,
+    humanFactionId: 'player',
+    factionOrder: ['player', 'enemy'],
+    activeFactionId: 'player',
+    resources: {
+      ...state.resources,
+      player: state.resources.f1,
+      enemy: state.resources.f2,
+    },
+    units: state.units.map((unit) => ({
+      ...unit,
+      factionId: remap(unit.factionId),
+    })),
+    sites: state.sites.map((site) => ({
+      ...site,
+      ownerId: site.ownerId === 'neutral' ? 'neutral' : remap(site.ownerId),
+      capitalFor: site.capitalFor ? remap(site.capitalFor) : undefined,
+    })),
+  }
+}
+
+function buildCandidate(
+  seed: string,
+  attempt: number,
+  boardSize: BoardSize,
+  factionCount: FactionCount,
+  humanFactionId: FactionId,
+  fallback = false,
+): GameState | undefined {
+  const random = createRandom(
+    hashSeed(
+      `${seed}:${MAP_GENERATION_VERSION}:${boardSize.columns}x${boardSize.rows}:n${factionCount}:${attempt}`,
+    ),
+  )
+  const positions = getAllHexPositions(boardSize)
+  const elevation = createClusteredValues(positions, random, boardSize)
+  const moisture = createClusteredValues(positions, random, boardSize)
+  const capitals = chooseCapitals(random, boardSize, factionCount)
+  if (!capitals) return undefined
   const tiles: Tile[] = positions.map((position) => ({
     id: `tile-${position.q}-${position.r}`,
     position: { ...position },
@@ -428,7 +551,7 @@ function buildCandidate(seed: string, attempt: number, fallback = false): GameSt
         ),
   }))
 
-  for (const factionId of ['player', 'enemy'] as const) {
+  for (const factionId of getFactionIds(factionCount)) {
     const localTiles = tiles.filter(
       (tile) => getHexDistance(tile.position, capitals[factionId]) <= 2,
     )
@@ -438,11 +561,17 @@ function buildCandidate(seed: string, attempt: number, fallback = false): GameSt
     }
   }
 
-  assignForestTerrainVariants(tiles, seed)
+  assignForestTerrainVariants(tiles, seed, boardSize)
 
-  const neutralSites = chooseNeutralSites(tiles, capitals, random)
+  const neutralSites = chooseNeutralSites(
+    tiles,
+    capitals,
+    random,
+    boardSize,
+    factionCount,
+  )
   if (!neutralSites) return undefined
-  const sites = createSites(capitals, neutralSites)
+  const sites = createSites(capitals, neutralSites, factionCount)
   const siteIdsByPosition = new Map(
     sites.map((site) => [positionKey(site.position), site.id]),
   )
@@ -451,31 +580,65 @@ function buildCandidate(seed: string, attempt: number, fallback = false): GameSt
   }
 
   const state: GameState = {
-    schemaVersion: 6,
+    schemaVersion: GAME_SCHEMA_VERSION,
     mapSeed: seed,
     mapGenerationVersion: MAP_GENERATION_VERSION,
+    boardSize: { ...boardSize },
+    factionCount,
+    humanFactionId,
+    factionOrder: getFactionIds(factionCount),
     turn: 1,
     phase: 'playing',
-    activeFactionId: 'player',
-    resources: { player: STARTING_RESOURCES, enemy: STARTING_RESOURCES },
+    activeFactionId: getFactionIds(factionCount)[0],
+    resources: {
+      f1: factionCount >= 1 ? STARTING_RESOURCES : 0,
+      f2: factionCount >= 2 ? STARTING_RESOURCES : 0,
+      f3: factionCount >= 3 ? STARTING_RESOURCES : 0,
+      f4: factionCount >= 4 ? STARTING_RESOURCES : 0,
+      player: 0,
+      enemy: 0,
+    },
     tiles,
-    units: createUnits(capitals, tiles),
+    units: createUnits(capitals, tiles, boardSize, factionCount),
     sites,
   }
 
   return validateGeneratedMap(state).length === 0 ? state : undefined
 }
 
-export function generateGameState(seed: string): GameState {
+export function generateGameState(
+  seed: string,
+  options: MapGenerationOptions = {},
+): GameState {
   const normalized = normalizeMapSeed(seed)
   if (!normalized) throw new Error('Seed must contain between 1 and 64 characters.')
-
-  for (let attempt = 0; attempt < MAX_GENERATION_ATTEMPTS; attempt += 1) {
-    const state = buildCandidate(normalized, attempt)
-    if (state) return state
+  const useLegacyIds = Object.keys(options).length === 0
+  const boardSize = options.boardSize ?? DEFAULT_BOARD_SIZE
+  const factionCount = options.factionCount ?? 2
+  const humanFactionId = options.humanFactionId ?? 'f1'
+  if (!getFactionIds(factionCount).includes(humanFactionId)) {
+    throw new Error('Human faction must be active.')
   }
 
-  const fallback = buildCandidate(normalized, MAX_GENERATION_ATTEMPTS, true)
+  for (let attempt = 0; attempt < MAX_GENERATION_ATTEMPTS; attempt += 1) {
+    const state = buildCandidate(
+      normalized,
+      attempt,
+      boardSize,
+      factionCount,
+      humanFactionId,
+    )
+    if (state) return useLegacyIds ? toLegacyTwoFactionState(state) : state
+  }
+
+  const fallback = buildCandidate(
+    normalized,
+    MAX_GENERATION_ATTEMPTS,
+    boardSize,
+    factionCount,
+    humanFactionId,
+    true,
+  )
   if (!fallback) throw new Error('Unable to generate a valid map.')
-  return fallback
+  return useLegacyIds ? toLegacyTwoFactionState(fallback) : fallback
 }

@@ -13,6 +13,7 @@ import {
 } from './rules'
 import { MinPriorityQueue } from './priorityQueue'
 import type {
+  FactionId,
   GameAction,
   GameState,
   Position,
@@ -37,7 +38,7 @@ function getApproachPositions(
   target: Unit,
   movingUnit: Unit,
 ): Position[] {
-  return getHexNeighbors(target.position).filter((position) => {
+  return getHexNeighbors(target.position, state.boardSize).filter((position) => {
     const tile = getTileAt(state, position)
     const occupant = getUnitAt(state, position)
 
@@ -96,7 +97,7 @@ function getWeightedPathSearch(
       continue
     }
 
-    for (const neighbor of getHexNeighbors(current.position)) {
+    for (const neighbor of getHexNeighbors(current.position, state.boardSize)) {
       const neighborKey = positionKey(neighbor)
       if (occupiedKeys.has(neighborKey)) {
         continue
@@ -176,11 +177,18 @@ function chooseTarget(
   unit: Unit,
   costs: ReadonlyMap<string, number>,
 ): Target | undefined {
-  const capital = state.sites.find(
-    (site) => site.capitalFor === 'player' && site.ownerId === 'player',
-  )
+  const capital = state.sites.find((site) => {
+    return Boolean(
+      site.capitalFor &&
+        site.capitalFor !== unit.factionId &&
+        site.ownerId !== unit.factionId,
+    )
+  })
   const sites = state.sites
-    .filter((site) => site.ownerId === 'player')
+    .filter(
+      (site) =>
+        site.ownerId !== 'neutral' && site.ownerId !== unit.factionId,
+    )
     .sort(compareIds)
   const siteTarget = chooseClosestTarget(
     (capital ? [capital] : sites).map((site: Site) => ({
@@ -194,12 +202,12 @@ function chooseTarget(
     return siteTarget
   }
 
-  const playerUnits = state.units
-    .filter((candidate) => candidate.factionId === 'player')
+  const enemyUnits = state.units
+    .filter((candidate) => candidate.factionId !== unit.factionId)
     .sort(compareIds)
 
   return chooseClosestTarget(
-    playerUnits.map((target) => ({
+    enemyUnits.map((target) => ({
       id: target.id,
       positions: getApproachPositions(state, target, unit),
     })),
@@ -246,11 +254,14 @@ function chooseMovement(
     : undefined
 }
 
-function chooseProduction(state: GameState): GameAction | undefined {
+function chooseProduction(
+  state: GameState,
+  factionId: FactionId,
+): GameAction | undefined {
   const site = state.sites
     .filter(
       (candidate) =>
-        candidate.ownerId === 'enemy' &&
+        candidate.ownerId === factionId &&
         candidate.lastProducedTurn !== state.turn &&
         getDeployablePositions(state, candidate).length > 0,
     )
@@ -264,12 +275,12 @@ function chooseProduction(state: GameState): GameAction | undefined {
     AI_PRODUCTION_PRIORITY.map((type) => [
       type,
       state.units.filter(
-        (unit) => unit.factionId === 'enemy' && unit.type === type,
+        (unit) => unit.factionId === factionId && unit.type === type,
       ).length,
     ]),
   )
   const unitType = AI_PRODUCTION_PRIORITY.filter(
-    (type) => UNIT_STATS[type].cost <= state.resources.enemy,
+    (type) => UNIT_STATS[type].cost <= (state.resources[factionId] ?? 0),
   ).sort(
     (left, right) =>
       (unitCounts.get(left) ?? 0) - (unitCounts.get(right) ?? 0) ||
@@ -289,26 +300,33 @@ function chooseProduction(state: GameState): GameAction | undefined {
   }
 }
 
-export function chooseAiAction(state: GameState): GameAction | undefined {
-  if (state.phase !== 'playing' || state.activeFactionId !== 'enemy') {
+export function chooseAiAction(
+  state: GameState,
+  factionId = state.activeFactionId,
+): GameAction | undefined {
+  if (
+    state.phase !== 'playing' ||
+    state.activeFactionId !== factionId ||
+    factionId === state.humanFactionId
+  ) {
     return undefined
   }
 
   const selectedUnit = state.units.find(
     (unit) =>
       unit.id === state.selectedUnitId &&
-      unit.factionId === 'enemy' &&
+      unit.factionId === factionId &&
       !unit.hasActed,
   )
 
   if (!selectedUnit) {
     const nextUnit = state.units
-      .filter((unit) => unit.factionId === 'enemy' && !unit.hasActed)
+      .filter((unit) => unit.factionId === factionId && !unit.hasActed)
       .sort(compareIds)[0]
 
     return nextUnit
       ? { type: 'unitSelected', unitId: nextUnit.id }
-      : (chooseProduction(state) ?? { type: 'turnEnded' })
+      : (chooseProduction(state, factionId) ?? { type: 'turnEnded' })
   }
 
   const attackTarget = getAttackableUnits(state, selectedUnit).sort(

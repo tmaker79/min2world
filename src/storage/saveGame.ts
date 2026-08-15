@@ -1,8 +1,17 @@
-import { getAllHexPositions, HEX_TILE_COUNT, isPositionOnBoard, positionKey, positionsEqual } from '../game/hex'
+import {
+  BOARD_SIZE_PRESETS,
+  DEFAULT_BOARD_SIZE,
+  getAllHexPositions,
+  isPositionOnBoard,
+  positionKey,
+  positionsEqual,
+} from '../game/hex'
 import { cloneGameState } from '../game/state'
 import { SITE_STATS, TERRAIN_MOVEMENT_COST, UNIT_STATS } from '../game/rules'
 import { GAME_SCHEMA_VERSION, MAP_GENERATION_VERSION } from '../game/types'
 import type {
+  BoardSize,
+  FactionCount,
   FactionId,
   GameState,
   Position,
@@ -35,8 +44,18 @@ export type StorageResult<T> =
 
 export type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 
-const FACTIONS = new Set<FactionId>(['player', 'enemy'])
-const SITE_OWNERS = new Set<SiteOwnerId>(['player', 'enemy', 'neutral'])
+const ACTIVE_FACTIONS = ['f1', 'f2', 'f3', 'f4'] as const
+const FACTIONS = new Set<FactionId>([
+  ...ACTIVE_FACTIONS,
+  'player',
+  'enemy',
+])
+const SITE_OWNERS = new Set<SiteOwnerId>([
+  ...ACTIVE_FACTIONS,
+  'player',
+  'enemy',
+  'neutral',
+])
 const TERRAINS = new Set<Terrain>([
   'plain', 'mountain', 'water', 'hill', 'forest',
 ])
@@ -63,7 +82,7 @@ function isIntegerInRange(value: unknown, minimum: number, maximum = Infinity): 
   return typeof value === 'number' && Number.isInteger(value) && value >= minimum && value <= maximum
 }
 
-function parsePosition(value: unknown): Position | undefined {
+function parsePosition(value: unknown, boardSize = DEFAULT_BOARD_SIZE): Position | undefined {
   if (
     !isRecord(value) ||
     !Number.isInteger(value.q) ||
@@ -72,12 +91,12 @@ function parsePosition(value: unknown): Position | undefined {
     return undefined
   }
   const position = { q: value.q as number, r: value.r as number }
-  return isPositionOnBoard(position) ? position : undefined
+  return isPositionOnBoard(position, boardSize) ? position : undefined
 }
 
-function parseTile(value: unknown): Tile | undefined {
+function parseTile(value: unknown, boardSize: BoardSize): Tile | undefined {
   if (!isRecord(value) || !isNonEmptyString(value.id)) return undefined
-  const position = parsePosition(value.position)
+  const position = parsePosition(value.position, boardSize)
   if (
     !position ||
     typeof value.terrain !== 'string' ||
@@ -99,7 +118,7 @@ function parseTile(value: unknown): Tile | undefined {
   }
 }
 
-function parseUnit(value: unknown): Unit | undefined {
+function parseUnit(value: unknown, boardSize: BoardSize): Unit | undefined {
   if (
     !isRecord(value) ||
     !isNonEmptyString(value.id) ||
@@ -113,7 +132,7 @@ function parseUnit(value: unknown): Unit | undefined {
     return undefined
   }
 
-  const position = parsePosition(value.position)
+  const position = parsePosition(value.position, boardSize)
   const type = value.type as UnitType
   if (
     !position ||
@@ -141,7 +160,7 @@ function parseUnit(value: unknown): Unit | undefined {
   }
 }
 
-function parseSite(value: unknown): Site | undefined {
+function parseSite(value: unknown, boardSize: BoardSize): Site | undefined {
   if (
     !isRecord(value) ||
     !isNonEmptyString(value.id) ||
@@ -156,7 +175,7 @@ function parseSite(value: unknown): Site | undefined {
   ) {
     return undefined
   }
-  const position = parsePosition(value.position)
+  const position = parsePosition(value.position, boardSize)
   const kind = value.kind as SiteType
   if (!position || (value.capitalFor !== undefined && kind !== 'stronghold')) {
     return undefined
@@ -178,18 +197,59 @@ function hasUniqueValues(values: string[]): boolean {
   return new Set(values).size === values.length
 }
 
+function parseBoardSize(value: unknown): BoardSize | undefined {
+  if (
+    !isRecord(value) ||
+    !isIntegerInRange(value.columns, 1) ||
+    !isIntegerInRange(value.rows, 1)
+  ) {
+    return undefined
+  }
+  const boardSize = { columns: value.columns, rows: value.rows }
+  return Object.values(BOARD_SIZE_PRESETS).some(
+    (preset) =>
+      preset.columns === boardSize.columns && preset.rows === boardSize.rows,
+  )
+    ? boardSize
+    : undefined
+}
+
+function isFactionCount(value: unknown): value is FactionCount {
+  return value === 2 || value === 3 || value === 4
+}
+
 function parseGameState(value: unknown): StorageResult<GameState> {
   if (!isRecord(value)) return failure('invalidData', '저장된 게임 상태 형식이 올바르지 않습니다.')
+  const boardSize = parseBoardSize(value.boardSize)
+  const factionCount = value.factionCount
+  const factionOrder = value.factionOrder
   if (
     value.schemaVersion !== GAME_SCHEMA_VERSION ||
     !isNonEmptyString(value.mapSeed, 64) ||
     value.mapGenerationVersion !== MAP_GENERATION_VERSION ||
     !isIntegerInRange(value.turn, 1) ||
     value.phase !== 'playing' ||
-    value.activeFactionId !== 'player' ||
+    !boardSize ||
+    !isFactionCount(factionCount) ||
+    typeof value.humanFactionId !== 'string' ||
+    !FACTIONS.has(value.humanFactionId as FactionId) ||
+    !Array.isArray(factionOrder) ||
+    factionOrder.length !== factionCount ||
+    factionOrder.some(
+      (factionId) =>
+        typeof factionId !== 'string' || !FACTIONS.has(factionId as FactionId),
+    ) ||
+    typeof value.activeFactionId !== 'string' ||
+    !FACTIONS.has(value.activeFactionId as FactionId) ||
+    !factionOrder.includes(value.activeFactionId) ||
     !isRecord(value.resources) ||
-    !isIntegerInRange(value.resources.player, 0) ||
-    !isIntegerInRange(value.resources.enemy, 0) ||
+    (factionOrder as string[]).some(
+      (factionId) =>
+        !isIntegerInRange(
+          (value.resources as Record<string, unknown>)[factionId],
+          0,
+        ),
+    ) ||
     !Array.isArray(value.tiles) ||
     !Array.isArray(value.units) ||
     !Array.isArray(value.sites)
@@ -197,14 +257,14 @@ function parseGameState(value: unknown): StorageResult<GameState> {
     return failure('invalidData', '저장된 게임 진행 정보가 올바르지 않습니다.')
   }
 
-  const tiles = value.tiles.map(parseTile)
-  const units = value.units.map(parseUnit)
-  const sites = value.sites.map(parseSite)
+  const tiles = value.tiles.map((tile) => parseTile(tile, boardSize))
+  const units = value.units.map((unit) => parseUnit(unit, boardSize))
+  const sites = value.sites.map((site) => parseSite(site, boardSize))
   if (
-    tiles.length !== HEX_TILE_COUNT ||
+    tiles.length !== boardSize.columns * boardSize.rows ||
     tiles.some((tile) => !tile) ||
     units.some((unit) => !unit) ||
-    sites.length !== 8 ||
+    sites.length !== factionCount * 4 ||
     sites.some((site) => !site)
   ) {
     return failure('invalidData', '지도, 유닛 또는 거점 정보가 올바르지 않습니다.')
@@ -213,7 +273,7 @@ function parseGameState(value: unknown): StorageResult<GameState> {
   const parsedTiles = tiles as Tile[]
   const parsedUnits = units as Unit[]
   const parsedSites = sites as Site[]
-  const expectedPositionKeys = new Set(getAllHexPositions().map(positionKey))
+  const expectedPositionKeys = new Set(getAllHexPositions(boardSize).map(positionKey))
   if (
     !hasUniqueValues(parsedTiles.map((tile) => tile.id)) ||
     !hasUniqueValues(parsedTiles.map((tile) => positionKey(tile.position))) ||
@@ -230,10 +290,21 @@ function parseGameState(value: unknown): StorageResult<GameState> {
     schemaVersion: GAME_SCHEMA_VERSION,
     mapSeed: value.mapSeed.trim(),
     mapGenerationVersion: MAP_GENERATION_VERSION,
+    boardSize,
+    factionCount,
+    humanFactionId: value.humanFactionId as FactionId,
+    factionOrder: factionOrder as FactionId[],
     turn: value.turn,
     phase: 'playing',
-    activeFactionId: 'player',
-    resources: { player: value.resources.player, enemy: value.resources.enemy },
+    activeFactionId: value.activeFactionId as FactionId,
+    resources: {
+      f1: (value.resources as Record<string, number>).f1 ?? 0,
+      f2: (value.resources as Record<string, number>).f2 ?? 0,
+      f3: (value.resources as Record<string, number>).f3 ?? 0,
+      f4: (value.resources as Record<string, number>).f4 ?? 0,
+      player: (value.resources as Record<string, number>).player ?? 0,
+      enemy: (value.resources as Record<string, number>).enemy ?? 0,
+    },
     tiles: parsedTiles,
     units: parsedUnits,
     sites: parsedSites,
@@ -257,9 +328,10 @@ function parseGameState(value: unknown): StorageResult<GameState> {
   )
   const capitals = parsedSites.filter((site) => site.capitalFor)
   const capitalsAreValid =
-    capitals.length === 2 &&
-    capitals.some((site) => site.capitalFor === 'player') &&
-    capitals.some((site) => site.capitalFor === 'enemy')
+    capitals.length === factionCount &&
+    (factionOrder as FactionId[]).every((factionId) =>
+      capitals.some((site) => site.capitalFor === factionId),
+    )
 
   if (!tilesMatchSites || !sitesMatchTiles || !unitsAreValid || !productionTurnsAreValid || !capitalsAreValid) {
     return failure('invalidData', '지도 참조 관계가 올바르지 않습니다.')
@@ -296,20 +368,70 @@ function readSavedGame(storage?: StorageLike): StorageResult<SavedGame> {
   if (!isRecord(parsed) || !isIntegerInRange(parsed.schemaVersion, 1)) {
     return failure('invalidData', '저장 데이터 형식이 올바르지 않습니다.')
   }
-  if (parsed.schemaVersion !== GAME_SCHEMA_VERSION) {
+  const savedRecord = parsed as Record<string, unknown>
+  if (savedRecord.schemaVersion === 6 && isRecord(savedRecord.gameState)) {
+    const legacyState = savedRecord.gameState
+    if (legacyState.mapGenerationVersion !== 4) {
+      return failure('invalidData', '저장된 지도 생성 버전이 올바르지 않습니다.')
+    }
+    const remapFaction = (value: unknown) =>
+      value === 'player' ? 'f1' : value === 'enemy' ? 'f2' : value
+    const remapEntity = (entity: unknown) => {
+      if (!isRecord(entity)) return entity
+      return {
+        ...entity,
+        factionId: remapFaction(entity.factionId),
+        ownerId: remapFaction(entity.ownerId),
+        capitalFor: remapFaction(entity.capitalFor),
+      }
+    }
+    parsed = {
+      ...savedRecord,
+      schemaVersion: GAME_SCHEMA_VERSION,
+      gameState: {
+        ...legacyState,
+        schemaVersion: GAME_SCHEMA_VERSION,
+        mapGenerationVersion: MAP_GENERATION_VERSION,
+        boardSize: { ...DEFAULT_BOARD_SIZE },
+        factionCount: 2,
+        humanFactionId: 'f1',
+        factionOrder: ['f1', 'f2'],
+        activeFactionId: remapFaction(legacyState.activeFactionId),
+        resources: {
+          f1: isRecord(legacyState.resources) ? legacyState.resources.player : undefined,
+          f2: isRecord(legacyState.resources) ? legacyState.resources.enemy : undefined,
+        },
+        units: Array.isArray(legacyState.units)
+          ? legacyState.units.map(remapEntity)
+          : legacyState.units,
+        sites: Array.isArray(legacyState.sites)
+          ? legacyState.sites.map(remapEntity)
+          : legacyState.sites,
+      },
+    }
+  }
+  const normalizedRecord = parsed as Record<string, unknown>
+  if (normalizedRecord.schemaVersion !== GAME_SCHEMA_VERSION) {
     return failure(
       'unsupportedVersion',
-      parsed.schemaVersion === 4 || parsed.schemaVersion === 5
+      normalizedRecord.schemaVersion === 4 || normalizedRecord.schemaVersion === 5
         ? '이전 사각 지도 저장은 지원되지 않습니다. 새 게임을 시작해 주세요.'
         : '현재 버전에서 지원하지 않는 저장 데이터입니다.',
     )
   }
-  if (typeof parsed.savedAt !== 'string' || Number.isNaN(Date.parse(parsed.savedAt))) {
+  if (
+    typeof normalizedRecord.savedAt !== 'string' ||
+    Number.isNaN(Date.parse(normalizedRecord.savedAt))
+  ) {
     return failure('invalidData', '저장 시각 정보가 올바르지 않습니다.')
   }
-  const gameState = parseGameState(parsed.gameState)
+  const gameState = parseGameState(normalizedRecord.gameState)
   if (!gameState.ok) return gameState
-  return success({ schemaVersion: GAME_SCHEMA_VERSION, savedAt: parsed.savedAt, gameState: gameState.value })
+  return success({
+    schemaVersion: GAME_SCHEMA_VERSION,
+    savedAt: normalizedRecord.savedAt,
+    gameState: gameState.value,
+  })
 }
 
 export function saveGame(
@@ -321,7 +443,7 @@ export function saveGame(
     state.schemaVersion !== GAME_SCHEMA_VERSION ||
     state.mapGenerationVersion !== MAP_GENERATION_VERSION ||
     state.phase !== 'playing' ||
-    state.activeFactionId !== 'player' ||
+    state.activeFactionId !== state.humanFactionId ||
     Number.isNaN(now.getTime())
   ) {
     return failure('invalidData', '현재 게임은 저장할 수 없는 상태입니다.')

@@ -17,7 +17,18 @@ import type { GameAction, GameState } from './types'
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
   if (action.type === 'gameRestarted') {
-    return createInitialGameState(action.seed)
+    if (
+      action.boardSize === undefined &&
+      action.factionCount === undefined &&
+      action.humanFactionId === undefined
+    ) {
+      return createInitialGameState(action.seed)
+    }
+    return createInitialGameState(action.seed, {
+      boardSize: action.boardSize ?? state.boardSize,
+      factionCount: action.factionCount ?? state.factionCount,
+      humanFactionId: action.humanFactionId ?? state.humanFactionId,
+    })
   }
 
   if (action.type === 'gameLoaded') {
@@ -79,10 +90,25 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         action.destination,
         unit.factionId,
       )
+      const defeatedFactionId = sites.find(
+        (site) =>
+          site.capitalFor &&
+          site.capitalFor !== state.humanFactionId &&
+          site.capitalFor !== unit.factionId &&
+          site.ownerId === unit.factionId,
+      )?.capitalFor
+      const factionOrder = defeatedFactionId
+        ? state.factionOrder.filter((factionId) => factionId !== defeatedFactionId)
+        : state.factionOrder
 
       return {
         ...state,
-        phase: getCapitalPhase(sites),
+        phase: getCapitalPhase(
+          sites,
+          state.humanFactionId,
+          state.factionOrder,
+        ),
+        factionOrder,
         selectedUnitId: unit.id,
         sites,
         units: state.units.map((candidate) =>
@@ -187,7 +213,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         site.ownerId !== state.activeFactionId ||
         site.lastProducedTurn === state.turn ||
         !stats ||
-        state.resources[state.activeFactionId] < stats.cost ||
+        (state.resources[state.activeFactionId] ?? 0) < stats.cost ||
         !getDeployablePositions(state, site).some(
           (position) =>
             position.q === action.destination.q &&
@@ -204,8 +230,13 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         unitId = `${state.activeFactionId}-${action.unitType}-produced-${sequence}`
       }
 
-      const factionLabel =
-        state.activeFactionId === 'player' ? '푸른' : '붉은'
+      const factionLabels: Record<string, string> = {
+        f1: '청색',
+        f2: '적색',
+        f3: '황금',
+        f4: '자색',
+      } as const
+      const factionLabel = factionLabels[state.activeFactionId]
       const unit = {
         id: unitId,
         name: `${factionLabel} ${UNIT_TYPE_LABELS[action.unitType]} ${sequence}`,
@@ -224,7 +255,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         resources: {
           ...state.resources,
           [state.activeFactionId]:
-            state.resources[state.activeFactionId] - stats.cost,
+            (state.resources[state.activeFactionId] ?? 0) - stats.cost,
         },
         units: [...state.units, unit],
         sites: state.sites.map((candidate) =>
@@ -237,18 +268,21 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'turnEnded': {
       const endingFactionId = state.activeFactionId
+      const endingIndex = state.factionOrder.indexOf(endingFactionId)
       const nextFactionId =
-        endingFactionId === 'player' ? 'enemy' : 'player'
+        state.factionOrder[(endingIndex + 1) % state.factionOrder.length] ??
+        state.humanFactionId
+      const completesRound = endingIndex === state.factionOrder.length - 1
 
       return {
         ...state,
-        turn: state.turn + (endingFactionId === 'enemy' ? 1 : 0),
+        turn: state.turn + (completesRound ? 1 : 0),
         activeFactionId: nextFactionId,
         selectedUnitId: undefined,
         resources: {
           ...state.resources,
           [endingFactionId]:
-            state.resources[endingFactionId] +
+            (state.resources[endingFactionId] ?? 0) +
             getFactionIncome(state, endingFactionId),
         },
         units: state.units.map((unit) =>

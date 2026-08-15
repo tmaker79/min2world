@@ -176,7 +176,7 @@ export function getReachablePositionCosts(
       continue
     }
 
-    for (const neighbor of getHexNeighbors(current.position)) {
+    for (const neighbor of getHexNeighbors(current.position, state.boardSize)) {
       const neighborKey = positionKey(neighbor)
       if (enemyOccupiedPositions.has(neighborKey)) continue
       const stepCost = getMovementStepCost(state, current.position, neighbor)
@@ -319,7 +319,7 @@ export function getDeployablePositions(
 
   const candidates = [
     { ...site.position },
-    ...getHexNeighbors(site.position).sort(
+    ...getHexNeighbors(site.position, state.boardSize).sort(
       (left, right) => left.r - right.r || left.q - right.q,
     ),
   ]
@@ -360,11 +360,27 @@ export function captureSiteAt(
   return siteCaptured ? nextSites : sites
 }
 
-export function getCapitalPhase(sites: Site[]): GamePhase {
-  const playerCapital = sites.find((site) => site.capitalFor === 'player')
-  const enemyCapital = sites.find((site) => site.capitalFor === 'enemy')
+export function getCapitalPhase(
+  sites: Site[],
+  humanFactionId: FactionId = 'player',
+  factionOrder: readonly FactionId[] = ['player', 'enemy'],
+): GamePhase {
+  const humanCapital = sites.find(
+    (site) => site.capitalFor === humanFactionId,
+  )
+  if (humanCapital?.ownerId !== humanFactionId) return 'defeat'
 
-  if (enemyCapital?.ownerId === 'player') return 'victory'
-  if (playerCapital?.ownerId === 'enemy') return 'defeat'
+  const enemyCapitals = sites.filter(
+    (site) =>
+      site.capitalFor &&
+      site.capitalFor !== humanFactionId &&
+      factionOrder.includes(site.capitalFor),
+  )
+  if (
+    enemyCapitals.length > 0 &&
+    enemyCapitals.every((site) => site.ownerId === humanFactionId)
+  ) {
+    return 'victory'
+  }
   return 'playing'
 }
