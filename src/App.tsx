@@ -16,6 +16,7 @@ import { createRandomMapSeed, normalizeMapSeed } from './game/mapGenerator'
 import { gameReducer } from './game/reducer'
 import {
   getDeployablePositions,
+  getSiteAt,
   getUnitAt,
   positionKey,
   resolveCombat,
@@ -72,6 +73,7 @@ function App({ initialState }: AppProps = {}) {
     message: string
   }>()
   const [openChromeMenu, setOpenChromeMenu] = useState<ChromeMenuId | null>(null)
+  const [hoveredTile, setHoveredTile] = useState<Tile>()
   const playerProductionSites = useMemo(
     () =>
       state.sites.filter(
@@ -107,6 +109,10 @@ function App({ initialState }: AppProps = {}) {
     [activeProductionUnitType, deployablePositions],
   )
   const selectedUnit = getSelectedUnit(state)
+  const inspectedTile = selectedUnit ? undefined : hoveredTile
+  const inspectedSite = inspectedTile
+    ? getSiteAt(state, inspectedTile.position)
+    : undefined
   const reachablePositions = useMemo(
     () => getSelectedUnitReachablePositions(state),
     [state],
@@ -220,6 +226,7 @@ function App({ initialState }: AppProps = {}) {
 
     setActiveCombat(undefined)
     setCombatPhase('attack')
+    setHoveredTile(undefined)
     setProductionUnitType(undefined)
     setProductionSiteId(
       result.value.gameState.sites.find(
@@ -414,6 +421,7 @@ function App({ initialState }: AppProps = {}) {
     }
     setActiveCombat(undefined)
     setCombatPhase('attack')
+    setHoveredTile(undefined)
     setProductionUnitType(undefined)
     setProductionFeedback(undefined)
     setSaveFeedback(undefined)
@@ -467,14 +475,7 @@ function App({ initialState }: AppProps = {}) {
       />
 
       <main className="game-layout">
-        <section className="board-panel" aria-labelledby="map-heading">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">THE FRONTIER</p>
-              <h2 id="map-heading">전략 지도</h2>
-            </div>
-          </div>
-
+        <section className="board-panel" aria-label="전략 지도">
           <StatusBar
             turn={state.turn}
             resource={state.resources.player}
@@ -508,6 +509,7 @@ function App({ initialState }: AppProps = {}) {
                 Boolean(activeCombat)
               }
               onTileClick={handleTileClick}
+              onTileHoverChange={setHoveredTile}
             />
           </div>
 
@@ -524,7 +526,12 @@ function App({ initialState }: AppProps = {}) {
         </section>
 
         <aside className="side-panel" aria-label="게임 정보">
-          <InfoPanel unit={selectedUnit} />
+          <InfoPanel
+            unit={selectedUnit}
+            tile={inspectedTile}
+            site={inspectedSite}
+            mapSeed={state.mapSeed}
+          />
           <ProductionPanel
             sites={playerProductionSites}
             selectedSiteId={availableProductionSiteId}

@@ -370,10 +370,25 @@
   transform: translate(-50%, -100%) translateY(-6px);
 }
 
+.unit-tooltip--fixed {
+  position: fixed;
+  z-index: 60;
+}
+
 .unit-tooltip--below {
   top: auto;
   bottom: 0;
   transform: translate(-50%, 100%) translateY(8px);
+}
+
+.unit-tooltip--fixed.unit-tooltip--above {
+  transform: translate(-50%, -100%) translateY(-6px);
+}
+
+.unit-tooltip--fixed.unit-tooltip--below {
+  top: auto;
+  bottom: auto;
+  transform: translate(-50%, 8px);
 }
 
 .unit-tooltip strong {
@@ -949,6 +964,43 @@
 .unit-portrait svg:not([data-unit-icon='infantry']) {
   width: 35px;
   height: 35px;
+}
+
+.terrain-portrait {
+  display: grid;
+  width: 45px;
+  height: 51px;
+  overflow: hidden;
+  place-items: center;
+  background: #2a3a2f;
+  border: 0;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+}
+
+.terrain-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+}
+
+.terrain-portrait--water {
+  background: #365172;
+}
+
+.terrain-portrait--mountain {
+  background: #4f5358;
+}
+
+.terrain-portrait--hill {
+  background: #6a7a48;
+}
+
+.terrain-portrait--forest {
+  background: #365b45;
+}
+
+.terrain-portrait--plain {
+  background: #8db56e;
 }
 
 .unit-details__heading {

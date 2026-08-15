@@ -48,19 +48,38 @@ describe('Milestone 07 UI', () => {
 
     await user.hover(tile)
 
-    expect(container.querySelector(`[data-unit-tooltip="${enemy.id}"]`)).toBeNull()
+    expect(document.querySelector(`[data-unit-tooltip="${enemy.id}"]`)).toBeNull()
 
     const tooltip = await waitFor(() => {
-      const next = container.querySelector(`[data-unit-tooltip="${enemy.id}"]`)
+      const next = document.querySelector(`[data-unit-tooltip="${enemy.id}"]`)
       expect(next).toBeVisible()
       return next
     })
     expect(tooltip).toHaveTextContent(enemy.name)
     expect(tooltip).toHaveTextContent('체력')
     expect(tooltip).toHaveTextContent(`${enemy.hp}/${enemy.maxHp}`)
-    expect(screen.getByRole('heading', { name: '부대 정보' }).closest('section')).toHaveTextContent(
-      '지도에서 푸른 유닛을 선택하면',
-    )
+
+    const infoCard = screen.getByRole('heading', { name: '지형 정보' }).closest('section')
+    expect(infoCard).toHaveAttribute('data-info-mode', 'terrain')
+    expect(infoCard).toHaveTextContent('이동 비용')
+  })
+
+  it('shows terrain details in the info panel while no unit is selected', async () => {
+    const user = userEvent.setup()
+    const state = createInitialGameState('ui-terrain-info')
+    const plain = state.tiles.find((tile) => tile.terrain === 'plain')!
+    const { container } = renderApp(state)
+    const tile = container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(plain.position)}"]`,
+    )!
+
+    await user.hover(tile)
+
+    const infoCard = screen.getByRole('heading', { name: '지형 정보' }).closest('section')
+    expect(infoCard).toHaveTextContent('평지')
+    expect(infoCard).toHaveTextContent(`좌표 ${plain.position.q}, ${plain.position.r}`)
+    expect(infoCard).toHaveTextContent('이동 비용')
+    expect(infoCard).toHaveTextContent('1')
   })
 
   it('selects a unit with keyboard Enter and exposes reachable hexes', async () => {

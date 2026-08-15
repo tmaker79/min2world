@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { getHexPixelPosition, HEX_HEIGHT, HEX_WIDTH } from '../game/hex'
 import {
   getSiteAt,
@@ -17,6 +18,7 @@ import { hasTerrainImage, TerrainIcon } from './TerrainIcon'
 import { UnitIcon } from './UnitIcon'
 
 const UNIT_TOOLTIP_SHOW_DELAY_MS = 400
+const UNIT_TOOLTIP_TOP_SAFE_PX = 120
 
 export type CombatAnimationPhase = 'attack' | 'hit'
 
@@ -41,6 +43,7 @@ type GameMapProps = {
   combatAnimation?: CombatAnimation
   disabled: boolean
   onTileClick: (tile: Tile) => void
+  onTileHoverChange?: (tile: Tile | undefined) => void
 }
 
 type TileButtonProps = {
@@ -57,6 +60,7 @@ type TileButtonProps = {
   style: CSSProperties
   onClick: () => void
   onUnitHoverChange: (unitId: string | undefined, options?: { immediate?: boolean }) => void
+  onTileHoverChange?: (tile: Tile | undefined) => void
 }
 
 function ownerLabel(site: Site): string {
@@ -154,6 +158,7 @@ function TileButton({
   style,
   onClick,
   onUnitHoverChange,
+  onTileHoverChange,
 }: TileButtonProps) {
   const classNames = [
     'map-tile',
@@ -182,9 +187,15 @@ function TileButton({
       data-zone-of-control={inZoneOfControl ? 'true' : undefined}
       disabled={disabled}
       onClick={onClick}
-      onMouseEnter={() => onUnitHoverChange(unit?.id)}
+      onMouseEnter={() => {
+        onTileHoverChange?.(tile)
+        onUnitHoverChange(unit?.id)
+      }}
       onMouseLeave={() => onUnitHoverChange(undefined)}
-      onFocus={() => onUnitHoverChange(unit?.id, { immediate: true })}
+      onFocus={() => {
+        onTileHoverChange?.(tile)
+        onUnitHoverChange(unit?.id, { immediate: true })
+      }}
       onBlur={() => onUnitHoverChange(undefined)}
     >
       {hasTerrainImage(tile.terrain) && (
@@ -203,31 +214,34 @@ function TileButton({
 
 function UnitTooltip({
   unit,
-  style,
   placement,
+  anchor,
 }: {
   unit: Unit
-  style: CSSProperties
   placement: 'above' | 'below'
+  anchor: DOMRect
 }) {
-  return (
-    <span className="map-overlay-cell map-overlay-cell--tooltip" style={style}>
-      <span
-        className={`unit-tooltip unit-tooltip--${placement}`}
-        role="tooltip"
-        data-unit-tooltip={unit.id}
-      >
-        <strong>{unit.name}</strong>
-        <dl>
-          {getUnitTooltipRows(unit).map((row) => (
-            <div key={row.label}>
-              <dt>{row.label}</dt>
-              <dd>{row.value}</dd>
-            </div>
-          ))}
-        </dl>
-      </span>
-    </span>
+  return createPortal(
+    <span
+      className={`unit-tooltip unit-tooltip--fixed unit-tooltip--${placement}`}
+      role="tooltip"
+      data-unit-tooltip={unit.id}
+      style={{
+        left: anchor.left + anchor.width / 2,
+        top: placement === 'above' ? anchor.top : anchor.bottom,
+      }}
+    >
+      <strong>{unit.name}</strong>
+      <dl>
+        {getUnitTooltipRows(unit).map((row) => (
+          <div key={row.label}>
+            <dt>{row.label}</dt>
+            <dd>{row.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </span>,
+    document.body,
   )
 }
 
@@ -340,13 +354,39 @@ export function GameMap({
   combatAnimation,
   disabled,
   onTileClick,
+  onTileHoverChange,
 }: GameMapProps) {
   const [hoveredUnitId, setHoveredUnitId] = useState<string>()
+  const [tooltipAnchor, setTooltipAnchor] = useState<DOMRect>()
   const hoverTimerRef = useRef<number | undefined>(undefined)
 
   useEffect(() => {
     return () => window.clearTimeout(hoverTimerRef.current)
   }, [])
+
+  useEffect(() => {
+    if (!hoveredUnitId) {
+      setTooltipAnchor(undefined)
+      return
+    }
+
+    const updateAnchor = () => {
+      const token = document.querySelector<HTMLElement>(
+        `[data-unit-id="${hoveredUnitId}"]`,
+      )
+      setTooltipAnchor(token?.getBoundingClientRect())
+    }
+
+    updateAnchor()
+    const mapScroll = document.querySelector('.map-scroll')
+    mapScroll?.addEventListener('scroll', updateAnchor, { passive: true })
+    window.addEventListener('resize', updateAnchor)
+
+    return () => {
+      mapScroll?.removeEventListener('scroll', updateAnchor)
+      window.removeEventListener('resize', updateAnchor)
+    }
+  }, [hoveredUnitId])
 
   const handleUnitHoverChange = (
     unitId: string | undefined,
@@ -394,10 +434,12 @@ export function GameMap({
     ? state.units.find((unit) => unit.id === hoveredUnitId)
     : undefined
   const hoveredTooltipPlacement =
-    hoveredUnit &&
-    getHexPixelPosition(hoveredUnit.position).y - minimumY < HEX_HEIGHT
+    tooltipAnchor && tooltipAnchor.top < UNIT_TOOLTIP_TOP_SAFE_PX
       ? 'below'
-      : 'above'
+      : hoveredUnit &&
+          getHexPixelPosition(hoveredUnit.position).y - minimumY < HEX_HEIGHT
+        ? 'below'
+        : 'above'
 
   return (
     <div
@@ -407,6 +449,7 @@ export function GameMap({
         width: maximumX - minimumX + HEX_WIDTH,
         height: maximumY - minimumY + HEX_HEIGHT,
       }}
+      onMouseLeave={() => onTileHoverChange?.(undefined)}
     >
       <div className="map-layer map-layer--terrain">
         {state.tiles.map((tile) => {
@@ -434,6 +477,7 @@ export function GameMap({
               style={getOverlayStyle(tile.position, minimumX, minimumY)}
               onClick={() => onTileClick(tile)}
               onUnitHoverChange={handleUnitHoverChange}
+              onTileHoverChange={onTileHoverChange}
             />
           )
         })}
@@ -473,15 +517,13 @@ export function GameMap({
         ))}
       </div>
 
-      <div className="map-layer map-layer--tooltips" aria-hidden="true">
-        {hoveredUnit && (
-          <UnitTooltip
-            unit={hoveredUnit}
-            placement={hoveredTooltipPlacement}
-            style={getOverlayStyle(hoveredUnit.position, minimumX, minimumY)}
-          />
-        )}
-      </div>
+      {hoveredUnit && tooltipAnchor && (
+        <UnitTooltip
+          unit={hoveredUnit}
+          placement={hoveredTooltipPlacement}
+          anchor={tooltipAnchor}
+        />
+      )}
 
       {combatAnimation && (
         <span className="sr-only" role="status" aria-live="polite">

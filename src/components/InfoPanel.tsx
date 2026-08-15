@@ -1,16 +1,45 @@
-import { getDisplayedCombatStrength, UNIT_STATS, UNIT_TYPE_LABELS } from '../game/rules'
-import type { Unit } from '../game/types'
+import {
+  getDisplayedCombatStrength,
+  SITE_TYPE_LABELS,
+  TERRAIN_COMBAT_BONUS,
+  TERRAIN_LABELS,
+  TERRAIN_MOVEMENT_COST,
+  UNIT_STATS,
+  UNIT_TYPE_LABELS,
+} from '../game/rules'
+import type { Site, Tile, Unit } from '../game/types'
+import { hasTerrainImage, TerrainIcon } from './TerrainIcon'
 import { UnitIcon } from './UnitIcon'
 
 type InfoPanelProps = {
   unit?: Unit
+  tile?: Tile
+  site?: Site
+  mapSeed?: string
 }
 
-export function InfoPanel({ unit }: InfoPanelProps) {
+function ownerLabel(site: Site) {
+  if (site.ownerId === 'player') return '푸른 연맹'
+  if (site.ownerId === 'enemy') return '붉은 제국'
+  return '중립'
+}
+
+function movementCostLabel(terrain: Tile['terrain']) {
+  const cost = TERRAIN_MOVEMENT_COST[terrain]
+  return cost === null ? '통과 불가' : `${cost}`
+}
+
+export function InfoPanel({ unit, tile, site, mapSeed }: InfoPanelProps) {
+  const showingTerrain = !unit && Boolean(tile)
+
   return (
-    <section className="info-card" aria-labelledby="unit-info-heading">
-      <p className="eyebrow">SELECTED UNIT</p>
-      <h2 id="unit-info-heading">부대 정보</h2>
+    <section
+      className="info-card"
+      aria-labelledby="unit-info-heading"
+      data-info-mode={unit ? 'unit' : showingTerrain ? 'terrain' : 'empty'}
+    >
+      <p className="eyebrow">{showingTerrain ? 'TERRAIN' : 'SELECTED UNIT'}</p>
+      <h2 id="unit-info-heading">{showingTerrain ? '지형 정보' : '부대 정보'}</h2>
 
       {unit ? (
         <div className="unit-details">
@@ -63,10 +92,59 @@ export function InfoPanel({ unit }: InfoPanelProps) {
             </div>
           </dl>
         </div>
+      ) : tile ? (
+        <div className="unit-details terrain-details">
+          <div
+            className={`terrain-portrait terrain-portrait--${tile.terrain}`}
+            aria-hidden="true"
+          >
+            {hasTerrainImage(tile.terrain) ? (
+              <TerrainIcon
+                terrain={tile.terrain}
+                position={tile.position}
+                seed={mapSeed}
+                variantIndex={tile.terrainVariant}
+              />
+            ) : (
+              <span>{TERRAIN_LABELS[tile.terrain].slice(0, 1)}</span>
+            )}
+          </div>
+          <div className="unit-details__heading">
+            <strong>{TERRAIN_LABELS[tile.terrain]}</strong>
+            <span>
+              좌표 {tile.position.q}, {tile.position.r}
+            </span>
+          </div>
+          <dl>
+            <div>
+              <dt>이동 비용</dt>
+              <dd>{movementCostLabel(tile.terrain)}</dd>
+            </div>
+            <div>
+              <dt>전투력 보정</dt>
+              <dd>
+                {TERRAIN_COMBAT_BONUS[tile.terrain] > 0
+                  ? `+${TERRAIN_COMBAT_BONUS[tile.terrain]}`
+                  : '없음'}
+              </dd>
+            </div>
+            {site && (
+              <div>
+                <dt>거점</dt>
+                <dd>
+                  {site.name} ({ownerLabel(site)} {SITE_TYPE_LABELS[site.kind]})
+                </dd>
+              </div>
+            )}
+          </dl>
+        </div>
       ) : (
         <div className="empty-selection">
           <span aria-hidden="true">◎</span>
-          <p>지도에서 푸른 유닛을 선택하면 이동 가능한 지역을 확인할 수 있습니다.</p>
+          <p>
+            지도에서 지형에 마우스를 올리거나 푸른 유닛을 선택하면 정보를 확인할 수
+            있습니다.
+          </p>
         </div>
       )}
     </section>
