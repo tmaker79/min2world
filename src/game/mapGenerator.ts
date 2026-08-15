@@ -1,4 +1,5 @@
 import {
+  BOARD_SIZE_PRESETS,
   DEFAULT_BOARD_SIZE,
   getAllHexPositions,
   getHexDistance,
@@ -614,7 +615,11 @@ export function generateGameState(
   if (!normalized) throw new Error('Seed must contain between 1 and 64 characters.')
   const useLegacyIds = Object.keys(options).length === 0
   const boardSize = options.boardSize ?? DEFAULT_BOARD_SIZE
-  const factionCount = options.factionCount ?? 2
+  const requestedFactionCount = options.factionCount ?? 2
+  const isTinyBoard =
+    boardSize.columns === BOARD_SIZE_PRESETS.tiny.columns &&
+    boardSize.rows === BOARD_SIZE_PRESETS.tiny.rows
+  const factionCount: FactionCount = isTinyBoard ? 2 : requestedFactionCount
   const humanFactionId = options.humanFactionId ?? 'f1'
   if (!getFactionIds(factionCount).includes(humanFactionId)) {
     throw new Error('Human faction must be active.')
