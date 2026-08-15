@@ -8,6 +8,7 @@ import type {
   CombatAnimationPhase,
 } from './components/GameMap'
 import { InfoPanel } from './components/InfoPanel'
+import { Legend } from './components/Legend'
 import { ProductionPanel } from './components/ProductionPanel'
 import { SavePanel } from './components/SavePanel'
 import { StatusBar } from './components/StatusBar'
@@ -467,9 +468,10 @@ function App({ initialState }: AppProps = {}) {
             <h2 id="help-heading">작전 지침</h2>
             <ol>
               <li>푸른 유닛을 선택해 금색 칸으로 이동하거나 붉은 적을 공격합니다.</li>
-              <li>성에서 생산하고, 상단 메뉴에서 새 지도·저장·범례를 엽니다.</li>
+              <li>성에서 생산하고, 상단 메뉴에서 새 지도·저장을 엽니다.</li>
               <li>모든 행동 후 턴을 종료합니다. 상세 규칙은 README를 참고하세요.</li>
             </ol>
+            <Legend embedded />
           </section>
         }
       />

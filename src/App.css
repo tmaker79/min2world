@@ -89,6 +89,18 @@
   width: min(360px, calc(100vw - 40px));
 }
 
+.chrome-menu__panel--help {
+  width: min(640px, calc(100vw - 32px));
+  max-height: min(75vh, 720px);
+  overflow: auto;
+}
+
+.help-card .legend-card--embedded ul {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 16px;
+}
+
 .chrome-menu__panel > .legend-card,
 .chrome-menu__panel > .save-card,
 .chrome-menu__panel > .help-card {
@@ -96,6 +108,17 @@
   background: transparent;
   border: 0;
   box-shadow: none;
+}
+
+.help-card .legend-card--embedded {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(169, 194, 204, 0.18);
+}
+
+.help-card .legend-card--embedded h3 {
+  margin: 0 0 10px;
+  font-size: 0.92rem;
 }
 
 .chrome-menu__panel .eyebrow {
@@ -1510,5 +1533,13 @@
   .chrome-menu__panel {
     left: 0;
     right: auto;
+  }
+
+  .chrome-menu__panel--help {
+    width: min(100vw - 24px, 640px);
+  }
+
+  .help-card .legend-card--embedded ul {
+    grid-template-columns: 1fr;
   }
 }

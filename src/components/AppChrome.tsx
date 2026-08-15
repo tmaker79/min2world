@@ -1,8 +1,7 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { NewGameMenu } from './NewGameMenu'
-import { Legend } from './Legend'
 
-export type ChromeMenuId = 'newGame' | 'legend' | 'save' | 'help'
+export type ChromeMenuId = 'newGame' | 'save' | 'help'
 
 type AppChromeProps = {
   mapSeed: string
@@ -30,7 +29,6 @@ export function AppChrome({
   helpPanel,
 }: AppChromeProps) {
   const metaRef = useRef<HTMLDivElement>(null)
-  const legendId = useId()
   const saveId = useId()
   const helpId = useId()
 
@@ -87,23 +85,6 @@ export function AppChrome({
           <button
             type="button"
             className="app-chrome__button"
-            aria-expanded={openMenu === 'legend'}
-            aria-controls={legendId}
-            onClick={() => toggleMenu('legend')}
-          >
-            범례
-          </button>
-          {openMenu === 'legend' && (
-            <div id={legendId} className="chrome-menu__panel chrome-menu__panel--wide">
-              <Legend />
-            </div>
-          )}
-        </div>
-
-        <div className="chrome-menu">
-          <button
-            type="button"
-            className="app-chrome__button"
             aria-expanded={openMenu === 'save'}
             aria-controls={saveId}
             onClick={() => toggleMenu('save')}
@@ -128,7 +109,10 @@ export function AppChrome({
             도움말
           </button>
           {openMenu === 'help' && (
-            <div id={helpId} className="chrome-menu__panel">
+            <div
+              id={helpId}
+              className="chrome-menu__panel chrome-menu__panel--wide chrome-menu__panel--help"
+            >
               {helpPanel}
             </div>
           )}

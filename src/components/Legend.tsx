@@ -9,11 +9,20 @@ const TERRAIN_ITEMS = [
   ['water', '물', '이동 불가'],
 ] as const
 
-export function Legend() {
+type LegendProps = {
+  embedded?: boolean
+}
+
+export function Legend({ embedded = false }: LegendProps) {
+  const Heading = embedded ? 'h3' : 'h2'
+
   return (
-    <section className="legend-card" aria-labelledby="legend-heading">
-      <p className="eyebrow">MAP LEGEND</p>
-      <h2 id="legend-heading">지도 범례</h2>
+    <section
+      className={`legend-card${embedded ? ' legend-card--embedded' : ''}`}
+      aria-labelledby="legend-heading"
+    >
+      {!embedded && <p className="eyebrow">MAP LEGEND</p>}
+      <Heading id="legend-heading">지도 범례</Heading>
       <ul>
         {TERRAIN_ITEMS.map(([terrain, label, detail]) => (
           <li key={terrain}>
@@ -23,16 +32,54 @@ export function Legend() {
             {label} <small>{detail}</small>
           </li>
         ))}
-        <li><span className="legend-site legend-site--stronghold"><SiteIcon kind="stronghold" /></span>성 <small>수입 5 · 생산</small></li>
-        <li><span className="legend-site legend-site--city"><SiteIcon kind="city" /></span>마을 <small>수입 4</small></li>
-        <li><span className="legend-site legend-site--village"><SiteIcon kind="village" /></span>농장 <small>수입 2</small></li>
-        <li><span className="legend-site legend-site--mine"><SiteIcon kind="mine" /></span>광산 <small>수입 3</small></li>
-        <li><span className="legend-flag legend-flag--player" />아군 점령</li>
-        <li><span className="legend-flag legend-flag--enemy" />적 점령</li>
-        <li><span className="legend-swatch legend-swatch--reachable" />이동 가능</li>
-        <li><span className="legend-swatch legend-swatch--attackable" />공격 가능</li>
-        <li><span className="legend-swatch legend-swatch--deployable" />생산 배치 가능</li>
-        <li><span className="legend-swatch legend-swatch--zoc" />적 통제 구역 <small>진입 시 이동 종료</small></li>
+        <li>
+          <span className="legend-site legend-site--stronghold">
+            <SiteIcon kind="stronghold" />
+          </span>
+          성 <small>수입 5 · 생산</small>
+        </li>
+        <li>
+          <span className="legend-site legend-site--city">
+            <SiteIcon kind="city" />
+          </span>
+          마을 <small>수입 4</small>
+        </li>
+        <li>
+          <span className="legend-site legend-site--village">
+            <SiteIcon kind="village" />
+          </span>
+          농장 <small>수입 2</small>
+        </li>
+        <li>
+          <span className="legend-site legend-site--mine">
+            <SiteIcon kind="mine" />
+          </span>
+          광산 <small>수입 3</small>
+        </li>
+        <li>
+          <span className="legend-flag legend-flag--player" />
+          아군 점령
+        </li>
+        <li>
+          <span className="legend-flag legend-flag--enemy" />
+          적 점령
+        </li>
+        <li>
+          <span className="legend-swatch legend-swatch--reachable" />
+          이동 가능
+        </li>
+        <li>
+          <span className="legend-swatch legend-swatch--attackable" />
+          공격 가능
+        </li>
+        <li>
+          <span className="legend-swatch legend-swatch--deployable" />
+          생산 배치 가능
+        </li>
+        <li>
+          <span className="legend-swatch legend-swatch--zoc" />
+          적 통제 구역 <small>진입 시 이동 종료</small>
+        </li>
       </ul>
     </section>
   )
