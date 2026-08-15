@@ -13,7 +13,7 @@ import {
 } from '../game/rules'
 import type { GameState, Position, Site, Tile, Unit } from '../game/types'
 import { SiteIcon } from './SiteIcon'
-import { TerrainIcon } from './TerrainIcon'
+import { hasTerrainImage, TerrainIcon } from './TerrainIcon'
 import { UnitIcon } from './UnitIcon'
 
 const UNIT_TOOLTIP_SHOW_DELAY_MS = 400
@@ -189,7 +189,7 @@ function TileButton({
       onFocus={() => onUnitHoverChange(unit?.id, { immediate: true })}
       onBlur={() => onUnitHoverChange(undefined)}
     >
-      {tile.terrain !== 'plain' && (
+      {hasTerrainImage(tile.terrain) && (
         <span className={`terrain-mark terrain-mark--${tile.terrain}`} aria-hidden="true">
           <TerrainIcon terrain={tile.terrain} position={tile.position} />
         </span>
