@@ -39,15 +39,12 @@ export function ProductionPanel({
     disabled || !site || site.lastProducedTurn === turn || deployableCount === 0
 
   return (
-    <section className="production-card" aria-labelledby="production-heading">
-      <p className="eyebrow">CITY PRODUCTION</p>
-      <h2 id="production-heading">부대 생산</h2>
-
+    <section className="production-card" aria-label="부대 생산">
       {sites.length > 0 ? (
         <>
           <label className="production-card__city">
-            <span>생산 거점</span>
             <select
+              aria-label="생산 거점"
               value={selectedSiteId}
               disabled={disabled}
               onChange={(event) => onSiteSelected(event.target.value)}

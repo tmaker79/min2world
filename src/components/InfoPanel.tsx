@@ -39,12 +39,9 @@ export function InfoPanel({ unit, tile, site, mapSeed }: InfoPanelProps) {
   return (
     <section
       className="info-card"
-      aria-labelledby="unit-info-heading"
+      aria-label={showingTerrain ? '지형 정보' : '부대 정보'}
       data-info-mode={unit ? 'unit' : 'terrain'}
     >
-      <p className="eyebrow">{showingTerrain ? 'TERRAIN' : 'SELECTED UNIT'}</p>
-      <h2 id="unit-info-heading">{showingTerrain ? '지형 정보' : '부대 정보'}</h2>
-
       {unit ? (
         <div className="unit-details">
           <div

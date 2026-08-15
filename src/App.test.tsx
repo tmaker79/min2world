@@ -60,7 +60,7 @@ describe('Milestone 07 UI', () => {
     expect(tooltip).toHaveTextContent('체력')
     expect(tooltip).toHaveTextContent(`${enemy.hp}/${enemy.maxHp}`)
 
-    const infoCard = screen.getByRole('heading', { name: '지형 정보' }).closest('section')
+    const infoCard = screen.getByLabelText('지형 정보')
     expect(infoCard).toHaveAttribute('data-info-mode', 'terrain')
     expect(infoCard).toHaveTextContent('이동 비용')
   })
@@ -76,7 +76,7 @@ describe('Milestone 07 UI', () => {
 
     await user.hover(tile)
 
-    const infoCard = screen.getByRole('heading', { name: '지형 정보' }).closest('section')
+    const infoCard = screen.getByLabelText('지형 정보')
     expect(infoCard).toHaveTextContent('평지')
     expect(infoCard).toHaveTextContent(`좌표 ${plain.position.q}, ${plain.position.r}`)
     expect(infoCard).toHaveTextContent('이동 비용')
@@ -213,7 +213,7 @@ describe('Milestone 07 UI', () => {
     expect(tile).toHaveAttribute('data-site-selected', 'true')
     expect(container.querySelector('.site-marker--selected')).toBeInTheDocument()
     expect(container.querySelector('.production-card')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: '부대 생산' })).toBeVisible()
+    expect(screen.getByLabelText('부대 생산')).toBeVisible()
   })
 
   it('opens chrome utility menus one at a time from the top bar', async () => {
