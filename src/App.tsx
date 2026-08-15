@@ -34,6 +34,7 @@ import {
 } from './game/selectors'
 import type { GameState, Tile, UnitType } from './game/types'
 import { useAiTurn } from './hooks/useAiTurn'
+import { useMapPan } from './hooks/useMapPan'
 import {
   deleteSavedGame,
   inspectSavedGame,
@@ -80,6 +81,7 @@ function App({ initialState }: AppProps = {}) {
   const [mapScrollElement, setMapScrollElement] = useState<HTMLDivElement | null>(
     null,
   )
+  const mapDragMovedRef = useMapPan(mapScrollElement)
   const playerProductionSites = useMemo(
     () =>
       state.sites.filter(
@@ -568,6 +570,7 @@ function App({ initialState }: AppProps = {}) {
                   state.activeFactionId !== 'player' ||
                   Boolean(activeCombat)
                 }
+                suppressClickRef={mapDragMovedRef}
                 onTileClick={handleTileClick}
                 onTileHoverChange={setHoveredTile}
               />

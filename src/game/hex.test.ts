@@ -7,20 +7,23 @@ import {
   getHexNeighbors,
   getOppositeBoardPosition,
   getHexPixelPosition,
+  HEX_COLUMNS,
+  HEX_ROWS,
+  HEX_TILE_COUNT,
   isPositionOnBoard,
   positionKey,
 } from './hex'
 
 describe('hex coordinates', () => {
-  it('creates a square 12 by 12 board with 144 unique cells', () => {
+  it(`creates a ${HEX_COLUMNS} by ${HEX_ROWS} board with ${HEX_TILE_COUNT} unique cells`, () => {
     const positions = getAllHexPositions()
 
-    expect(positions).toHaveLength(144)
-    expect(new Set(positions.map(positionKey))).toHaveLength(144)
+    expect(positions).toHaveLength(HEX_TILE_COUNT)
+    expect(new Set(positions.map(positionKey))).toHaveLength(HEX_TILE_COUNT)
     expect(positions.every((position) => isPositionOnBoard(position))).toBe(true)
     const rowCounts = new Map<number, number>()
     positions.forEach(({ r }) => rowCounts.set(r, (rowCounts.get(r) ?? 0) + 1))
-    expect([...rowCounts.values()]).toEqual(Array(12).fill(12))
+    expect([...rowCounts.values()]).toEqual(Array(HEX_ROWS).fill(HEX_COLUMNS))
     expect(
       positions.every((position) =>
         isPositionOnBoard(getOppositeBoardPosition(position)),
@@ -30,7 +33,11 @@ describe('hex coordinates', () => {
 
   it('returns six neighbors at the center and clips board-edge neighbors', () => {
     expect(getHexNeighbors({ q: 0, r: 0 })).toHaveLength(6)
-    expect(getHexNeighbors({ q: 5, r: 0 }).length).toBeLessThan(6)
+    const edge = getAllHexPositions().find(
+      (position) => getHexNeighbors(position).length < 6,
+    )
+    expect(edge).toBeDefined()
+    expect(getHexNeighbors(edge!).length).toBeLessThan(6)
   })
 
   it('uses axial hex distance and creates an inclusive straight line', () => {

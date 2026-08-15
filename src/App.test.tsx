@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
-import { getHexNeighbors, positionKey } from './game/hex'
+import { getHexNeighbors, HEX_TILE_COUNT, positionKey } from './game/hex'
 import { createInitialGameState } from './game/initialState'
 import type { GameState, Unit } from './game/types'
 
@@ -16,12 +16,12 @@ describe('Milestone 07 UI', () => {
     vi.restoreAllMocks()
   })
 
-  it('renders all 144 keyboard-focusable pointy hex tiles and the current seed', () => {
+  it('renders all keyboard-focusable pointy hex tiles and the current seed', () => {
     const { container } = renderApp()
     const map = screen.getByTestId('game-map')
     const tiles = map.querySelectorAll<HTMLButtonElement>('.map-tile')
 
-    expect(tiles).toHaveLength(144)
+    expect(tiles).toHaveLength(HEX_TILE_COUNT)
     expect([...tiles].every((tile) => tile.type === 'button' && !tile.disabled)).toBe(true)
     expect(container.querySelector('.app-chrome__seed')).toHaveTextContent('ui-seed')
     expect(container.querySelectorAll('.site-marker')).toHaveLength(8)
@@ -134,7 +134,7 @@ describe('Milestone 07 UI', () => {
     await user.type(input, '  next-map  ')
     await user.click(submit)
     expect(container.querySelector('.app-chrome__seed')).toHaveTextContent('next-map')
-    expect(container.querySelectorAll('.map-tile')).toHaveLength(144)
+    expect(container.querySelectorAll('.map-tile')).toHaveLength(HEX_TILE_COUNT)
   })
 
   it('asks before replacing a game that has progressed', async () => {

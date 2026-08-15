@@ -23,7 +23,7 @@ export const DEFAULT_MAP_SEED = 'min2world'
 
 const STARTING_RESOURCES = 15
 const MAX_GENERATION_ATTEMPTS = 128
-const CAPITAL_DISTANCE_FROM_CENTER = 5
+const CAPITAL_DISTANCE_FROM_CENTER = 9
 const SITE_PAIR_TYPES: readonly SiteType[] = ['city', 'village', 'mine']
 const STARTING_UNIT_TYPES: readonly UnitType[] = [
   'infantry',

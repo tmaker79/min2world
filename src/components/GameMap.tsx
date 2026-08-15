@@ -43,6 +43,7 @@ type GameMapProps = {
   selectedSiteId?: string
   combatAnimation?: CombatAnimation
   disabled: boolean
+  suppressClickRef?: { current: boolean }
   onTileClick: (tile: Tile) => void
   onTileHoverChange?: (tile: Tile | undefined) => void
 }
@@ -61,6 +62,7 @@ type TileButtonProps = {
   disabled: boolean
   style: CSSProperties
   onClick: () => void
+  suppressClickRef?: { current: boolean }
   onUnitHoverChange: (unitId: string | undefined, options?: { immediate?: boolean }) => void
   onTileHoverChange?: (tile: Tile | undefined) => void
 }
@@ -160,6 +162,7 @@ function TileButton({
   disabled,
   style,
   onClick,
+  suppressClickRef,
   onUnitHoverChange,
   onTileHoverChange,
 }: TileButtonProps) {
@@ -193,7 +196,12 @@ function TileButton({
       data-zone-of-control={inZoneOfControl ? 'true' : undefined}
       data-site-selected={siteSelected ? 'true' : undefined}
       disabled={disabled}
-      onClick={onClick}
+      onClick={() => {
+        if (suppressClickRef?.current) {
+          return
+        }
+        onClick()
+      }}
       onMouseEnter={() => {
         onTileHoverChange?.(tile)
         onUnitHoverChange(unit?.id)
@@ -366,6 +374,7 @@ export function GameMap({
   selectedSiteId,
   combatAnimation,
   disabled,
+  suppressClickRef,
   onTileClick,
   onTileHoverChange,
 }: GameMapProps) {
@@ -491,6 +500,7 @@ export function GameMap({
               disabled={disabled}
               style={getOverlayStyle(tile.position, minimumX, minimumY)}
               onClick={() => onTileClick(tile)}
+              suppressClickRef={suppressClickRef}
               onUnitHoverChange={handleUnitHoverChange}
               onTileHoverChange={onTileHoverChange}
             />

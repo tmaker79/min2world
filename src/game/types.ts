@@ -6,7 +6,7 @@ export type Terrain =
   | 'forest'
 
 export const GAME_SCHEMA_VERSION = 6
-export const MAP_GENERATION_VERSION = 1
+export const MAP_GENERATION_VERSION = 3
 export const FOREST_TERRAIN_VARIANT_COUNT = 2
 
 export type Position = {

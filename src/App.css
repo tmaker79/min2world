@@ -316,11 +316,28 @@
 
 .map-scroll {
   display: flex;
-  justify-content: center;
+  justify-content: safe center;
   align-items: flex-start;
   overflow: auto;
   max-height: min(78vh, 900px);
-  padding: 8px 2px;
+  padding: 8px 12px;
+  cursor: grab;
+  touch-action: none;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.map-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.map-scroll--panning {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.map-scroll--panning * {
+  cursor: grabbing;
 }
 
 .minimap {
@@ -435,6 +452,7 @@
 
 .game-map {
   position: relative;
+  box-sizing: content-box;
   flex: 0 0 auto;
   margin: 0 auto;
   padding: 8px;
@@ -448,7 +466,7 @@
 
 .map-layer {
   position: absolute;
-  inset: 0;
+  inset: 8px;
 }
 
 .map-layer--terrain {

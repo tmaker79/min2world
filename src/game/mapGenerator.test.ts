@@ -7,6 +7,7 @@ import {
   validateGeneratedMap,
 } from './mapGenerator'
 import { FOREST_TERRAIN_VARIANT_COUNT } from './types'
+import { HEX_TILE_COUNT } from './hex'
 
 describe('procedural map generation', () => {
   it('reproduces an identical state from the same seed', () => {
@@ -31,7 +32,7 @@ describe('procedural map generation', () => {
       const state = generateGameState(seed)
 
       expect(validateGeneratedMap(state)).toEqual([])
-      expect(state.tiles).toHaveLength(144)
+      expect(state.tiles).toHaveLength(HEX_TILE_COUNT)
       expect(state.tiles.map((tile) => tile.terrain)).not.toContain('road')
       expect(state.tiles.map((tile) => tile.terrain)).not.toContain('grassland')
       expect(state.tiles.map((tile) => tile.terrain)).not.toContain('steppe')
@@ -41,7 +42,7 @@ describe('procedural map generation', () => {
       expect(state.sites.filter((site) => site.kind === 'city')).toHaveLength(2)
       expect(state.sites.filter((site) => site.kind === 'village')).toHaveLength(2)
       expect(state.sites.filter((site) => site.kind === 'mine')).toHaveLength(2)
-      expect(state.mapGenerationVersion).toBe(1)
+      expect(state.mapGenerationVersion).toBe(3)
       expect(state.schemaVersion).toBe(6)
     },
   )

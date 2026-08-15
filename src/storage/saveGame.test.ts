@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { HEX_TILE_COUNT } from '../game/hex'
 import { createInitialGameState } from '../game/initialState'
 import {
   deleteSavedGame,
@@ -45,7 +46,7 @@ describe('schema 6 saves', () => {
     expect(loaded.ok).toBe(true)
     if (loaded.ok) {
       expect(loaded.value.gameState).toEqual(JSON.parse(JSON.stringify(state)))
-      expect(loaded.value.gameState.tiles).toHaveLength(144)
+      expect(loaded.value.gameState.tiles).toHaveLength(HEX_TILE_COUNT)
       expect(loaded.value.gameState.sites).toHaveLength(8)
       expect(loaded.value.gameState.mapSeed).toBe('save-roundtrip')
     }
@@ -65,8 +66,8 @@ describe('schema 6 saves', () => {
 
   it.each([
     ['empty seed', (state: ReturnType<typeof createInitialGameState>) => { state.mapSeed = '' }],
-    ['generation version', (state: ReturnType<typeof createInitialGameState>) => { state.mapGenerationVersion = 2 }],
-    ['out-of-board coordinate', (state: ReturnType<typeof createInitialGameState>) => { state.tiles[0].position = { q: 6, r: 0 } }],
+    ['generation version', (state: ReturnType<typeof createInitialGameState>) => { state.mapGenerationVersion = 1 }],
+    ['out-of-board coordinate', (state: ReturnType<typeof createInitialGameState>) => { state.tiles[0].position = { q: 20, r: 0 } }],
     ['unknown terrain', (state: ReturnType<typeof createInitialGameState>) => { state.tiles[0].terrain = 'lava' as never }],
     ['broken site reference', (state: ReturnType<typeof createInitialGameState>) => { state.tiles.find((tile) => tile.siteId)!.siteId = 'missing' }],
   ])('rejects invalid %s data', (_, mutate) => {
