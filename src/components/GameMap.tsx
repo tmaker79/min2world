@@ -40,6 +40,7 @@ type GameMapProps = {
   attackableKeys: Set<string>
   deployableKeys: Set<string>
   zoneOfControlKeys: Set<string>
+  selectedSiteId?: string
   combatAnimation?: CombatAnimation
   disabled: boolean
   onTileClick: (tile: Tile) => void
@@ -52,6 +53,7 @@ type TileButtonProps = {
   site?: Site
   mapSeed: string
   selected: boolean
+  siteSelected: boolean
   reachable: boolean
   attackable: boolean
   deployable: boolean
@@ -150,6 +152,7 @@ function TileButton({
   site,
   mapSeed,
   selected,
+  siteSelected,
   reachable,
   attackable,
   deployable,
@@ -164,6 +167,7 @@ function TileButton({
     'map-tile',
     `map-tile--${tile.terrain}`,
     selected ? 'map-tile--selected' : '',
+    siteSelected ? 'map-tile--site-selected' : '',
     reachable ? 'map-tile--reachable' : '',
     inZoneOfControl ? 'map-tile--zoc' : '',
     attackable ? 'map-tile--attackable' : '',
@@ -179,12 +183,15 @@ function TileButton({
       style={style}
       type="button"
       aria-label={getTileLabel(tile, unit, site, attackable, inZoneOfControl, deployable)}
-      aria-pressed={unit ? selected : undefined}
+      aria-pressed={
+        selected || siteSelected ? true : unit ? false : undefined
+      }
       data-coordinate={positionKey(tile.position)}
       data-reachable={reachable ? 'true' : undefined}
       data-attackable={attackable ? 'true' : undefined}
       data-deployable={deployable ? 'true' : undefined}
       data-zone-of-control={inZoneOfControl ? 'true' : undefined}
+      data-site-selected={siteSelected ? 'true' : undefined}
       disabled={disabled}
       onClick={onClick}
       onMouseEnter={() => {
@@ -247,16 +254,21 @@ function UnitTooltip({
 
 function SiteMarker({
   site,
+  selected,
   style,
 }: {
   site: Site
+  selected: boolean
   style: CSSProperties
 }) {
   return (
     <span className="map-overlay-cell" style={style}>
       <span
-        className={`site-marker site-marker--${site.kind} site-marker--${site.ownerId}`}
+        className={`site-marker site-marker--${site.kind} site-marker--${site.ownerId}${
+          selected ? ' site-marker--selected' : ''
+        }`}
         data-owner={site.ownerId}
+        data-site-selected={selected ? 'true' : undefined}
       >
         <SiteIcon kind={site.kind} />
         {site.ownerId !== 'neutral' && (
@@ -351,6 +363,7 @@ export function GameMap({
   attackableKeys,
   deployableKeys,
   zoneOfControlKeys,
+  selectedSiteId,
   combatAnimation,
   disabled,
   onTileClick,
@@ -456,6 +469,7 @@ export function GameMap({
           const unit = getUnitAt(state, tile.position)
           const site = getSiteAt(state, tile.position)
           const selected = Boolean(unit && unit.id === state.selectedUnitId)
+          const siteSelected = Boolean(selectedSiteId && site?.id === selectedSiteId)
           const reachable = reachableKeys.has(positionKey(tile.position))
           const attackable = attackableKeys.has(positionKey(tile.position))
           const deployable = deployableKeys.has(positionKey(tile.position))
@@ -469,6 +483,7 @@ export function GameMap({
               site={site}
               mapSeed={state.mapSeed}
               selected={selected}
+              siteSelected={siteSelected}
               reachable={reachable}
               attackable={attackable}
               deployable={deployable}
@@ -488,6 +503,7 @@ export function GameMap({
           <SiteMarker
             key={site.id}
             site={site}
+            selected={site.id === selectedSiteId}
             style={getOverlayStyle(site.position, minimumX, minimumY)}
           />
         ))}

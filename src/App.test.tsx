@@ -159,9 +159,19 @@ describe('Milestone 07 UI', () => {
   it('offers production only from a production-capable owned site', async () => {
     const user = userEvent.setup()
     const state = createInitialGameState('ui-production')
+    const stronghold = state.sites.find(
+      (site) => site.ownerId === 'player' && site.kind === 'stronghold',
+    )!
     const { container } = renderApp(state)
-    const options = container.querySelectorAll<HTMLButtonElement>('.production-option')
 
+    expect(container.querySelector('.production-card')).toBeNull()
+
+    const strongholdTile = container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(stronghold.position)}"]`,
+    )!
+    await user.click(strongholdTile)
+
+    const options = container.querySelectorAll<HTMLButtonElement>('.production-option')
     expect(options).toHaveLength(4)
     await user.click(options[0])
     const destination = container.querySelector<HTMLButtonElement>('[data-deployable="true"]')!
@@ -169,6 +179,40 @@ describe('Milestone 07 UI', () => {
 
     expect(container.querySelectorAll('.unit-token')).toHaveLength(7)
     expect(container.querySelector('.status-bar')).toHaveTextContent('5')
+  })
+
+  it('selects a unit on a stronghold first, then the stronghold on the next click', async () => {
+    const user = userEvent.setup()
+    const initial = createInitialGameState('ui-stack-select')
+    const stronghold = initial.sites.find(
+      (site) => site.ownerId === 'player' && site.kind === 'stronghold',
+    )!
+    const stacked: Unit = {
+      id: 'stacked',
+      name: 'stacked',
+      factionId: 'player',
+      type: 'infantry',
+      position: { ...stronghold.position },
+      hp: 100,
+      maxHp: 100,
+      movementRemaining: 2,
+      hasActed: false,
+    }
+    const { container } = renderApp({ ...initial, units: [stacked] })
+    const tile = container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(stronghold.position)}"]`,
+    )!
+
+    await user.click(tile)
+    expect(tile).toHaveAttribute('aria-pressed', 'true')
+    expect(container.querySelector('.production-card')).toBeNull()
+
+    await user.click(tile)
+    expect(tile).toHaveAttribute('aria-pressed', 'true')
+    expect(tile).toHaveAttribute('data-site-selected', 'true')
+    expect(container.querySelector('.site-marker--selected')).toBeInTheDocument()
+    expect(container.querySelector('.production-card')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '부대 생산' })).toBeVisible()
   })
 
   it('opens chrome utility menus one at a time from the top bar', async () => {

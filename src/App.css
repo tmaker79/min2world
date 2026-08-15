@@ -530,6 +530,12 @@
   filter: brightness(1.1);
 }
 
+.map-tile--site-selected {
+  --hex-border: #6ed7ff;
+  z-index: 2;
+  filter: brightness(1.12) saturate(1.08);
+}
+
 .map-tile:focus-visible {
   --hex-border: #ffffff;
   z-index: 6;
@@ -594,6 +600,16 @@
   height: 52px;
   place-items: center;
   overflow: visible;
+}
+
+.site-marker--selected {
+  animation: site-selected-pulse 1.4s ease-in-out infinite;
+}
+
+.site-marker--selected [data-site-icon] {
+  filter:
+    drop-shadow(0 0 6px rgba(110, 215, 255, 0.95))
+    drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
 }
 
 .site-marker [data-site-icon] {
@@ -818,9 +834,22 @@
 
   50% {
     box-shadow:
-      0 0 0 5px rgba(255, 229, 138, 0.55),
-      0 0 20px rgba(255, 214, 102, 0.9),
+      0 0 0 5px rgba(255, 229, 138, 1),
+      0 0 22px rgba(255, 214, 102, 0.95),
       0 6px 12px rgba(0, 0, 0, 0.45);
+  }
+}
+
+@keyframes site-selected-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+
+  50% {
+    transform: scale(1.06);
+    filter: brightness(1.15);
   }
 }
 
@@ -908,6 +937,7 @@
   .unit-token--striking,
   .unit-token--hit,
   .unit-token--defeated,
+  .site-marker--selected,
   .damage-popup {
     animation-duration: 1ms;
   }

@@ -68,6 +68,7 @@ function App({ initialState }: AppProps = {}) {
       (site) => site.ownerId === 'player' && SITE_STATS[site.kind].canProduce,
     )?.id ?? '',
   )
+  const [productionPanelOpen, setProductionPanelOpen] = useState(false)
   const [productionUnitType, setProductionUnitType] = useState<UnitType>()
   const [productionFeedback, setProductionFeedback] = useState<{
     type: 'status' | 'error'
@@ -229,6 +230,7 @@ function App({ initialState }: AppProps = {}) {
     setCombatPhase('attack')
     setHoveredTile(undefined)
     setProductionUnitType(undefined)
+    setProductionPanelOpen(false)
     setProductionSiteId(
       result.value.gameState.sites.find(
         (site) => site.ownerId === 'player' && SITE_STATS[site.kind].canProduce,
@@ -257,6 +259,13 @@ function App({ initialState }: AppProps = {}) {
     setSaveSlot(inspectSavedGame())
     setSaveFeedback({ type: 'status', message: '저장된 게임을 삭제했습니다.' })
   }
+
+  useEffect(() => {
+    if (state.phase !== 'playing' || state.activeFactionId !== 'player') {
+      setProductionPanelOpen(false)
+      setProductionUnitType(undefined)
+    }
+  }, [state.activeFactionId, state.phase])
 
   useEffect(() => {
     if (!activeCombat) {
@@ -331,6 +340,7 @@ function App({ initialState }: AppProps = {}) {
 
       event.preventDefault()
       setProductionUnitType(undefined)
+      setProductionPanelOpen(false)
       dispatch({ type: 'turnEnded' })
     }
 
@@ -349,6 +359,7 @@ function App({ initialState }: AppProps = {}) {
     }
 
     const unit = getUnitAt(state, tile.position)
+    const site = getSiteAt(state, tile.position)
 
     if (activeProductionUnitType && productionSite) {
       if (!deployableKeys.has(positionKey(tile.position))) {
@@ -373,11 +384,6 @@ function App({ initialState }: AppProps = {}) {
       return
     }
 
-    if (unit?.factionId === 'player') {
-      dispatch({ type: 'unitSelected', unitId: unit.id })
-      return
-    }
-
     if (selectedUnit && unit && attackableIds.has(unit.id)) {
       startCombat(selectedUnit.id, unit.id)
       return
@@ -389,7 +395,48 @@ function App({ initialState }: AppProps = {}) {
         unitId: selectedUnit.id,
         destination: tile.position,
       })
+      return
     }
+
+    if (unit?.factionId === 'player') {
+      const canSelectSite =
+        site &&
+        site.ownerId === 'player' &&
+        SITE_STATS[site.kind].canProduce
+
+      if (selectedUnit?.id === unit.id && canSelectSite) {
+        dispatch({ type: 'selectionCleared' })
+        setProductionSiteId(site.id)
+        setProductionPanelOpen(true)
+        setProductionUnitType(undefined)
+        setProductionFeedback(undefined)
+        return
+      }
+
+      dispatch({ type: 'unitSelected', unitId: unit.id })
+      setProductionPanelOpen(false)
+      setProductionUnitType(undefined)
+      setProductionFeedback(undefined)
+      return
+    }
+
+    if (
+      site &&
+      site.ownerId === 'player' &&
+      SITE_STATS[site.kind].canProduce
+    ) {
+      dispatch({ type: 'selectionCleared' })
+      setProductionSiteId(site.id)
+      setProductionPanelOpen(true)
+      setProductionUnitType(undefined)
+      setProductionFeedback(undefined)
+      return
+    }
+
+    dispatch({ type: 'selectionCleared' })
+    setProductionPanelOpen(false)
+    setProductionUnitType(undefined)
+    setProductionFeedback(undefined)
   }
 
   const hasProgress =
@@ -424,6 +471,7 @@ function App({ initialState }: AppProps = {}) {
     setCombatPhase('attack')
     setHoveredTile(undefined)
     setProductionUnitType(undefined)
+    setProductionPanelOpen(false)
     setProductionFeedback(undefined)
     setSaveFeedback(undefined)
     setSeedInput(normalizedSeed)
@@ -468,7 +516,7 @@ function App({ initialState }: AppProps = {}) {
             <h2 id="help-heading">작전 지침</h2>
             <ol>
               <li>푸른 유닛을 선택해 금색 칸으로 이동하거나 붉은 적을 공격합니다.</li>
-              <li>성에서 생산하고, 상단 메뉴에서 새 지도·저장을 엽니다.</li>
+              <li>아군 성을 선택해 생산하고, 상단 메뉴에서 새 지도·저장을 엽니다.</li>
               <li>모든 행동 후 턴을 종료합니다. 상세 규칙은 README를 참고하세요.</li>
             </ol>
             <Legend embedded />
@@ -489,6 +537,8 @@ function App({ initialState }: AppProps = {}) {
             }
             onEndTurn={() => {
               setProductionUnitType(undefined)
+              setProductionPanelOpen(false)
+              setProductionFeedback(undefined)
               dispatch({ type: 'turnEnded' })
             }}
           />
@@ -500,6 +550,9 @@ function App({ initialState }: AppProps = {}) {
               attackableKeys={attackableKeys}
               deployableKeys={deployableKeys}
               zoneOfControlKeys={zoneOfControlKeys}
+              selectedSiteId={
+                productionPanelOpen ? availableProductionSiteId : undefined
+              }
               combatAnimation={
                 activeCombat
                   ? { ...activeCombat, phase: combatPhase }
@@ -534,34 +587,36 @@ function App({ initialState }: AppProps = {}) {
             site={inspectedSite}
             mapSeed={state.mapSeed}
           />
-          <ProductionPanel
-            sites={playerProductionSites}
-            selectedSiteId={availableProductionSiteId}
-            selectedUnitType={activeProductionUnitType}
-            resource={state.resources.player}
-            turn={state.turn}
-            deployableCount={deployablePositions.length}
-            disabled={
-              state.phase !== 'playing' ||
-              state.activeFactionId !== 'player' ||
-              Boolean(activeCombat)
-            }
-            feedback={productionFeedback}
-            onSiteSelected={(siteId) => {
-              setProductionSiteId(siteId)
-              setProductionUnitType(undefined)
-              setProductionFeedback(undefined)
-            }}
-            onUnitTypeSelected={(unitType) => {
-              setProductionUnitType(unitType)
-              setProductionFeedback(undefined)
-              dispatch({ type: 'selectionCleared' })
-            }}
-            onCancel={() => {
-              setProductionUnitType(undefined)
-              setProductionFeedback(undefined)
-            }}
-          />
+          {productionPanelOpen && (
+            <ProductionPanel
+              sites={playerProductionSites}
+              selectedSiteId={availableProductionSiteId}
+              selectedUnitType={activeProductionUnitType}
+              resource={state.resources.player}
+              turn={state.turn}
+              deployableCount={deployablePositions.length}
+              disabled={
+                state.phase !== 'playing' ||
+                state.activeFactionId !== 'player' ||
+                Boolean(activeCombat)
+              }
+              feedback={productionFeedback}
+              onSiteSelected={(siteId) => {
+                setProductionSiteId(siteId)
+                setProductionUnitType(undefined)
+                setProductionFeedback(undefined)
+              }}
+              onUnitTypeSelected={(unitType) => {
+                setProductionUnitType(unitType)
+                setProductionFeedback(undefined)
+                dispatch({ type: 'selectionCleared' })
+              }}
+              onCancel={() => {
+                setProductionUnitType(undefined)
+                setProductionFeedback(undefined)
+              }}
+            />
+          )}
         </aside>
       </main>
       {aiAnnouncement && (
