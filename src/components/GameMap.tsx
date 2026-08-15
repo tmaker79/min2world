@@ -18,11 +18,7 @@ import { UnitIcon } from './UnitIcon'
 
 const UNIT_TOOLTIP_SHOW_DELAY_MS = 400
 
-export type CombatAnimationPhase =
-  | 'attack'
-  | 'defenderHit'
-  | 'counter'
-  | 'attackerHit'
+export type CombatAnimationPhase = 'attack' | 'hit'
 
 export type CombatAnimation = {
   attackerId: string
@@ -276,16 +272,20 @@ function UnitMarker({
         : 'healthy'
   const isAttacker = unit.id === combatAnimation?.attackerId
   const isDefender = unit.id === combatAnimation?.defenderId
+  const meleeExchange = Boolean(
+    combatAnimation && combatAnimation.damageToAttacker > 0,
+  )
   const isStriking =
-    (isAttacker && combatAnimation?.phase === 'attack') ||
-    (isDefender && combatAnimation?.phase === 'counter')
+    combatAnimation?.phase === 'attack' &&
+    (isAttacker || (isDefender && meleeExchange))
   const isHit =
-    (isDefender && combatAnimation?.phase === 'defenderHit') ||
-    (isAttacker && combatAnimation?.phase === 'attackerHit')
+    combatAnimation?.phase === 'hit' &&
+    ((isDefender && combatAnimation.damageToDefender > 0) ||
+      (isAttacker && combatAnimation.damageToAttacker > 0))
   const isDefeated =
     isHit &&
-    ((isDefender && combatAnimation?.defenderDefeated) ||
-      (isAttacker && combatAnimation?.attackerDefeated))
+    ((isDefender && combatAnimation.defenderDefeated) ||
+      (isAttacker && combatAnimation.attackerDefeated))
   const strikeTarget = isAttacker
     ? combatAnimation?.defenderPosition
     : combatAnimation?.attackerPosition
@@ -373,16 +373,22 @@ export function GameMap({
   const minimumY = Math.min(...pixelPositions.map((position) => position.y))
   const maximumX = Math.max(...pixelPositions.map((position) => position.x))
   const maximumY = Math.max(...pixelPositions.map((position) => position.y))
-  const hitUnit = combatAnimation?.phase === 'defenderHit'
-    ? state.units.find((unit) => unit.id === combatAnimation.defenderId)
-    : combatAnimation?.phase === 'attackerHit'
-      ? state.units.find((unit) => unit.id === combatAnimation.attackerId)
-      : undefined
-  const hitDamage = combatAnimation?.phase === 'defenderHit'
-    ? combatAnimation.damageToDefender
-    : combatAnimation?.phase === 'attackerHit'
-      ? combatAnimation.damageToAttacker
-      : undefined
+  const hitEffects =
+    combatAnimation?.phase === 'hit'
+      ? [
+          {
+            unit: state.units.find((unit) => unit.id === combatAnimation.defenderId),
+            damage: combatAnimation.damageToDefender,
+          },
+          {
+            unit: state.units.find((unit) => unit.id === combatAnimation.attackerId),
+            damage: combatAnimation.damageToAttacker,
+          },
+        ].filter(
+          (effect): effect is { unit: Unit; damage: number } =>
+            Boolean(effect.unit) && effect.damage > 0,
+        )
+      : []
   const hoveredUnit = hoveredUnitId
     ? state.units.find((unit) => unit.id === hoveredUnitId)
     : undefined
@@ -455,14 +461,15 @@ export function GameMap({
       </div>
 
       <div className="map-layer map-layer--effects" aria-hidden="true">
-        {hitUnit && hitDamage !== undefined && (
+        {hitEffects.map(({ unit, damage }) => (
           <span
+            key={unit.id}
             className="map-overlay-cell"
-            style={getOverlayStyle(hitUnit.position, minimumX, minimumY)}
+            style={getOverlayStyle(unit.position, minimumX, minimumY)}
           >
-            <span className="damage-popup">-{hitDamage}</span>
+            <span className="damage-popup">-{damage}</span>
           </span>
-        )}
+        ))}
       </div>
 
       <div className="map-layer map-layer--tooltips" aria-hidden="true">
@@ -477,12 +484,11 @@ export function GameMap({
 
       {combatAnimation && (
         <span className="sr-only" role="status" aria-live="polite">
-          {combatAnimation.phase === 'attack' && '공격 중'}
-          {combatAnimation.phase === 'defenderHit' &&
-            `방어 유닛이 ${combatAnimation.damageToDefender} 피해를 받았습니다`}
-          {combatAnimation.phase === 'counter' && '반격 중'}
-          {combatAnimation.phase === 'attackerHit' &&
-            `공격 유닛이 ${combatAnimation.damageToAttacker} 피해를 받았습니다`}
+          {combatAnimation.phase === 'attack' && '전투 중'}
+          {combatAnimation.phase === 'hit' &&
+            (combatAnimation.damageToAttacker > 0
+              ? `양쪽이 각각 ${combatAnimation.damageToDefender}, ${combatAnimation.damageToAttacker} 피해를 받았습니다`
+              : `방어 유닛이 ${combatAnimation.damageToDefender} 피해를 받았습니다`)}
         </span>
       )}
     </div>

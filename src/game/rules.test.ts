@@ -129,7 +129,7 @@ describe('hex combat rules', () => {
     expect(forest.attackerHp).toBe(73)
   })
 
-  it('never lets defenders counter archer attacks and uses ranged power', () => {
+  it('never lets defenders return damage against archer attacks and uses ranged power', () => {
     const attacker = unit('p1', 'player', 'archer', { q: 0, r: 0 })
     const defender = unit('e1', 'enemy', 'infantry', { q: 1, r: 0 })
     const result = resolveCombat(rulesState([attacker, defender]), attacker, defender)
@@ -147,28 +147,28 @@ describe('hex combat rules', () => {
     expect(result.attackerHp).toBe(84)
   })
 
-  it('applies infantry bonus against spearmen on attack and counter', () => {
+  it('applies infantry bonus against spearmen on both sides of an exchange', () => {
     const infantry = unit('p1', 'player', 'infantry', { q: 0, r: 0 })
     const spearman = unit('e1', 'enemy', 'spearman', { q: 1, r: 0 })
     const attack = resolveCombat(rulesState([infantry, spearman]), infantry, spearman)
-    const counter = resolveCombat(rulesState([spearman, infantry]), spearman, infantry)
+    const reverse = resolveCombat(rulesState([spearman, infantry]), spearman, infantry)
 
     expect(attack.defenderHp).toBe(63)
     expect(attack.attackerHp).toBe(75)
-    expect(counter.defenderHp).toBe(75)
-    expect(counter.attackerHp).toBe(63)
+    expect(reverse.defenderHp).toBe(75)
+    expect(reverse.attackerHp).toBe(63)
   })
 
-  it('applies spearman bonus against cavalry on attack and counter', () => {
+  it('applies spearman bonus against cavalry on both sides of an exchange', () => {
     const spearman = unit('p1', 'player', 'spearman', { q: 0, r: 0 })
     const cavalry = unit('e1', 'enemy', 'cavalry', { q: 1, r: 0 })
     const attack = resolveCombat(rulesState([spearman, cavalry]), spearman, cavalry)
-    const counter = resolveCombat(rulesState([cavalry, spearman]), cavalry, spearman)
+    const reverse = resolveCombat(rulesState([cavalry, spearman]), cavalry, spearman)
 
     expect(attack.defenderHp).toBe(63)
     expect(attack.attackerHp).toBe(75)
-    expect(counter.defenderHp).toBe(75)
-    expect(counter.attackerHp).toBe(63)
+    expect(reverse.defenderHp).toBe(75)
+    expect(reverse.attackerHp).toBe(63)
   })
 
   it('uses the Civilization 6 damage curve and health strength loss', () => {
@@ -186,6 +186,15 @@ describe('hex combat rules', () => {
 
     expect(result.defenderHp).toBe(75)
     expect(result.attackerHp).toBe(13)
+  })
+
+  it('still deals simultaneous return damage when the defender is defeated', () => {
+    const attacker = unit('p1', 'player', 'infantry', { q: 0, r: 0 })
+    const defender = unit('e1', 'enemy', 'infantry', { q: 1, r: 0 }, { hp: 20 })
+    const result = resolveCombat(rulesState([attacker, defender]), attacker, defender)
+
+    expect(result.defenderHp).toBe(0)
+    expect(result.attackerHp).toBe(78)
   })
 })
 

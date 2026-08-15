@@ -259,25 +259,13 @@ function App({ initialState }: AppProps = {}) {
       '(prefers-reduced-motion: reduce)',
     ).matches
     const timings = reducedMotion
-      ? { hit: 20, counter: 45, counterHit: 70, complete: 100 }
-      : { hit: 180, counter: 440, counterHit: 620, complete: 900 }
+      ? { hit: 20, complete: 70 }
+      : { hit: 220, complete: 560 }
     const timers: number[] = []
 
     timers.push(
-      window.setTimeout(() => setCombatPhase('defenderHit'), timings.hit),
+      window.setTimeout(() => setCombatPhase('hit'), timings.hit),
     )
-
-    if (!activeCombat.defenderDefeated && activeCombat.damageToAttacker > 0) {
-      timers.push(
-        window.setTimeout(() => setCombatPhase('counter'), timings.counter),
-      )
-      timers.push(
-        window.setTimeout(
-          () => setCombatPhase('attackerHit'),
-          timings.counterHit,
-        ),
-      )
-    }
 
     timers.push(
       window.setTimeout(() => {
@@ -287,7 +275,7 @@ function App({ initialState }: AppProps = {}) {
           defenderId: activeCombat.defenderId,
         })
         setActiveCombat(undefined)
-      }, activeCombat.defenderDefeated || activeCombat.damageToAttacker === 0 ? timings.counterHit : timings.complete),
+      }, timings.complete),
     )
 
     return () => timers.forEach(window.clearTimeout)

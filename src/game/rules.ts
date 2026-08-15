@@ -308,16 +308,17 @@ export function resolveCombat(
   const attackerStrength = getCombatStrength(state, attacker, defender, 'attack')
   const defenderStrength = getCombatStrength(state, defender, attacker, 'counter')
   const damageToDefender = getCombatDamage(attackerStrength, defenderStrength)
-  const defenderHp = Math.max(0, defender.hp - damageToDefender)
-  const canCounter = attacker.type !== 'archer' && defenderHp > 0
-  const damageToAttacker = canCounter
-    ? getCombatDamage(defenderStrength, attackerStrength)
-    : 0
-  const attackerHp = canCounter
-    ? Math.max(0, attacker.hp - damageToAttacker)
-    : attacker.hp
+  // Melee exchanges apply both sides' damage at once from pre-combat strength.
+  // Archer attacks stay one-way (no return damage).
+  const damageToAttacker =
+    attacker.type === 'archer'
+      ? 0
+      : getCombatDamage(defenderStrength, attackerStrength)
 
-  return { attackerHp, defenderHp }
+  return {
+    attackerHp: Math.max(0, attacker.hp - damageToAttacker),
+    defenderHp: Math.max(0, defender.hp - damageToDefender),
+  }
 }
 
 export function getDeployablePositions(
