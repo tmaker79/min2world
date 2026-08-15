@@ -110,8 +110,8 @@ describe('gameReducer on a hex map', () => {
       type: 'unitAttacked', attackerId: attacker.id, defenderId: defender.id,
     })
 
-    expect(result.units.find((unit) => unit.id === attacker.id)).toMatchObject({ hp: 55, hasActed: true })
-    expect(result.units.find((unit) => unit.id === defender.id)?.hp).toBe(55)
+    expect(result.units.find((unit) => unit.id === attacker.id)).toMatchObject({ hp: 70, hasActed: true })
+    expect(result.units.find((unit) => unit.id === defender.id)?.hp).toBe(70)
     expect(result.selectedUnitId).toBeUndefined()
   })
 

@@ -10,6 +10,8 @@ import {
   getHexDistance,
   getMovementCost,
   getReachablePositions,
+  getCombatDamage,
+  getHealthCombatPenalty,
   resolveCombat,
   SITE_STATS,
   UNIT_MAX_HP,
@@ -121,9 +123,10 @@ describe('hex combat rules', () => {
     )
     const forest = resolveCombat(forestState, attacker, defender)
 
-    expect(plain.defenderHp).toBe(55)
-    expect(forest.defenderHp).toBe(52)
-    expect(plain.attackerHp - forest.attackerHp).toBe(0)
+    expect(plain.defenderHp).toBe(70)
+    expect(plain.attackerHp).toBe(70)
+    expect(forest.defenderHp).toBe(66)
+    expect(forest.attackerHp).toBe(73)
   })
 
   it('never lets defenders counter archer attacks and uses ranged power', () => {
@@ -131,7 +134,7 @@ describe('hex combat rules', () => {
     const defender = unit('e1', 'enemy', 'infantry', { q: 1, r: 0 })
     const result = resolveCombat(rulesState([attacker, defender]), attacker, defender)
 
-    expect(result.defenderHp).toBe(60)
+    expect(result.defenderHp).toBe(75)
     expect(result.attackerHp).toBe(UNIT_MAX_HP)
   })
 
@@ -140,8 +143,8 @@ describe('hex combat rules', () => {
     const defender = unit('e1', 'enemy', 'archer', { q: 1, r: 0 })
     const result = resolveCombat(rulesState([attacker, defender]), attacker, defender)
 
-    expect(result.defenderHp).toBe(55)
-    expect(result.attackerHp).toBe(70)
+    expect(result.defenderHp).toBe(45)
+    expect(result.attackerHp).toBe(84)
   })
 
   it('applies infantry bonus against spearmen on attack and counter', () => {
@@ -150,10 +153,10 @@ describe('hex combat rules', () => {
     const attack = resolveCombat(rulesState([infantry, spearman]), infantry, spearman)
     const counter = resolveCombat(rulesState([spearman, infantry]), spearman, infantry)
 
-    expect(attack.defenderHp).toBe(50)
-    expect(attack.attackerHp).toBe(55)
-    expect(counter.defenderHp).toBe(55)
-    expect(counter.attackerHp).toBe(50)
+    expect(attack.defenderHp).toBe(63)
+    expect(attack.attackerHp).toBe(75)
+    expect(counter.defenderHp).toBe(75)
+    expect(counter.attackerHp).toBe(63)
   })
 
   it('applies spearman bonus against cavalry on attack and counter', () => {
@@ -162,10 +165,27 @@ describe('hex combat rules', () => {
     const attack = resolveCombat(rulesState([spearman, cavalry]), spearman, cavalry)
     const counter = resolveCombat(rulesState([cavalry, spearman]), cavalry, spearman)
 
-    expect(attack.defenderHp).toBe(45)
-    expect(attack.attackerHp).toBe(50)
-    expect(counter.defenderHp).toBe(50)
-    expect(counter.attackerHp).toBe(45)
+    expect(attack.defenderHp).toBe(63)
+    expect(attack.attackerHp).toBe(75)
+    expect(counter.defenderHp).toBe(75)
+    expect(counter.attackerHp).toBe(63)
+  })
+
+  it('uses the Civilization 6 damage curve and health strength loss', () => {
+    expect(getCombatDamage(45, 45)).toBe(30)
+    expect(getHealthCombatPenalty(unit('p1', 'player', 'infantry', { q: 0, r: 0 }))).toBe(0)
+    expect(
+      getHealthCombatPenalty(
+        unit('p1', 'player', 'infantry', { q: 0, r: 0 }, { hp: 50 }),
+      ),
+    ).toBe(-5)
+
+    const wounded = unit('p1', 'player', 'infantry', { q: 0, r: 0 }, { hp: 50 })
+    const healthy = unit('e1', 'enemy', 'infantry', { q: 1, r: 0 })
+    const result = resolveCombat(rulesState([wounded, healthy]), wounded, healthy)
+
+    expect(result.defenderHp).toBe(75)
+    expect(result.attackerHp).toBe(13)
   })
 })
 
@@ -173,16 +193,18 @@ describe('sites', () => {
   it('uses the configured income and production rules', () => {
     expect(SITE_STATS).toEqual({
       stronghold: { income: 5, canProduce: true },
-      city: { income: 4, canProduce: true },
+      city: { income: 4, canProduce: false },
       village: { income: 2, canProduce: false },
       mine: { income: 3, canProduce: false },
     })
 
     const state = createInitialGameState('sites')
     const playerCapital = state.sites.find((site) => site.capitalFor === 'player')!
+    const town = state.sites.find((site) => site.kind === 'city')!
     const village = state.sites.find((site) => site.kind === 'village')!
     expect(getFactionIncome(state, 'player')).toBe(5)
     expect(getDeployablePositions(state, playerCapital).length).toBeGreaterThan(0)
+    expect(getDeployablePositions(state, town)).toEqual([])
     expect(getDeployablePositions(state, village)).toEqual([])
   })
 

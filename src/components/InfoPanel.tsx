@@ -1,4 +1,4 @@
-import { UNIT_STATS, UNIT_TYPE_LABELS } from '../game/rules'
+import { getDisplayedCombatStrength, UNIT_STATS, UNIT_TYPE_LABELS } from '../game/rules'
 import type { Unit } from '../game/types'
 import { UnitIcon } from './UnitIcon'
 
@@ -39,12 +39,12 @@ export function InfoPanel({ unit }: InfoPanelProps) {
             </div>
             <div>
               <dt>근접 전투력</dt>
-              <dd>{UNIT_STATS[unit.type].melee}</dd>
+              <dd>{getDisplayedCombatStrength(unit, 'melee')}</dd>
             </div>
             {UNIT_STATS[unit.type].ranged > 0 && (
               <div>
                 <dt>원거리 전투력</dt>
-                <dd>{UNIT_STATS[unit.type].ranged}</dd>
+                <dd>{getDisplayedCombatStrength(unit, 'ranged')}</dd>
               </div>
             )}
             <div>

@@ -153,11 +153,7 @@ function parseSite(value: unknown): Site | undefined {
   }
   const position = parsePosition(value.position)
   const kind = value.kind as SiteType
-  if (
-    !position ||
-    (value.capitalFor !== undefined && kind !== 'stronghold') ||
-    (value.lastProducedTurn !== undefined && !SITE_STATS[kind].canProduce)
-  ) {
+  if (!position || (value.capitalFor !== undefined && kind !== 'stronghold')) {
     return undefined
   }
   return {
@@ -167,7 +163,9 @@ function parseSite(value: unknown): Site | undefined {
     position,
     ownerId: value.ownerId as SiteOwnerId,
     ...(value.capitalFor === undefined ? {} : { capitalFor: value.capitalFor as FactionId }),
-    ...(value.lastProducedTurn === undefined ? {} : { lastProducedTurn: value.lastProducedTurn as number }),
+    ...(value.lastProducedTurn === undefined || !SITE_STATS[kind].canProduce
+      ? {}
+      : { lastProducedTurn: value.lastProducedTurn as number }),
   }
 }
 

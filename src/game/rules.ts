@@ -46,15 +46,15 @@ export const UNIT_TYPE_LABELS: Record<UnitType, string> = {
 
 export const SITE_STATS: Record<SiteType, SiteStats> = {
   stronghold: { income: 5, canProduce: true },
-  city: { income: 4, canProduce: true },
+  city: { income: 4, canProduce: false },
   village: { income: 2, canProduce: false },
   mine: { income: 3, canProduce: false },
 }
 
 export const SITE_TYPE_LABELS: Record<SiteType, string> = {
   stronghold: '성',
-  city: '도시',
-  village: '마을',
+  city: '마을',
+  village: '농장',
   mine: '광산',
 }
 
@@ -249,21 +249,36 @@ export type CombatResult = {
   defenderHp: number
 }
 
+export const COMBAT_DAMAGE_BASE = 30
+export const COMBAT_DAMAGE_EXPONENT = 0.04
+export const HEALTH_STRENGTH_LOSS_PER_MISSING_HP = 0.1
+
 export function getMatchupBonus(strikerType: UnitType, targetType: UnitType) {
   if (strikerType === 'infantry' && targetType === 'spearman') return 5
   if (strikerType === 'spearman' && targetType === 'cavalry') return 10
   return 0
 }
 
-function getStrikePower(
+export function getHealthCombatPenalty(unit: Unit) {
+  if (unit.hp >= unit.maxHp) return 0
+  return (
+    -HEALTH_STRENGTH_LOSS_PER_MISSING_HP *
+    (100 - (unit.hp / unit.maxHp) * 100)
+  )
+}
+
+export function getDisplayedCombatStrength(unit: Unit, stat: 'melee' | 'ranged') {
+  return UNIT_STATS[unit.type][stat] + getHealthCombatPenalty(unit)
+}
+
+export function getCombatStrength(
   state: GameState,
   striker: Unit,
   target: Unit,
   mode: 'attack' | 'counter',
 ) {
   const stats = UNIT_STATS[striker.type]
-  const terrain =
-    getTileAt(state, striker.position)?.terrain ?? 'plain'
+  const terrain = getTileAt(state, striker.position)?.terrain ?? 'plain'
   const base =
     mode === 'attack' && striker.type === 'archer' ? stats.ranged : stats.melee
   const matchup =
@@ -271,7 +286,18 @@ function getStrikePower(
       ? 0
       : getMatchupBonus(striker.type, target.type)
 
-  return Math.max(1, base + matchup + TERRAIN_COMBAT_BONUS[terrain])
+  return base + matchup + TERRAIN_COMBAT_BONUS[terrain] + getHealthCombatPenalty(striker)
+}
+
+export function getCombatDamage(
+  strikerStrength: number,
+  targetStrength: number,
+) {
+  const difference = strikerStrength - targetStrength
+  return Math.max(
+    1,
+    Math.round(COMBAT_DAMAGE_BASE * Math.exp(COMBAT_DAMAGE_EXPONENT * difference)),
+  )
 }
 
 export function resolveCombat(
@@ -279,11 +305,13 @@ export function resolveCombat(
   attacker: Unit,
   defender: Unit,
 ): CombatResult {
-  const damageToDefender = getStrikePower(state, attacker, defender, 'attack')
+  const attackerStrength = getCombatStrength(state, attacker, defender, 'attack')
+  const defenderStrength = getCombatStrength(state, defender, attacker, 'counter')
+  const damageToDefender = getCombatDamage(attackerStrength, defenderStrength)
   const defenderHp = Math.max(0, defender.hp - damageToDefender)
   const canCounter = attacker.type !== 'archer' && defenderHp > 0
   const damageToAttacker = canCounter
-    ? getStrikePower(state, defender, attacker, 'counter')
+    ? getCombatDamage(defenderStrength, attackerStrength)
     : 0
   const attackerHp = canCounter
     ? Math.max(0, attacker.hp - damageToAttacker)

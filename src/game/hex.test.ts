@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { getTerrainVariantIndex } from '../components/TerrainIcon'
 import {
   getAllHexPositions,
   getHexDistance,
@@ -50,5 +51,17 @@ describe('hex coordinates', () => {
     })
 
     expect(new Set(neighbors)).toHaveLength(6)
+  })
+
+  it('picks a stable terrain icon variant from hex coordinates', () => {
+    expect(getTerrainVariantIndex({ q: 1, r: -2 }, 7)).toBe(
+      getTerrainVariantIndex({ q: 1, r: -2 }, 7),
+    )
+    const variants = new Set(
+      Array.from({ length: 24 }, (_, index) =>
+        getTerrainVariantIndex({ q: index - 12, r: 1 }, 4),
+      ),
+    )
+    expect(variants.size).toBeGreaterThan(1)
   })
 })

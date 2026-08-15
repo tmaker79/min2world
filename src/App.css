@@ -441,16 +441,16 @@
 }
 
 .map-tile--hill {
-  background: linear-gradient(145deg, #8b8661, #6e7453);
+  background: linear-gradient(145deg, #8fa05a, #6a7a48);
 }
 
 .map-tile--mountain {
-  background: linear-gradient(145deg, #918b74, #6c695b);
+  background: linear-gradient(145deg, #6e7278, #4f5358);
 }
 
 .map-tile--water {
   color: rgba(225, 241, 244, 0.5);
-  background: linear-gradient(145deg, #477985, #315e6d);
+  background: #365172;
 }
 
 .map-tile--water,
@@ -523,70 +523,84 @@
   pointer-events: none;
 }
 
-.terrain-mark--mountain {
-  color: #504f45;
-  font-size: 1.5rem;
-  text-shadow: 8px 4px rgba(69, 69, 60, 0.38);
-}
-
+.terrain-mark--mountain,
+.terrain-mark--hill,
+.terrain-mark--forest,
 .terrain-mark--water {
-  color: #b1d9df;
-  font-size: 2rem;
-  transform: rotate(-6deg);
+  display: grid;
+  place-items: center;
+  opacity: 1;
 }
 
-.terrain-mark--forest {
-  color: #234939;
-  font-size: 1.4rem;
+.terrain-mark--mountain,
+.terrain-mark--hill,
+.terrain-mark--forest,
+.terrain-mark--water {
+  inset: 0;
 }
 
-.terrain-mark--hill {
-  color: #555b3c;
-  font-size: 1.35rem;
+.terrain-mark [data-terrain-icon='forest'],
+.terrain-mark [data-terrain-icon='hill'],
+.terrain-mark [data-terrain-icon='mountain'],
+.terrain-mark [data-terrain-icon='water'] {
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
 }
 
 .site-marker {
   display: grid;
   position: relative;
-  width: 30px;
-  height: 28px;
+  width: 54px;
+  height: 52px;
   place-items: center;
-  color: #f7f4e9;
-  border: 2px solid rgba(255, 255, 255, 0.5);
-  border-radius: 2px 2px 8px 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-  font-size: 0.72rem;
-  font-weight: 900;
+  overflow: visible;
 }
 
-.site-marker--player {
-  background: #347da8;
+.site-marker [data-site-icon] {
+  width: 52px;
+  height: 50px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
 }
 
-.site-marker--enemy {
-  background: #a34840;
-}
-
-.site-marker--neutral {
-  color: #283036;
-  background: #d0bc86;
-  border-color: rgba(255, 247, 218, 0.65);
-}
-
-.site-marker--city {
-  border-radius: 4px;
-}
-
-.site-marker--village {
-  width: 27px;
+.site-banner {
+  position: absolute;
+  z-index: 1;
+  top: 2px;
+  left: 4px;
+  width: 15px;
   height: 24px;
-  border-radius: 50% 50% 5px 5px;
 }
 
-.site-marker--mine {
-  width: 28px;
-  height: 25px;
-  border-radius: 12px 12px 3px 3px;
+.site-banner::before {
+  position: absolute;
+  top: 0;
+  left: 1px;
+  width: 2px;
+  height: 100%;
+  background: #3a2a1c;
+  border-radius: 1px;
+  content: '';
+}
+
+.site-banner::after {
+  position: absolute;
+  top: 1px;
+  left: 3px;
+  width: 11px;
+  height: 8px;
+  clip-path: polygon(0 0, 100% 45%, 0 100%);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.35);
+  content: '';
+}
+
+.site-banner--player::after {
+  background: #4aa3d4;
+}
+
+.site-banner--enemy::after {
+  background: #d45b52;
 }
 
 .unit-token {
@@ -653,10 +667,10 @@
   position: absolute;
   z-index: 2;
   display: block;
-  bottom: -8px;
+  bottom: -6px;
   left: 50%;
-  width: 42px;
-  height: 6px;
+  width: 34px;
+  height: 5px;
   overflow: hidden;
   background: rgba(31, 25, 23, 0.82);
   border: 1px solid rgba(255, 255, 255, 0.55);
@@ -1188,20 +1202,38 @@
   background: #71865f;
 }
 
+.legend-swatch--forest,
+.legend-swatch--hill,
+.legend-swatch--mountain,
+.legend-swatch--water {
+  display: grid;
+  overflow: hidden;
+  place-items: center;
+}
+
 .legend-swatch--forest {
   background: #40664d;
 }
 
 .legend-swatch--hill {
-  background: #797b56;
+  background: #74854c;
 }
 
 .legend-swatch--mountain {
-  background: #807b69;
+  background: #5b6066;
+}
+
+.legend-swatch [data-terrain-icon='forest'],
+.legend-swatch [data-terrain-icon='hill'],
+.legend-swatch [data-terrain-icon='mountain'],
+.legend-swatch [data-terrain-icon='water'] {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .legend-swatch--water {
-  background: #3b6c79;
+  background: #365172;
 }
 
 .legend-swatch--reachable {
@@ -1235,24 +1267,35 @@
   width: 21px;
   height: 18px;
   place-items: center;
-  background: #d0bc86;
-  border: 1px solid rgba(255, 255, 255, 0.35);
 }
 
-.legend-site--stronghold {
+.legend-flag {
+  display: block;
+  width: 14px;
+  height: 10px;
+  clip-path: polygon(0 0, 100% 45%, 0 100%);
+}
+
+.legend-flag--player {
+  background: #4aa3d4;
+}
+
+.legend-flag--enemy {
+  background: #d45b52;
+}
+
+.legend-site--stronghold,
+.legend-site--city,
+.legend-site--village,
+.legend-site--mine {
+  overflow: hidden;
   border-radius: 2px 2px 7px 7px;
 }
 
-.legend-site--city {
-  border-radius: 3px;
-}
-
-.legend-site--village {
-  border-radius: 50% 50% 3px 3px;
-}
-
-.legend-site--mine {
-  border-radius: 9px 9px 2px 2px;
+.legend-site [data-site-icon] {
+  width: 18px;
+  height: 16px;
+  object-fit: contain;
 }
 
 .help-card ol {

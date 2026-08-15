@@ -205,7 +205,7 @@ function chooseNeutralSites(
 
   return pairs.map(({ kind, position }, index) => ({
     id: `site-${kind}-${index + 1}`,
-    name: `${kind === 'city' ? '중립 도시' : kind === 'village' ? '중립 마을' : '중립 광산'} ${Math.floor(index / 2) + 1}`,
+    name: `${kind === 'city' ? '중립 마을' : kind === 'village' ? '중립 농장' : '중립 광산'} ${Math.floor(index / 2) + 1}`,
     kind,
     position: { ...position },
     ownerId: 'neutral',

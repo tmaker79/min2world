@@ -1,3 +1,6 @@
+import { SiteIcon } from './SiteIcon'
+import { hasTerrainImage, TerrainIcon } from './TerrainIcon'
+
 const TERRAIN_ITEMS = [
   ['plain', '평지', '비용 1'],
   ['forest', '숲', '비용 2 · 전투력 +3'],
@@ -14,14 +17,18 @@ export function Legend() {
       <ul>
         {TERRAIN_ITEMS.map(([terrain, label, detail]) => (
           <li key={terrain}>
-            <span className={`legend-swatch legend-swatch--${terrain}`} />
+            <span className={`legend-swatch legend-swatch--${terrain}`}>
+              {hasTerrainImage(terrain) && <TerrainIcon terrain={terrain} />}
+            </span>
             {label} <small>{detail}</small>
           </li>
         ))}
-        <li><span className="legend-site legend-site--stronghold" />성 <small>수입 5 · 생산</small></li>
-        <li><span className="legend-site legend-site--city" />도시 <small>수입 4 · 생산</small></li>
-        <li><span className="legend-site legend-site--village" />마을 <small>수입 2</small></li>
-        <li><span className="legend-site legend-site--mine" />광산 <small>수입 3</small></li>
+        <li><span className="legend-site legend-site--stronghold"><SiteIcon kind="stronghold" /></span>성 <small>수입 5 · 생산</small></li>
+        <li><span className="legend-site legend-site--city"><SiteIcon kind="city" /></span>마을 <small>수입 4</small></li>
+        <li><span className="legend-site legend-site--village"><SiteIcon kind="village" /></span>농장 <small>수입 2</small></li>
+        <li><span className="legend-site legend-site--mine"><SiteIcon kind="mine" /></span>광산 <small>수입 3</small></li>
+        <li><span className="legend-flag legend-flag--player" />아군 점령</li>
+        <li><span className="legend-flag legend-flag--enemy" />적 점령</li>
         <li><span className="legend-swatch legend-swatch--reachable" />이동 가능</li>
         <li><span className="legend-swatch legend-swatch--attackable" />공격 가능</li>
         <li><span className="legend-swatch legend-swatch--deployable" />생산 배치 가능</li>

@@ -5,12 +5,15 @@ import {
   getSiteAt,
   getUnitAt,
   positionKey,
+  getDisplayedCombatStrength,
   SITE_TYPE_LABELS,
   TERRAIN_LABELS,
   UNIT_STATS,
   UNIT_TYPE_LABELS,
 } from '../game/rules'
 import type { GameState, Position, Site, Tile, Unit } from '../game/types'
+import { SiteIcon } from './SiteIcon'
+import { TerrainIcon } from './TerrainIcon'
 import { UnitIcon } from './UnitIcon'
 
 const UNIT_TOOLTIP_SHOW_DELAY_MS = 400
@@ -99,16 +102,6 @@ function getTileLabel(
   return parts.join(', ')
 }
 
-function getTerrainMark(terrain: Tile['terrain']): string | undefined {
-  return {
-    plain: undefined,
-    mountain: '▲',
-    water: '≋',
-    hill: '◒',
-    forest: '♣',
-  }[terrain]
-}
-
 function getOverlayStyle(
   position: Position,
   minimumX: number,
@@ -129,11 +122,14 @@ function getUnitTooltipRows(unit: Unit) {
   const rows = [
     { label: '병종', value: UNIT_TYPE_LABELS[unit.type] },
     { label: '체력', value: `${unit.hp}/${unit.maxHp}` },
-    { label: '근접', value: String(stats.melee) },
+    { label: '근접', value: String(getDisplayedCombatStrength(unit, 'melee')) },
   ]
 
   if (stats.ranged > 0) {
-    rows.push({ label: '원거리', value: String(stats.ranged) })
+    rows.push({
+      label: '원거리',
+      value: String(getDisplayedCombatStrength(unit, 'ranged')),
+    })
   }
 
   if (unit.factionId === 'player') {
@@ -161,7 +157,6 @@ function TileButton({
   onClick,
   onUnitHoverChange,
 }: TileButtonProps) {
-  const terrainMark = getTerrainMark(tile.terrain)
   const classNames = [
     'map-tile',
     `map-tile--${tile.terrain}`,
@@ -194,9 +189,9 @@ function TileButton({
       onFocus={() => onUnitHoverChange(unit?.id, { immediate: true })}
       onBlur={() => onUnitHoverChange(undefined)}
     >
-      {terrainMark && (
+      {tile.terrain !== 'plain' && (
         <span className={`terrain-mark terrain-mark--${tile.terrain}`} aria-hidden="true">
-          {terrainMark}
+          <TerrainIcon terrain={tile.terrain} position={tile.position} />
         </span>
       )}
     </button>
@@ -244,14 +239,12 @@ function SiteMarker({
     <span className="map-overlay-cell" style={style}>
       <span
         className={`site-marker site-marker--${site.kind} site-marker--${site.ownerId}`}
+        data-owner={site.ownerId}
       >
-        {site.kind === 'stronghold'
-          ? '성'
-          : site.kind === 'city'
-            ? '도'
-            : site.kind === 'village'
-              ? '촌'
-              : '광'}
+        <SiteIcon kind={site.kind} />
+        {site.ownerId !== 'neutral' && (
+          <span className={`site-banner site-banner--${site.ownerId}`} />
+        )}
       </span>
     </span>
   )

@@ -11,13 +11,13 @@ const RESULT_CONTENT = {
   victory: {
     eyebrow: 'CAMPAIGN COMPLETE',
     heading: '대륙 통일',
-    description: '푸른 연맹이 모든 도시를 점령했습니다.',
+    description: '푸른 연맹이 모든 거점을 점령했습니다.',
     summary: '승리',
   },
   defeat: {
     eyebrow: 'CAMPAIGN LOST',
     heading: '수도 함락',
-    description: '붉은 제국이 모든 도시를 점령했습니다.',
+    description: '붉은 제국이 모든 거점을 점령했습니다.',
     summary: '패배',
   },
 } as const
