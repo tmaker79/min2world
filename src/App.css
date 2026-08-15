@@ -309,6 +309,11 @@
   font-size: 1.15rem;
 }
 
+.map-stage {
+  position: relative;
+  min-width: 0;
+}
+
 .map-scroll {
   display: flex;
   justify-content: center;
@@ -316,6 +321,75 @@
   overflow: auto;
   max-height: min(78vh, 900px);
   padding: 8px 2px;
+}
+
+.minimap {
+  position: absolute;
+  z-index: 12;
+  left: 10px;
+  bottom: 10px;
+  display: grid;
+  padding: 6px;
+  place-items: center;
+  background: rgba(10, 16, 20, 0.88);
+  border: 1px solid rgba(228, 185, 95, 0.4);
+  border-radius: 8px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+
+.minimap__svg {
+  display: block;
+  overflow: visible;
+}
+
+.minimap__tile {
+  stroke: rgba(8, 12, 14, 0.35);
+  stroke-width: 0.4;
+}
+
+.minimap__site {
+  stroke: rgba(255, 255, 255, 0.55);
+  stroke-width: 0.5;
+}
+
+.minimap__site--player {
+  fill: #4aa3d8;
+}
+
+.minimap__site--enemy {
+  fill: #c45a52;
+}
+
+.minimap__site--neutral {
+  fill: #d7b45a;
+}
+
+.minimap__unit {
+  stroke: rgba(255, 255, 255, 0.75);
+  stroke-width: 0.55;
+}
+
+.minimap__unit--player {
+  fill: #6ec4f0;
+}
+
+.minimap__unit--enemy {
+  fill: #ef7466;
+}
+
+.minimap__unit--selected {
+  stroke: #ffe58a;
+  stroke-width: 1;
+}
+
+.minimap__viewport {
+  fill: rgba(255, 229, 138, 0.12);
+  stroke: #ffe58a;
+  stroke-width: 1.2;
+  pointer-events: none;
 }
 
 .game-map {

@@ -32,6 +32,7 @@ describe('Milestone 07 UI', () => {
     expect(container.querySelector('.map-layer--units .unit-health-bar')).toBeInTheDocument()
     expect(container.querySelector('.unit-health-bar')?.closest('.map-tile')).toBeNull()
     expect(container.querySelector('.site-marker')?.closest('.map-tile')).toBeNull()
+    expect(screen.getByTestId('minimap')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '저장' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '도움말' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '범례' })).not.toBeInTheDocument()

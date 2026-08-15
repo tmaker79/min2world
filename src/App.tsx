@@ -9,6 +9,7 @@ import type {
 } from './components/GameMap'
 import { InfoPanel } from './components/InfoPanel'
 import { Legend } from './components/Legend'
+import { Minimap } from './components/Minimap'
 import { ProductionPanel } from './components/ProductionPanel'
 import { SavePanel } from './components/SavePanel'
 import { StatusBar } from './components/StatusBar'
@@ -76,6 +77,9 @@ function App({ initialState }: AppProps = {}) {
   }>()
   const [openChromeMenu, setOpenChromeMenu] = useState<ChromeMenuId | null>(null)
   const [hoveredTile, setHoveredTile] = useState<Tile>()
+  const [mapScrollElement, setMapScrollElement] = useState<HTMLDivElement | null>(
+    null,
+  )
   const playerProductionSites = useMemo(
     () =>
       state.sites.filter(
@@ -543,29 +547,32 @@ function App({ initialState }: AppProps = {}) {
             }}
           />
 
-          <div className="map-scroll">
-            <GameMap
-              state={state}
-              reachableKeys={reachableKeys}
-              attackableKeys={attackableKeys}
-              deployableKeys={deployableKeys}
-              zoneOfControlKeys={zoneOfControlKeys}
-              selectedSiteId={
-                productionPanelOpen ? availableProductionSiteId : undefined
-              }
-              combatAnimation={
-                activeCombat
-                  ? { ...activeCombat, phase: combatPhase }
-                  : undefined
-              }
-              disabled={
-                state.phase !== 'playing' ||
-                state.activeFactionId !== 'player' ||
-                Boolean(activeCombat)
-              }
-              onTileClick={handleTileClick}
-              onTileHoverChange={setHoveredTile}
-            />
+          <div className="map-stage">
+            <div className="map-scroll" ref={setMapScrollElement}>
+              <GameMap
+                state={state}
+                reachableKeys={reachableKeys}
+                attackableKeys={attackableKeys}
+                deployableKeys={deployableKeys}
+                zoneOfControlKeys={zoneOfControlKeys}
+                selectedSiteId={
+                  productionPanelOpen ? availableProductionSiteId : undefined
+                }
+                combatAnimation={
+                  activeCombat
+                    ? { ...activeCombat, phase: combatPhase }
+                    : undefined
+                }
+                disabled={
+                  state.phase !== 'playing' ||
+                  state.activeFactionId !== 'player' ||
+                  Boolean(activeCombat)
+                }
+                onTileClick={handleTileClick}
+                onTileHoverChange={setHoveredTile}
+              />
+            </div>
+            <Minimap state={state} scrollElement={mapScrollElement} />
           </div>
 
           {state.phase !== 'playing' && (
