@@ -1313,7 +1313,7 @@
 
 .result-overlay {
   position: absolute;
-  z-index: 10;
+  z-index: 50;
   display: grid;
   inset: 0;
   padding: 24px;
