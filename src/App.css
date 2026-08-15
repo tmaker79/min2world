@@ -273,7 +273,7 @@
 
 .game-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   align-items: start;
 }
@@ -338,6 +338,47 @@
   cursor: crosshair;
   touch-action: none;
   user-select: none;
+}
+
+.map-hud {
+  position: absolute;
+  z-index: 12;
+  right: 10px;
+  bottom: 10px;
+  display: grid;
+  width: min(320px, calc(100% - 24px));
+  max-height: min(62%, 420px);
+  overflow: auto;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.map-hud > * {
+  pointer-events: auto;
+}
+
+.map-hud .info-card,
+.map-hud .production-card {
+  margin: 0;
+  padding: 12px;
+  background: rgba(18, 26, 32, 0.94);
+  border: 1px solid rgba(228, 185, 95, 0.35);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(6px);
+}
+
+.map-hud .info-card h2,
+.map-hud .production-card h2 {
+  font-size: 1rem;
+}
+
+.map-hud .unit-details {
+  margin-top: 12px;
+}
+
+.map-hud .production-list {
+  max-height: 180px;
+  overflow: auto;
 }
 
 .minimap__svg {
@@ -1586,12 +1627,13 @@
     grid-template-columns: 1fr;
   }
 
-  .side-panel {
-    grid-template-columns: 1fr;
-  }
-
   .map-scroll {
     max-height: min(70vh, 720px);
+  }
+
+  .map-hud {
+    width: min(280px, calc(100% - 20px));
+    max-height: min(48%, 320px);
   }
 }
 

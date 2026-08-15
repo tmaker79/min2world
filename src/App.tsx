@@ -573,6 +573,44 @@ function App({ initialState }: AppProps = {}) {
               />
             </div>
             <Minimap state={state} scrollElement={mapScrollElement} />
+            <aside className="map-hud" aria-label="선택 정보">
+              <InfoPanel
+                unit={selectedUnit}
+                tile={productionPanelOpen ? undefined : inspectedTile}
+                site={productionPanelOpen ? undefined : inspectedSite}
+                mapSeed={state.mapSeed}
+              />
+              {productionPanelOpen && (
+                <ProductionPanel
+                  sites={playerProductionSites}
+                  selectedSiteId={availableProductionSiteId}
+                  selectedUnitType={activeProductionUnitType}
+                  resource={state.resources.player}
+                  turn={state.turn}
+                  deployableCount={deployablePositions.length}
+                  disabled={
+                    state.phase !== 'playing' ||
+                    state.activeFactionId !== 'player' ||
+                    Boolean(activeCombat)
+                  }
+                  feedback={productionFeedback}
+                  onSiteSelected={(siteId) => {
+                    setProductionSiteId(siteId)
+                    setProductionUnitType(undefined)
+                    setProductionFeedback(undefined)
+                  }}
+                  onUnitTypeSelected={(unitType) => {
+                    setProductionUnitType(unitType)
+                    setProductionFeedback(undefined)
+                    dispatch({ type: 'selectionCleared' })
+                  }}
+                  onCancel={() => {
+                    setProductionUnitType(undefined)
+                    setProductionFeedback(undefined)
+                  }}
+                />
+              )}
+            </aside>
           </div>
 
           {state.phase !== 'playing' && (
@@ -586,45 +624,6 @@ function App({ initialState }: AppProps = {}) {
             />
           )}
         </section>
-
-        <aside className="side-panel" aria-label="게임 정보">
-          <InfoPanel
-            unit={selectedUnit}
-            tile={inspectedTile}
-            site={inspectedSite}
-            mapSeed={state.mapSeed}
-          />
-          {productionPanelOpen && (
-            <ProductionPanel
-              sites={playerProductionSites}
-              selectedSiteId={availableProductionSiteId}
-              selectedUnitType={activeProductionUnitType}
-              resource={state.resources.player}
-              turn={state.turn}
-              deployableCount={deployablePositions.length}
-              disabled={
-                state.phase !== 'playing' ||
-                state.activeFactionId !== 'player' ||
-                Boolean(activeCombat)
-              }
-              feedback={productionFeedback}
-              onSiteSelected={(siteId) => {
-                setProductionSiteId(siteId)
-                setProductionUnitType(undefined)
-                setProductionFeedback(undefined)
-              }}
-              onUnitTypeSelected={(unitType) => {
-                setProductionUnitType(unitType)
-                setProductionFeedback(undefined)
-                dispatch({ type: 'selectionCleared' })
-              }}
-              onCancel={() => {
-                setProductionUnitType(undefined)
-                setProductionFeedback(undefined)
-              }}
-            />
-          )}
-        </aside>
       </main>
       {aiAnnouncement && (
         <span className="sr-only" role="status" aria-live="polite">
