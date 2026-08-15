@@ -30,17 +30,13 @@ function movementCostLabel(terrain: Tile['terrain']) {
 }
 
 export function InfoPanel({ unit, tile, site, mapSeed }: InfoPanelProps) {
-  const showingTerrain = !unit && Boolean(tile)
-
-  if (!unit && !tile) {
-    return null
-  }
+  const mode = unit ? 'unit' : tile ? 'terrain' : 'empty'
 
   return (
     <section
       className="info-card"
-      aria-label={showingTerrain ? '지형 정보' : '부대 정보'}
-      data-info-mode={unit ? 'unit' : 'terrain'}
+      aria-label={mode === 'unit' ? '부대 정보' : mode === 'terrain' ? '지형 정보' : '정보 패널'}
+      data-info-mode={mode}
     >
       {unit ? (
         <div className="unit-details">
@@ -77,55 +73,41 @@ export function InfoPanel({ unit, tile, site, mapSeed }: InfoPanelProps) {
                 <dd>{getDisplayedCombatStrength(unit, 'ranged')}</dd>
               </div>
             )}
-            <div>
-              <dt>공격 사거리</dt>
-              <dd>{UNIT_STATS[unit.type].range}</dd>
-            </div>
-            <div>
-              <dt>상태</dt>
-              <dd>
-                {unit.hasActed
-                  ? '행동 완료'
-                  : unit.movementRemaining === 0
-                    ? '공격만 가능'
-                    : '행동 가능'}
-              </dd>
-            </div>
           </dl>
         </div>
-      ) : (
+      ) : tile ? (
         <div className="unit-details terrain-details">
           <div
-            className={`terrain-portrait terrain-portrait--${tile!.terrain}`}
+            className={`terrain-portrait terrain-portrait--${tile.terrain}`}
             aria-hidden="true"
           >
-            {hasTerrainImage(tile!.terrain) ? (
+            {hasTerrainImage(tile.terrain) ? (
               <TerrainIcon
-                terrain={tile!.terrain}
-                position={tile!.position}
+                terrain={tile.terrain}
+                position={tile.position}
                 seed={mapSeed}
-                variantIndex={tile!.terrainVariant}
+                variantIndex={tile.terrainVariant}
               />
             ) : (
-              <span>{TERRAIN_LABELS[tile!.terrain].slice(0, 1)}</span>
+              <span>{TERRAIN_LABELS[tile.terrain].slice(0, 1)}</span>
             )}
           </div>
           <div className="unit-details__heading">
-            <strong>{TERRAIN_LABELS[tile!.terrain]}</strong>
+            <strong>{TERRAIN_LABELS[tile.terrain]}</strong>
             <span>
-              좌표 {tile!.position.q}, {tile!.position.r}
+              좌표 {tile.position.q}, {tile.position.r}
             </span>
           </div>
           <dl>
             <div>
               <dt>이동 비용</dt>
-              <dd>{movementCostLabel(tile!.terrain)}</dd>
+              <dd>{movementCostLabel(tile.terrain)}</dd>
             </div>
             <div>
               <dt>전투력 보정</dt>
               <dd>
-                {TERRAIN_COMBAT_BONUS[tile!.terrain] > 0
-                  ? `+${TERRAIN_COMBAT_BONUS[tile!.terrain]}`
+                {TERRAIN_COMBAT_BONUS[tile.terrain] > 0
+                  ? `+${TERRAIN_COMBAT_BONUS[tile.terrain]}`
                   : '없음'}
               </dd>
             </div>
@@ -138,6 +120,10 @@ export function InfoPanel({ unit, tile, site, mapSeed }: InfoPanelProps) {
               </div>
             )}
           </dl>
+        </div>
+      ) : (
+        <div className="info-card__empty">
+          <p>유닛을 선택하거나 지형에 마우스를 올리세요.</p>
         </div>
       )}
     </section>

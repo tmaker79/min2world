@@ -5,6 +5,7 @@ import {
   getOppositeBoardPosition,
   positionKey,
 } from './hex'
+import { MinPriorityQueue } from './priorityQueue'
 import { UNIT_MAX_HP, UNIT_STATS } from './rules'
 import { FOREST_TERRAIN_VARIANT_COUNT, MAP_GENERATION_VERSION } from './types'
 import type {
@@ -23,7 +24,7 @@ export const DEFAULT_MAP_SEED = 'min2world'
 
 const STARTING_RESOURCES = 15
 const MAX_GENERATION_ATTEMPTS = 128
-const CAPITAL_DISTANCE_FROM_CENTER = 9
+const CAPITAL_DISTANCE_FROM_CENTER = 18
 const SITE_PAIR_TYPES: readonly SiteType[] = ['city', 'village', 'mine']
 const STARTING_UNIT_TYPES: readonly UnitType[] = [
   'infantry',
@@ -154,9 +155,11 @@ function getConnectedKeys(tiles: Tile[], start: Position): Set<string> {
   const passable = getPassableKeys(tiles)
   const connected = new Set<string>()
   const frontier = [start]
+  let frontierIndex = 0
 
-  while (frontier.length > 0) {
-    const current = frontier.shift()!
+  while (frontierIndex < frontier.length) {
+    const current = frontier[frontierIndex]
+    frontierIndex += 1
     const key = positionKey(current)
     if (connected.has(key) || !passable.has(key)) continue
     connected.add(key)
@@ -215,13 +218,16 @@ function chooseNeutralSites(
 function getWeightedCosts(tiles: Tile[], start: Position): Map<string, number> {
   const tileByKey = new Map(tiles.map((tile) => [positionKey(tile.position), tile]))
   const costs = new Map<string, number>([[positionKey(start), 0]])
-  const frontier: Array<{ position: Position; cost: number }> = [
-    { position: start, cost: 0 },
-  ]
+  const frontier = new MinPriorityQueue<{ position: Position; cost: number }>(
+    (left, right) =>
+      left.cost - right.cost ||
+      left.position.r - right.position.r ||
+      left.position.q - right.position.q,
+  )
+  frontier.push({ position: start, cost: 0 })
 
-  while (frontier.length > 0) {
-    frontier.sort((left, right) => left.cost - right.cost)
-    const current = frontier.shift()!
+  while (frontier.size > 0) {
+    const current = frontier.pop()!
     const currentKey = positionKey(current.position)
     if (current.cost !== costs.get(currentKey)) continue
 
@@ -366,10 +372,12 @@ function assignForestTerrainVariants(tiles: Tile[], seed: string) {
 
     const component: Tile[] = []
     const queue = [start]
+    let queueIndex = 0
     visited.add(startKey)
 
-    while (queue.length > 0) {
-      const tile = queue.shift()!
+    while (queueIndex < queue.length) {
+      const tile = queue[queueIndex]
+      queueIndex += 1
       component.push(tile)
 
       for (const neighbor of getHexNeighbors(tile.position)) {

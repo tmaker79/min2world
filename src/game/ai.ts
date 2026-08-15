@@ -2,9 +2,8 @@ import {
   getAttackableUnits,
   getDeployablePositions,
   getHexNeighbors,
-  getMovementCost,
+  getReachablePositionCosts,
   getMovementStepCost,
-  getReachablePositions,
   getTileAt,
   getUnitAt,
   isPositionInEnemyZoneOfControl,
@@ -12,6 +11,7 @@ import {
   TERRAIN_MOVEMENT_COST,
   UNIT_STATS,
 } from './rules'
+import { MinPriorityQueue } from './priorityQueue'
 import type {
   GameAction,
   GameState,
@@ -49,13 +49,16 @@ function getApproachPositions(
   })
 }
 
-function getWeightedPathCost(
+type PathSearch = {
+  costs: Map<string, number>
+  previous: Map<string, Position>
+}
+
+function getWeightedPathSearch(
   state: GameState,
   unit: Unit,
   start: Position,
-  destinations: Position[],
-): number | undefined {
-  const destinationKeys = new Set(destinations.map(positionKey))
+): PathSearch {
   const occupiedKeys = new Set(
     state.units
       .filter(
@@ -65,18 +68,17 @@ function getWeightedPathCost(
       .map((candidate) => positionKey(candidate.position)),
   )
   const bestCosts = new Map<string, number>([[positionKey(start), 0]])
-  const frontier: Array<{ position: Position; cost: number }> = [
-    { position: start, cost: 0 },
-  ]
+  const previous = new Map<string, Position>()
+  const frontier = new MinPriorityQueue<{ position: Position; cost: number }>(
+    (left, right) =>
+      left.cost - right.cost ||
+      left.position.r - right.position.r ||
+      left.position.q - right.position.q,
+  )
+  frontier.push({ position: start, cost: 0 })
 
-  while (frontier.length > 0) {
-    frontier.sort(
-      (left, right) =>
-        left.cost - right.cost ||
-        left.position.r - right.position.r ||
-        left.position.q - right.position.q,
-    )
-    const current = frontier.shift()
+  while (frontier.size > 0) {
+    const current = frontier.pop()
 
     if (!current) {
       break
@@ -85,10 +87,6 @@ function getWeightedPathCost(
     const currentKey = positionKey(current.position)
     if (current.cost !== bestCosts.get(currentKey)) {
       continue
-    }
-
-    if (destinationKeys.has(currentKey)) {
-      return current.cost
     }
 
     if (
@@ -124,34 +122,48 @@ function getWeightedPathCost(
       }
 
       bestCosts.set(neighborKey, nextCost)
+      previous.set(neighborKey, current.position)
       frontier.push({ position: neighbor, cost: nextCost })
     }
   }
 
-  return undefined
+  return { costs: bestCosts, previous }
 }
 
 type Target = {
   id: string
   positions: Position[]
   cost: number
+  destination: Position
 }
 
 function chooseClosestTarget(
-  state: GameState,
-  unit: Unit,
   targets: Array<{ id: string; positions: Position[] }>,
+  costs: ReadonlyMap<string, number>,
 ): Target | undefined {
   return targets
     .flatMap((target) => {
-      const cost = getWeightedPathCost(
-        state,
-        unit,
-        unit.position,
-        target.positions,
-      )
+      const destination = target.positions
+        .flatMap((position) => {
+          const cost = costs.get(positionKey(position))
+          return cost === undefined ? [] : [{ position, cost }]
+        })
+        .sort(
+          (left, right) =>
+            left.cost - right.cost ||
+            left.position.r - right.position.r ||
+            left.position.q - right.position.q,
+        )[0]
 
-      return cost === undefined ? [] : [{ ...target, cost }]
+      return destination
+        ? [
+            {
+              ...target,
+              cost: destination.cost,
+              destination: destination.position,
+            },
+          ]
+        : []
     })
     .sort(
       (left, right) =>
@@ -159,7 +171,11 @@ function chooseClosestTarget(
     )[0]
 }
 
-function chooseTarget(state: GameState, unit: Unit): Target | undefined {
+function chooseTarget(
+  state: GameState,
+  unit: Unit,
+  costs: ReadonlyMap<string, number>,
+): Target | undefined {
   const capital = state.sites.find(
     (site) => site.capitalFor === 'player' && site.ownerId === 'player',
   )
@@ -167,12 +183,11 @@ function chooseTarget(state: GameState, unit: Unit): Target | undefined {
     .filter((site) => site.ownerId === 'player')
     .sort(compareIds)
   const siteTarget = chooseClosestTarget(
-    state,
-    unit,
     (capital ? [capital] : sites).map((site: Site) => ({
       id: site.id,
       positions: [site.position],
     })),
+    costs,
   )
 
   if (siteTarget) {
@@ -184,51 +199,47 @@ function chooseTarget(state: GameState, unit: Unit): Target | undefined {
     .sort(compareIds)
 
   return chooseClosestTarget(
-    state,
-    unit,
     playerUnits.map((target) => ({
       id: target.id,
       positions: getApproachPositions(state, target, unit),
     })),
+    costs,
   )
+}
+
+function reconstructPath(
+  start: Position,
+  destination: Position,
+  previous: ReadonlyMap<string, Position>,
+): Position[] {
+  const path: Position[] = [{ ...destination }]
+  let current = destination
+
+  while (positionKey(current) !== positionKey(start)) {
+    const parent = previous.get(positionKey(current))
+    if (!parent) return []
+    path.push(parent)
+    current = parent
+  }
+
+  return path.reverse()
 }
 
 function chooseMovement(
   state: GameState,
   unit: Unit,
 ): GameAction | undefined {
-  const target = chooseTarget(state, unit)
+  const pathSearch = getWeightedPathSearch(state, unit, unit.position)
+  const target = chooseTarget(state, unit, pathSearch.costs)
   if (!target || target.cost === 0) {
     return undefined
   }
 
-  const destination = getReachablePositions(state, unit)
-    .flatMap((position) => {
-      const remainingCost = getWeightedPathCost(
-        state,
-        unit,
-        position,
-        target.positions,
-      )
-      const movementCost = getMovementCost(state, unit, position)
-
-      if (
-        remainingCost === undefined ||
-        movementCost === undefined ||
-        remainingCost >= target.cost
-      ) {
-        return []
-      }
-
-      return [{ position, remainingCost, movementCost }]
-    })
-    .sort(
-      (left, right) =>
-        left.remainingCost - right.remainingCost ||
-        right.movementCost - left.movementCost ||
-        left.position.r - right.position.r ||
-        left.position.q - right.position.q,
-    )[0]?.position
+  const reachableCosts = getReachablePositionCosts(state, unit)
+  const path = reconstructPath(unit.position, target.destination, pathSearch.previous)
+  const destination = [...path]
+    .reverse()
+    .find((position) => reachableCosts.has(positionKey(position)))
 
   return destination
     ? { type: 'unitMoved', unitId: unit.id, destination }

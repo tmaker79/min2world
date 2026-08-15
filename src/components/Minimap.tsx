@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import {
   getHexPixelPosition,
   HEX_HEIGHT,
@@ -32,29 +32,77 @@ type MinimapProps = {
   scrollElement: HTMLElement | null
 }
 
-function hexPolygon(
-  centerX: number,
-  centerY: number,
-  width: number,
-  height: number,
-) {
-  const halfWidth = width / 2
-  const quarterHeight = height / 4
-  return [
-    `${centerX},${centerY - height / 2}`,
-    `${centerX + halfWidth},${centerY - quarterHeight}`,
-    `${centerX + halfWidth},${centerY + quarterHeight}`,
-    `${centerX},${centerY + height / 2}`,
-    `${centerX - halfWidth},${centerY + quarterHeight}`,
-    `${centerX - halfWidth},${centerY - quarterHeight}`,
-  ].join(' ')
+type MinimapLayout = {
+  minimumX: number
+  minimumY: number
+  mapWidth: number
+  mapHeight: number
+  scale: number
+  width: number
+  height: number
+  tiles: Array<{
+    id: string
+    terrain: Terrain
+    x: number
+    y: number
+    key: string
+  }>
 }
 
-export function Minimap({ state, scrollElement }: MinimapProps) {
-  const rootRef = useRef<HTMLDivElement>(null)
+const MinimapTerrain = memo(function MinimapTerrain({
+  layout,
+}: {
+  layout: MinimapLayout
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const context = canvas.getContext('2d')
+    if (!context) return
+
+    const pixelRatio = window.devicePixelRatio || 1
+    canvas.width = Math.ceil(layout.width * pixelRatio)
+    canvas.height = Math.ceil(layout.height * pixelRatio)
+    canvas.style.width = `${layout.width}px`
+    canvas.style.height = `${layout.height}px`
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0)
+    context.clearRect(0, 0, layout.width, layout.height)
+
+    const width = HEX_WIDTH * layout.scale * 0.98
+    const height = HEX_HEIGHT * layout.scale * 0.98
+    const halfWidth = width / 2
+    const quarterHeight = height / 4
+
+    for (const tile of layout.tiles) {
+      context.beginPath()
+      context.moveTo(tile.x, tile.y - height / 2)
+      context.lineTo(tile.x + halfWidth, tile.y - quarterHeight)
+      context.lineTo(tile.x + halfWidth, tile.y + quarterHeight)
+      context.lineTo(tile.x, tile.y + height / 2)
+      context.lineTo(tile.x - halfWidth, tile.y + quarterHeight)
+      context.lineTo(tile.x - halfWidth, tile.y - quarterHeight)
+      context.closePath()
+      context.fillStyle = TERRAIN_FILL[tile.terrain]
+      context.fill()
+    }
+  }, [layout])
+
+  return <canvas ref={canvasRef} className="minimap__terrain" aria-hidden="true" />
+})
+
+function MinimapComponent({ state, scrollElement }: MinimapProps) {
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const [collapsed, setCollapsed] = useState(false)
   const [viewport, setViewport] = useState<Viewport>()
 
   const layout = useMemo(() => {
+    if (collapsed) {
+      return undefined
+    }
+
     const pixels = state.tiles.map((tile) => ({
       tile,
       pixel: getHexPixelPosition(tile.position),
@@ -85,47 +133,44 @@ export function Minimap({ state, scrollElement }: MinimapProps) {
         y: (pixel.y - minimumY + HEX_HEIGHT / 2) * scale,
         key: positionKey(tile.position),
       })),
+    } satisfies MinimapLayout
+  }, [collapsed, state.tiles])
+
+  const siteMarkers = useMemo(() => {
+    if (!layout) {
+      return []
     }
-  }, [state.tiles])
 
-  const siteMarkers = useMemo(
-    () =>
-      state.sites.map((site) => {
-        const pixel = getHexPixelPosition(site.position)
-        return {
-          id: site.id,
-          ownerId: site.ownerId,
-          x: (pixel.x - layout.minimumX + HEX_WIDTH / 2) * layout.scale,
-          y: (pixel.y - layout.minimumY + HEX_HEIGHT / 2) * layout.scale,
-        }
-      }),
-    [layout.minimumX, layout.minimumY, layout.scale, state.sites],
-  )
+    return state.sites.map((site) => {
+      const pixel = getHexPixelPosition(site.position)
+      return {
+        id: site.id,
+        ownerId: site.ownerId,
+        x: (pixel.x - layout.minimumX + HEX_WIDTH / 2) * layout.scale,
+        y: (pixel.y - layout.minimumY + HEX_HEIGHT / 2) * layout.scale,
+      }
+    })
+  }, [layout, state.sites])
 
-  const unitMarkers = useMemo(
-    () =>
-      state.units.map((unit) => {
-        const pixel = getHexPixelPosition(unit.position)
-        return {
-          id: unit.id,
-          factionId: unit.factionId,
-          selected: unit.id === state.selectedUnitId,
-          x: (pixel.x - layout.minimumX + HEX_WIDTH / 2) * layout.scale,
-          y: (pixel.y - layout.minimumY + HEX_HEIGHT / 2) * layout.scale,
-        }
-      }),
-    [
-      layout.minimumX,
-      layout.minimumY,
-      layout.scale,
-      state.selectedUnitId,
-      state.units,
-    ],
-  )
+  const unitMarkers = useMemo(() => {
+    if (!layout) {
+      return []
+    }
+
+    return state.units.map((unit) => {
+      const pixel = getHexPixelPosition(unit.position)
+      return {
+        id: unit.id,
+        factionId: unit.factionId,
+        selected: unit.id === state.selectedUnitId,
+        x: (pixel.x - layout.minimumX + HEX_WIDTH / 2) * layout.scale,
+        y: (pixel.y - layout.minimumY + HEX_HEIGHT / 2) * layout.scale,
+      }
+    })
+  }, [layout, state.selectedUnitId, state.units])
 
   useEffect(() => {
-    if (!scrollElement) {
-      setViewport(undefined)
+    if (collapsed || !scrollElement) {
       return
     }
 
@@ -150,14 +195,14 @@ export function Minimap({ state, scrollElement }: MinimapProps) {
       scrollElement.removeEventListener('scroll', updateViewport)
       window.removeEventListener('resize', updateViewport)
     }
-  }, [scrollElement, state.mapSeed, state.tiles.length])
+  }, [collapsed, scrollElement, state.mapSeed, state.tiles.length])
 
   const panTo = (clientX: number, clientY: number) => {
-    if (!scrollElement || !rootRef.current) {
+    if (!scrollElement || !bodyRef.current) {
       return
     }
 
-    const bounds = rootRef.current.getBoundingClientRect()
+    const bounds = bodyRef.current.getBoundingClientRect()
     const ratioX = (clientX - bounds.left) / bounds.width
     const ratioY = (clientY - bounds.top) / bounds.height
     const targetLeft =
@@ -173,7 +218,7 @@ export function Minimap({ state, scrollElement }: MinimapProps) {
   }
 
   const viewportRect =
-    viewport && viewport.contentWidth > 0 && viewport.contentHeight > 0
+    layout && viewport && viewport.contentWidth > 0 && viewport.contentHeight > 0
       ? {
           x: (viewport.left / viewport.contentWidth) * layout.width,
           y: (viewport.top / viewport.contentHeight) * layout.height,
@@ -184,78 +229,86 @@ export function Minimap({ state, scrollElement }: MinimapProps) {
 
   return (
     <div
-      ref={rootRef}
-      className="minimap"
-      role="img"
-      aria-label="미니맵"
+      className={collapsed ? 'minimap minimap--collapsed' : 'minimap'}
       data-testid="minimap"
-      onPointerDown={(event) => {
-        event.preventDefault()
-        rootRef.current?.setPointerCapture(event.pointerId)
-        panTo(event.clientX, event.clientY)
-      }}
-      onPointerMove={(event) => {
-        if (!rootRef.current?.hasPointerCapture(event.pointerId)) {
-          return
-        }
-        panTo(event.clientX, event.clientY)
-      }}
+      data-collapsed={collapsed ? 'true' : 'false'}
     >
-      <svg
-        className="minimap__svg"
-        width={layout.width}
-        height={layout.height}
-        viewBox={`0 0 ${layout.width} ${layout.height}`}
-        aria-hidden="true"
+      <button
+        type="button"
+        className="minimap__toggle"
+        aria-expanded={!collapsed}
+        aria-controls="minimap-body"
+        aria-label={collapsed ? '미니맵 펼치기' : '미니맵 접기'}
+        onClick={() => setCollapsed((value) => !value)}
       >
-        {layout.tiles.map((tile) => (
-          <polygon
-            key={tile.id}
-            className={`minimap__tile minimap__tile--${tile.terrain}`}
-            points={hexPolygon(
-              tile.x,
-              tile.y,
-              HEX_WIDTH * layout.scale * 0.98,
-              HEX_HEIGHT * layout.scale * 0.98,
+        {collapsed ? '미니맵' : '접기'}
+      </button>
+
+      {!collapsed && layout && (
+        <div
+          id="minimap-body"
+          ref={bodyRef}
+          className="minimap__body"
+          role="img"
+          aria-label="미니맵"
+          onPointerDown={(event) => {
+            event.preventDefault()
+            bodyRef.current?.setPointerCapture(event.pointerId)
+            panTo(event.clientX, event.clientY)
+          }}
+          onPointerMove={(event) => {
+            if (!bodyRef.current?.hasPointerCapture(event.pointerId)) {
+              return
+            }
+            panTo(event.clientX, event.clientY)
+          }}
+        >
+          <MinimapTerrain layout={layout} />
+          <svg
+            className="minimap__svg minimap__overlay"
+            width={layout.width}
+            height={layout.height}
+            viewBox={`0 0 ${layout.width} ${layout.height}`}
+            aria-hidden="true"
+          >
+            {siteMarkers.map((site) => (
+              <rect
+                key={site.id}
+                className={`minimap__site minimap__site--${site.ownerId}`}
+                x={site.x - 2.2}
+                y={site.y - 2.2}
+                width={4.4}
+                height={4.4}
+                rx={0.8}
+              />
+            ))}
+
+            {unitMarkers.map((unit) => (
+              <circle
+                key={unit.id}
+                className={`minimap__unit minimap__unit--${unit.factionId}${
+                  unit.selected ? ' minimap__unit--selected' : ''
+                }`}
+                cx={unit.x}
+                cy={unit.y}
+                r={unit.selected ? 2.6 : 2.1}
+              />
+            ))}
+
+            {viewportRect && (
+              <rect
+                className="minimap__viewport"
+                x={viewportRect.x}
+                y={viewportRect.y}
+                width={Math.max(viewportRect.width, 8)}
+                height={Math.max(viewportRect.height, 8)}
+              />
             )}
-            fill={TERRAIN_FILL[tile.terrain]}
-          />
-        ))}
-
-        {siteMarkers.map((site) => (
-          <rect
-            key={site.id}
-            className={`minimap__site minimap__site--${site.ownerId}`}
-            x={site.x - 2.2}
-            y={site.y - 2.2}
-            width={4.4}
-            height={4.4}
-            rx={0.8}
-          />
-        ))}
-
-        {unitMarkers.map((unit) => (
-          <circle
-            key={unit.id}
-            className={`minimap__unit minimap__unit--${unit.factionId}${
-              unit.selected ? ' minimap__unit--selected' : ''
-            }`}
-            cx={unit.x}
-            cy={unit.y}
-            r={unit.selected ? 2.6 : 2.1}
-          />
-        ))}
-
-        {viewportRect && (
-          <rect
-            className="minimap__viewport"
-            x={viewportRect.x}
-            y={viewportRect.y}
-            width={Math.max(viewportRect.width, 8)}
-            height={Math.max(viewportRect.height, 8)}
-          />
-        )}
-      </svg>
+          </svg>
+        </div>
+      )}
     </div>
   )
 }
+
+export const Minimap = memo(MinimapComponent)

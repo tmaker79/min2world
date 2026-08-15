@@ -1,7 +1,7 @@
 import type { Position } from './types'
 
-export const HEX_COLUMNS = 24
-export const HEX_ROWS = 16
+export const HEX_COLUMNS = 48
+export const HEX_ROWS = 32
 export const HEX_TILE_COUNT = HEX_COLUMNS * HEX_ROWS
 export const HEX_WIDTH = 58
 export const HEX_HEIGHT = 66

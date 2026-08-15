@@ -39,10 +39,13 @@ if (TERRAIN_VARIANTS.forest?.length !== FOREST_TERRAIN_VARIANT_COUNT) {
   )
 }
 
+// Kept with the component because both helpers share its private asset table.
+// eslint-disable-next-line react-refresh/only-export-components
 export function hasTerrainImage(terrain: Terrain): boolean {
   return Boolean(TERRAIN_VARIANTS[terrain]?.length)
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function getTerrainVariantIndex(
   position: Position,
   count: number,

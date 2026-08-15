@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { getHexPixelPosition, HEX_HEIGHT, HEX_WIDTH } from '../game/hex'
 import {
@@ -13,12 +13,14 @@ import {
   UNIT_TYPE_LABELS,
 } from '../game/rules'
 import type { GameState, Position, Site, Tile, Unit } from '../game/types'
+import { useMapViewport } from '../hooks/useMapViewport'
 import { SiteIcon } from './SiteIcon'
 import { hasTerrainImage, TerrainIcon } from './TerrainIcon'
 import { UnitIcon } from './UnitIcon'
 
 const UNIT_TOOLTIP_SHOW_DELAY_MS = 400
 const UNIT_TOOLTIP_TOP_SAFE_PX = 120
+const VIEWPORT_OVERSCAN_PX = Math.max(HEX_WIDTH, HEX_HEIGHT) * 2
 
 export type CombatAnimationPhase = 'attack' | 'hit'
 
@@ -36,6 +38,7 @@ export type CombatAnimation = {
 
 type GameMapProps = {
   state: GameState
+  scrollElement: HTMLElement | null
   reachableKeys: Set<string>
   attackableKeys: Set<string>
   deployableKeys: Set<string>
@@ -61,7 +64,7 @@ type TileButtonProps = {
   inZoneOfControl: boolean
   disabled: boolean
   style: CSSProperties
-  onClick: () => void
+  onClick: (tile: Tile) => void
   suppressClickRef?: { current: boolean }
   onUnitHoverChange: (unitId: string | undefined, options?: { immediate?: boolean }) => void
   onTileHoverChange?: (tile: Tile | undefined) => void
@@ -148,7 +151,7 @@ function getUnitTooltipRows(unit: Unit) {
   return rows
 }
 
-function TileButton({
+const TileButton = memo(function TileButton({
   tile,
   unit,
   site,
@@ -200,7 +203,7 @@ function TileButton({
         if (suppressClickRef?.current) {
           return
         }
-        onClick()
+        onClick(tile)
       }}
       onMouseEnter={() => {
         onTileHoverChange?.(tile)
@@ -225,7 +228,7 @@ function TileButton({
       )}
     </button>
   )
-}
+})
 
 function UnitTooltip({
   unit,
@@ -292,11 +295,13 @@ function UnitMarker({
   selected,
   combatAnimation,
   style,
+  tokenRef,
 }: {
   unit: Unit
   selected: boolean
   combatAnimation?: CombatAnimation
   style: CSSProperties
+  tokenRef?: (element: HTMLSpanElement | null) => void
 }) {
   const healthPercent = Math.max(0, Math.min(100, (unit.hp / unit.maxHp) * 100))
   const healthLevel =
@@ -333,6 +338,7 @@ function UnitMarker({
   return (
     <span className="map-overlay-cell" style={style}>
       <span
+        ref={tokenRef}
         className={`unit-token unit-token--${unit.factionId} ${
           selected ? 'unit-token--selected' : ''
         } ${unit.hasActed ? 'unit-token--acted' : ''} ${
@@ -365,8 +371,9 @@ function UnitMarker({
   )
 }
 
-export function GameMap({
+function GameMapComponent({
   state,
+  scrollElement,
   reachableKeys,
   attackableKeys,
   deployableKeys,
@@ -378,9 +385,13 @@ export function GameMap({
   onTileClick,
   onTileHoverChange,
 }: GameMapProps) {
+  const viewport = useMapViewport(scrollElement)
   const [hoveredUnitId, setHoveredUnitId] = useState<string>()
   const [tooltipAnchor, setTooltipAnchor] = useState<DOMRect>()
   const hoverTimerRef = useRef<number | undefined>(undefined)
+  const tooltipFrameRef = useRef<number | undefined>(undefined)
+  const hoveredUnitIdRef = useRef<string | undefined>(undefined)
+  const unitTokenRefs = useRef(new Map<string, HTMLSpanElement>())
 
   useEffect(() => {
     return () => window.clearTimeout(hoverTimerRef.current)
@@ -388,54 +399,163 @@ export function GameMap({
 
   useEffect(() => {
     if (!hoveredUnitId) {
-      setTooltipAnchor(undefined)
       return
     }
 
     const updateAnchor = () => {
-      const token = document.querySelector<HTMLElement>(
-        `[data-unit-id="${hoveredUnitId}"]`,
-      )
+      tooltipFrameRef.current = undefined
+      const token = unitTokenRefs.current.get(hoveredUnitId)
       setTooltipAnchor(token?.getBoundingClientRect())
     }
+    const scheduleAnchorUpdate = () => {
+      if (tooltipFrameRef.current !== undefined) return
+      tooltipFrameRef.current = window.requestAnimationFrame(updateAnchor)
+    }
 
-    updateAnchor()
-    const mapScroll = document.querySelector('.map-scroll')
-    mapScroll?.addEventListener('scroll', updateAnchor, { passive: true })
-    window.addEventListener('resize', updateAnchor)
+    scheduleAnchorUpdate()
+    scrollElement?.addEventListener('scroll', scheduleAnchorUpdate, {
+      passive: true,
+    })
+    window.addEventListener('resize', scheduleAnchorUpdate)
 
     return () => {
-      mapScroll?.removeEventListener('scroll', updateAnchor)
-      window.removeEventListener('resize', updateAnchor)
+      if (tooltipFrameRef.current !== undefined) {
+        window.cancelAnimationFrame(tooltipFrameRef.current)
+      }
+      scrollElement?.removeEventListener('scroll', scheduleAnchorUpdate)
+      window.removeEventListener('resize', scheduleAnchorUpdate)
     }
-  }, [hoveredUnitId])
+  }, [hoveredUnitId, scrollElement])
 
-  const handleUnitHoverChange = (
+  const handleUnitHoverChange = useCallback((
     unitId: string | undefined,
     options?: { immediate?: boolean },
   ) => {
     window.clearTimeout(hoverTimerRef.current)
 
     if (!unitId) {
+      hoveredUnitIdRef.current = undefined
       setHoveredUnitId(undefined)
       return
     }
 
-    if (options?.immediate || hoveredUnitId) {
+    if (options?.immediate || hoveredUnitIdRef.current) {
+      hoveredUnitIdRef.current = unitId
       setHoveredUnitId(unitId)
       return
     }
 
     hoverTimerRef.current = window.setTimeout(() => {
+      hoveredUnitIdRef.current = unitId
       setHoveredUnitId(unitId)
     }, UNIT_TOOLTIP_SHOW_DELAY_MS)
-  }
+  }, [])
 
-  const pixelPositions = state.tiles.map((tile) => getHexPixelPosition(tile.position))
-  const minimumX = Math.min(...pixelPositions.map((position) => position.x))
-  const minimumY = Math.min(...pixelPositions.map((position) => position.y))
-  const maximumX = Math.max(...pixelPositions.map((position) => position.x))
-  const maximumY = Math.max(...pixelPositions.map((position) => position.y))
+  const layout = useMemo(() => {
+    const positionedTiles = state.tiles.map((tile) => ({
+      tile,
+      pixel: getHexPixelPosition(tile.position),
+    }))
+    const minimumX = Math.min(
+      ...positionedTiles.map(({ pixel }) => pixel.x),
+    )
+    const minimumY = Math.min(
+      ...positionedTiles.map(({ pixel }) => pixel.y),
+    )
+    const maximumX = Math.max(
+      ...positionedTiles.map(({ pixel }) => pixel.x),
+    )
+    const maximumY = Math.max(
+      ...positionedTiles.map(({ pixel }) => pixel.y),
+    )
+    const rowMap = new Map<
+      number,
+      Array<{ tile: Tile; left: number; top: number; style: CSSProperties }>
+    >()
+    const byKey = new Map<
+      string,
+      { tile: Tile; left: number; top: number; style: CSSProperties }
+    >()
+
+    for (const { tile, pixel } of positionedTiles) {
+      const entry = {
+        tile,
+        left: pixel.x - minimumX,
+        top: pixel.y - minimumY,
+        style: {
+          left: pixel.x - minimumX,
+          top: pixel.y - minimumY,
+        },
+      }
+      const row = rowMap.get(tile.position.r) ?? []
+      row.push(entry)
+      rowMap.set(tile.position.r, row)
+      byKey.set(positionKey(tile.position), entry)
+    }
+
+    return {
+      minimumX,
+      minimumY,
+      maximumX,
+      maximumY,
+      rows: [...rowMap.values()],
+      byKey,
+    }
+  }, [state.tiles])
+  const { minimumX, minimumY, maximumX, maximumY } = layout
+  const visibleTiles = useMemo(() => {
+    const left = viewport.left - VIEWPORT_OVERSCAN_PX
+    const top = viewport.top - VIEWPORT_OVERSCAN_PX
+    const right = viewport.left + viewport.width + VIEWPORT_OVERSCAN_PX
+    const bottom = viewport.top + viewport.height + VIEWPORT_OVERSCAN_PX
+    const visible = new Map<
+      string,
+      { tile: Tile; left: number; top: number; style: CSSProperties }
+    >()
+
+    for (const row of layout.rows) {
+      const rowTop = row[0]?.top ?? 0
+      if (rowTop + HEX_HEIGHT < top || rowTop > bottom) continue
+      for (const entry of row) {
+        if (entry.left + HEX_WIDTH < left || entry.left > right) continue
+        visible.set(entry.tile.id, entry)
+      }
+    }
+
+    const persistentPositions = [
+      ...state.units.map((unit) => unit.position),
+      ...state.sites.map((site) => site.position),
+      combatAnimation?.attackerPosition,
+      combatAnimation?.defenderPosition,
+    ]
+    for (const position of persistentPositions) {
+      if (!position) continue
+      const entry = layout.byKey.get(positionKey(position))
+      if (entry) visible.set(entry.tile.id, entry)
+    }
+    for (const key of [
+      ...reachableKeys,
+      ...attackableKeys,
+      ...deployableKeys,
+      ...zoneOfControlKeys,
+    ]) {
+      const entry = layout.byKey.get(key)
+      if (entry) visible.set(entry.tile.id, entry)
+    }
+
+    return [...visible.values()]
+  }, [
+    combatAnimation?.attackerPosition,
+    combatAnimation?.defenderPosition,
+    layout,
+    attackableKeys,
+    deployableKeys,
+    reachableKeys,
+    state.sites,
+    state.units,
+    viewport,
+    zoneOfControlKeys,
+  ])
   const hitEffects =
     combatAnimation?.phase === 'hit'
       ? [
@@ -474,7 +594,7 @@ export function GameMap({
       onMouseLeave={() => onTileHoverChange?.(undefined)}
     >
       <div className="map-layer map-layer--terrain">
-        {state.tiles.map((tile) => {
+        {visibleTiles.map(({ tile, style }) => {
           const unit = getUnitAt(state, tile.position)
           const site = getSiteAt(state, tile.position)
           const selected = Boolean(unit && unit.id === state.selectedUnitId)
@@ -498,8 +618,8 @@ export function GameMap({
               deployable={deployable}
               inZoneOfControl={inZoneOfControl}
               disabled={disabled}
-              style={getOverlayStyle(tile.position, minimumX, minimumY)}
-              onClick={() => onTileClick(tile)}
+              style={style}
+              onClick={onTileClick}
               suppressClickRef={suppressClickRef}
               onUnitHoverChange={handleUnitHoverChange}
               onTileHoverChange={onTileHoverChange}
@@ -527,6 +647,13 @@ export function GameMap({
             selected={unit.id === state.selectedUnitId}
             combatAnimation={combatAnimation}
             style={getOverlayStyle(unit.position, minimumX, minimumY)}
+            tokenRef={(element) => {
+              if (element) {
+                unitTokenRefs.current.set(unit.id, element)
+              } else {
+                unitTokenRefs.current.delete(unit.id)
+              }
+            }}
           />
         ))}
       </div>
@@ -563,3 +690,5 @@ export function GameMap({
     </div>
   )
 }
+
+export const GameMap = memo(GameMapComponent)

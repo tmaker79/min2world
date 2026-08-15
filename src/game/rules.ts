@@ -5,6 +5,13 @@ import {
   positionKey,
   positionsEqual,
 } from './hex'
+import { MinPriorityQueue } from './priorityQueue'
+import {
+  getSitePositionIndex,
+  getTileIndex,
+  getUnitPositionIndex,
+  getZoneOfControlIndex,
+} from './spatialIndex'
 import type {
   FactionId,
   GamePhase,
@@ -83,15 +90,15 @@ export const TERRAIN_LABELS: Record<Terrain, string> = {
 }
 
 export function getTileAt(state: GameState, position: Position) {
-  return state.tiles.find((tile) => positionsEqual(tile.position, position))
+  return getTileIndex(state).get(positionKey(position))
 }
 
 export function getUnitAt(state: GameState, position: Position) {
-  return state.units.find((unit) => positionsEqual(unit.position, position))
+  return getUnitPositionIndex(state).get(positionKey(position))
 }
 
 export function getSiteAt(state: GameState, position: Position) {
-  return state.sites.find((site) => positionsEqual(site.position, position))
+  return getSitePositionIndex(state).get(positionKey(position))
 }
 
 export function getMovementStepCost(
@@ -109,16 +116,7 @@ export function getEnemyZoneOfControlPositions(
   state: GameState,
   factionId: FactionId,
 ): Position[] {
-  const positions = new Map<string, Position>()
-
-  for (const unit of state.units) {
-    if (unit.factionId === factionId) continue
-    for (const position of getHexNeighbors(unit.position)) {
-      positions.set(positionKey(position), position)
-    }
-  }
-
-  return [...positions.entries()]
+  return [...getZoneOfControlIndex(state, factionId).entries()]
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([, position]) => position)
 }
@@ -128,14 +126,10 @@ export function isPositionInEnemyZoneOfControl(
   factionId: FactionId,
   position: Position,
 ): boolean {
-  return state.units.some(
-    (unit) =>
-      unit.factionId !== factionId &&
-      getHexDistance(unit.position, position) === 1,
-  )
+  return getZoneOfControlIndex(state, factionId).has(positionKey(position))
 }
 
-function getReachablePositionCosts(
+export function getReachablePositionCosts(
   state: GameState,
   unit: Unit,
 ): Map<string, number> {
@@ -163,22 +157,18 @@ function getReachablePositionCosts(
       )
       .map((candidate) => positionKey(candidate.position)),
   )
-  const enemyZoneOfControlPositions = new Set(
-    getEnemyZoneOfControlPositions(state, unit.factionId).map(positionKey),
-  )
+  const enemyZoneOfControlPositions = getZoneOfControlIndex(state, unit.factionId)
   const bestCosts = new Map<string, number>([[positionKey(unit.position), 0]])
-  const frontier: Array<{ position: Position; cost: number }> = [
-    { position: unit.position, cost: 0 },
-  ]
+  const frontier = new MinPriorityQueue<{ position: Position; cost: number }>(
+    (left, right) =>
+      left.cost - right.cost ||
+      left.position.r - right.position.r ||
+      left.position.q - right.position.q,
+  )
+  frontier.push({ position: unit.position, cost: 0 })
 
-  while (frontier.length > 0) {
-    frontier.sort(
-      (left, right) =>
-        left.cost - right.cost ||
-        left.position.r - right.position.r ||
-        left.position.q - right.position.q,
-    )
-    const current = frontier.shift()!
+  while (frontier.size > 0) {
+    const current = frontier.pop()!
     const currentKey = positionKey(current.position)
     if (current.cost !== bestCosts.get(currentKey)) continue
 

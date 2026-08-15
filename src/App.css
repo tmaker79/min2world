@@ -315,6 +315,8 @@
 }
 
 .map-scroll {
+  position: relative;
+  z-index: 0;
   display: flex;
   justify-content: safe center;
   align-items: flex-start;
@@ -342,30 +344,55 @@
 
 .minimap {
   position: absolute;
-  z-index: 12;
+  z-index: 20;
   left: 10px;
   bottom: 10px;
   display: grid;
+  gap: 4px;
   padding: 6px;
-  place-items: center;
+  justify-items: end;
   background: rgba(10, 16, 20, 0.88);
   border: 1px solid rgba(228, 185, 95, 0.4);
   border-radius: 8px;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+  user-select: none;
+}
+
+.minimap--collapsed {
+  padding: 4px;
+  justify-items: stretch;
+}
+
+.minimap__toggle {
+  padding: 3px 8px;
+  color: var(--ink);
+  background: rgba(24, 35, 42, 0.95);
+  border: 1px solid rgba(228, 185, 95, 0.35);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.minimap__toggle:hover {
+  border-color: rgba(228, 185, 95, 0.7);
+}
+
+.minimap__body {
+  position: relative;
   cursor: crosshair;
   touch-action: none;
-  user-select: none;
 }
 
 .map-hud {
   position: absolute;
-  z-index: 12;
+  z-index: 20;
   right: 10px;
   bottom: 10px;
   display: grid;
   width: min(320px, calc(100% - 24px));
-  max-height: min(62%, 420px);
-  overflow: auto;
+  overflow: visible;
   gap: 10px;
   pointer-events: none;
 }
@@ -384,18 +411,54 @@
   backdrop-filter: blur(6px);
 }
 
+.map-hud .info-card {
+  display: grid;
+  width: 100%;
+  height: 220px;
+  box-sizing: border-box;
+}
+
 .map-hud .info-card h2,
 .map-hud .production-card h2 {
   font-size: 1rem;
 }
 
 .map-hud .unit-details {
-  margin-top: 12px;
+  margin-top: 0;
+  height: 100%;
+  align-content: start;
+  grid-template-rows: 54px minmax(0, 1fr);
+}
+
+.map-hud .unit-details dl {
+  min-height: 0;
+  align-content: start;
+  overflow: visible;
+}
+
+.map-hud .terrain-portrait {
+  width: 54px;
+  height: 54px;
+}
+
+.map-hud .info-card__empty {
+  display: grid;
+  height: 100%;
+  place-items: center;
+  margin: 0;
+  color: var(--muted);
+  text-align: center;
+}
+
+.map-hud .info-card__empty p {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.55;
 }
 
 .map-hud .production-list {
-  max-height: 180px;
-  overflow: auto;
+  max-height: none;
+  overflow: visible;
 }
 
 .minimap__svg {
@@ -403,9 +466,13 @@
   overflow: visible;
 }
 
-.minimap__tile {
-  stroke: rgba(8, 12, 14, 0.35);
-  stroke-width: 0.4;
+.minimap__terrain {
+  display: block;
+}
+
+.minimap__overlay {
+  position: absolute;
+  inset: 0;
 }
 
 .minimap__site {
@@ -1651,7 +1718,6 @@
 
   .map-hud {
     width: min(280px, calc(100% - 20px));
-    max-height: min(48%, 320px);
   }
 }
 

@@ -16,12 +16,13 @@ describe('Milestone 07 UI', () => {
     vi.restoreAllMocks()
   })
 
-  it('renders all keyboard-focusable pointy hex tiles and the current seed', () => {
+  it('renders visible keyboard-focusable pointy hex tiles and the current seed', () => {
     const { container } = renderApp()
     const map = screen.getByTestId('game-map')
     const tiles = map.querySelectorAll<HTMLButtonElement>('.map-tile')
 
-    expect(tiles).toHaveLength(HEX_TILE_COUNT)
+    expect(tiles.length).toBeGreaterThan(0)
+    expect(tiles.length).toBeLessThan(HEX_TILE_COUNT)
     expect([...tiles].every((tile) => tile.type === 'button' && !tile.disabled)).toBe(true)
     expect(container.querySelector('.app-chrome__seed')).toHaveTextContent('ui-seed')
     expect(container.querySelectorAll('.site-marker')).toHaveLength(8)
@@ -33,9 +34,25 @@ describe('Milestone 07 UI', () => {
     expect(container.querySelector('.unit-health-bar')?.closest('.map-tile')).toBeNull()
     expect(container.querySelector('.site-marker')?.closest('.map-tile')).toBeNull()
     expect(screen.getByTestId('minimap')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '미니맵 접기' })).toBeInTheDocument()
+    expect(screen.getByLabelText('정보 패널')).toBeVisible()
+    expect(screen.getByLabelText('정보 패널')).toHaveAttribute('data-info-mode', 'empty')
     expect(screen.getByRole('button', { name: '저장' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '도움말' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '범례' })).not.toBeInTheDocument()
+  }, 20_000)
+
+  it('collapses and expands the minimap', async () => {
+    const user = userEvent.setup()
+    renderApp()
+
+    await user.click(screen.getByRole('button', { name: '미니맵 접기' }))
+    expect(screen.getByTestId('minimap')).toHaveAttribute('data-collapsed', 'true')
+    expect(screen.queryByLabelText('미니맵')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '미니맵 펼치기' }))
+    expect(screen.getByTestId('minimap')).toHaveAttribute('data-collapsed', 'false')
+    expect(screen.getByLabelText('미니맵')).toBeInTheDocument()
   })
 
   it('shows a compact unit summary tooltip on hover without changing selection', async () => {
@@ -134,7 +151,9 @@ describe('Milestone 07 UI', () => {
     await user.type(input, '  next-map  ')
     await user.click(submit)
     expect(container.querySelector('.app-chrome__seed')).toHaveTextContent('next-map')
-    expect(container.querySelectorAll('.map-tile')).toHaveLength(HEX_TILE_COUNT)
+    expect(container.querySelectorAll('.map-tile').length).toBeLessThan(
+      HEX_TILE_COUNT,
+    )
   })
 
   it('asks before replacing a game that has progressed', async () => {

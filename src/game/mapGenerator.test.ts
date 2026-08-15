@@ -42,7 +42,7 @@ describe('procedural map generation', () => {
       expect(state.sites.filter((site) => site.kind === 'city')).toHaveLength(2)
       expect(state.sites.filter((site) => site.kind === 'village')).toHaveLength(2)
       expect(state.sites.filter((site) => site.kind === 'mine')).toHaveLength(2)
-      expect(state.mapGenerationVersion).toBe(3)
+      expect(state.mapGenerationVersion).toBe(4)
       expect(state.schemaVersion).toBe(6)
     },
   )

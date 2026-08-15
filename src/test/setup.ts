@@ -16,6 +16,22 @@ Object.defineProperty(window, 'matchMedia', {
   }),
 })
 
+HTMLCanvasElement.prototype.getContext = ((
+  contextId: string,
+) => {
+  if (contextId !== '2d') return null
+  return {
+    beginPath: () => undefined,
+    clearRect: () => undefined,
+    closePath: () => undefined,
+    fill: () => undefined,
+    fillStyle: '',
+    lineTo: () => undefined,
+    moveTo: () => undefined,
+    setTransform: () => undefined,
+  }
+}) as typeof HTMLCanvasElement.prototype.getContext
+
 afterEach(() => {
   cleanup()
 })

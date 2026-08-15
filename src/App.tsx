@@ -267,13 +267,6 @@ function App({ initialState }: AppProps = {}) {
   }
 
   useEffect(() => {
-    if (state.phase !== 'playing' || state.activeFactionId !== 'player') {
-      setProductionPanelOpen(false)
-      setProductionUnitType(undefined)
-    }
-  }, [state.activeFactionId, state.phase])
-
-  useEffect(() => {
     if (!activeCombat) {
       return
     }
@@ -359,7 +352,7 @@ function App({ initialState }: AppProps = {}) {
     state.phase,
   ])
 
-  const handleTileClick = (tile: Tile) => {
+  const handleTileClick = useCallback((tile: Tile) => {
     if (activeCombat || state.activeFactionId !== 'player') {
       return
     }
@@ -443,7 +436,17 @@ function App({ initialState }: AppProps = {}) {
     setProductionPanelOpen(false)
     setProductionUnitType(undefined)
     setProductionFeedback(undefined)
-  }
+  }, [
+    activeCombat,
+    activeProductionUnitType,
+    attackableIds,
+    deployableKeys,
+    productionSite,
+    reachableKeys,
+    selectedUnit,
+    startCombat,
+    state,
+  ])
 
   const hasProgress =
     state.turn > 1 ||
@@ -553,6 +556,7 @@ function App({ initialState }: AppProps = {}) {
             <div className="map-scroll" ref={setMapScrollElement}>
               <GameMap
                 state={state}
+                scrollElement={mapScrollElement}
                 reachableKeys={reachableKeys}
                 attackableKeys={attackableKeys}
                 deployableKeys={deployableKeys}
@@ -577,12 +581,6 @@ function App({ initialState }: AppProps = {}) {
             </div>
             <Minimap state={state} scrollElement={mapScrollElement} />
             <aside className="map-hud" aria-label="선택 정보">
-              <InfoPanel
-                unit={selectedUnit}
-                tile={productionPanelOpen ? undefined : inspectedTile}
-                site={productionPanelOpen ? undefined : inspectedSite}
-                mapSeed={state.mapSeed}
-              />
               {productionPanelOpen && (
                 <ProductionPanel
                   sites={playerProductionSites}
@@ -613,6 +611,12 @@ function App({ initialState }: AppProps = {}) {
                   }}
                 />
               )}
+              <InfoPanel
+                unit={selectedUnit}
+                tile={inspectedTile}
+                site={inspectedSite}
+                mapSeed={state.mapSeed}
+              />
             </aside>
           </div>
 
