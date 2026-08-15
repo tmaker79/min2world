@@ -9,8 +9,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "deploy": "wrangler deploy",
-    "deploy:preview": "wrangler versions upload",
+    "deploy": "npm run build && wrangler deploy",
+    "deploy:preview": "npm run build && wrangler versions upload",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest"
