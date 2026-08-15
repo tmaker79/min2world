@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
@@ -53,6 +53,45 @@ describe('Milestone 07 UI', () => {
     await user.click(screen.getByRole('button', { name: '미니맵 펼치기' }))
     expect(screen.getByTestId('minimap')).toHaveAttribute('data-collapsed', 'false')
     expect(screen.getByLabelText('미니맵')).toBeInTheDocument()
+  })
+
+  it('centers the player capital when a game starts', () => {
+    const frames: FrameRequestCallback[] = []
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      frames.push(callback)
+      return frames.length
+    })
+    const state = createInitialGameState('center-capital')
+    const capital = state.sites.find((site) => site.capitalFor === 'player')!
+    const { container } = renderApp(state)
+    const mapScroll = container.querySelector<HTMLElement>('.map-scroll')!
+    const capitalTile = container.querySelector<HTMLElement>(
+      `.map-tile[data-coordinate="${positionKey(capital.position)}"]`,
+    )!
+
+    Object.defineProperties(mapScroll, {
+      clientWidth: { configurable: true, value: 800 },
+      clientHeight: { configurable: true, value: 600 },
+      scrollLeft: { configurable: true, writable: true, value: 0 },
+      scrollTop: { configurable: true, writable: true, value: 0 },
+    })
+    vi.spyOn(mapScroll, 'getBoundingClientRect').mockReturnValue({
+      left: 100,
+      top: 50,
+    } as DOMRect)
+    vi.spyOn(capitalTile, 'getBoundingClientRect').mockReturnValue({
+      left: 900,
+      top: 550,
+      width: 58,
+      height: 66,
+    } as DOMRect)
+
+    act(() => {
+      for (const frame of frames.splice(0)) frame(0)
+    })
+
+    expect(mapScroll.scrollLeft).toBe(429)
+    expect(mapScroll.scrollTop).toBe(233)
   })
 
   it('shows a compact unit summary tooltip on hover without changing selection', async () => {

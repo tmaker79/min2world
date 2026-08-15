@@ -117,6 +117,10 @@ function App({ initialState }: AppProps = {}) {
     [activeProductionUnitType, deployablePositions],
   )
   const selectedUnit = getSelectedUnit(state)
+  const playerCapital = state.sites.find(
+    (site) => site.capitalFor === 'player',
+  )
+  const playerCapitalPosition = playerCapital?.position
   const inspectedTile = selectedUnit ? undefined : hoveredTile
   const inspectedSite = inspectedTile
     ? getSiteAt(state, inspectedTile.position)
@@ -148,6 +152,42 @@ function App({ initialState }: AppProps = {}) {
       ),
     [state],
   )
+
+  useEffect(() => {
+    if (!mapScrollElement || !playerCapitalPosition) return
+
+    const frame = window.requestAnimationFrame(() => {
+      const capitalTile = mapScrollElement.querySelector<HTMLElement>(
+        `.map-tile[data-coordinate="${positionKey(playerCapitalPosition)}"]`,
+      )
+      if (!capitalTile) return
+
+      const scrollBounds = mapScrollElement.getBoundingClientRect()
+      const tileBounds = capitalTile.getBoundingClientRect()
+      mapScrollElement.scrollLeft = Math.max(
+        0,
+        mapScrollElement.scrollLeft +
+          tileBounds.left +
+          tileBounds.width / 2 -
+          scrollBounds.left -
+          mapScrollElement.clientWidth / 2,
+      )
+      mapScrollElement.scrollTop = Math.max(
+        0,
+        mapScrollElement.scrollTop +
+          tileBounds.top +
+          tileBounds.height / 2 -
+          scrollBounds.top -
+          mapScrollElement.clientHeight / 2,
+      )
+    })
+
+    return () => window.cancelAnimationFrame(frame)
+  }, [
+    mapScrollElement,
+    playerCapitalPosition,
+    state.tiles,
+  ])
 
   const startCombat = useCallback(
     (attackerId: string, defenderId: string) => {
