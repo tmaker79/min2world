@@ -10,7 +10,7 @@
 2. 게임을 만들면서 React와 TypeScript를 실전 수준으로 익힌다.
 3. 컴포넌트 설계, 상태 관리, 비즈니스 로직 분리, 테스트 경험을 `wizard-web` 개발에 활용한다.
 
-대형 4X 게임을 그대로 재현하는 것이 목표는 아니다. 첫 번째 성공 기준은 제한된 규칙을 가진 게임 한 판을 시작부터 승리 또는 패배까지 플레이할 수 있는 것이다. 이 기준은 Milestone 01–05에서 충족했고, Milestone 06에서 육각 무작위 지도로 확장했다.
+대형 4X 게임을 그대로 재현하는 것이 목표는 아니다. 첫 번째 성공 기준은 제한된 규칙을 가진 게임 한 판을 시작부터 승리 또는 패배까지 플레이할 수 있는 것이다. 이 기준은 Milestone 01–05에서 충족했고, Milestone 06에서 육각 무작위 지도로 확장했으며, Milestone 07–08에서 메인 UI·가변 지도·다세력·조작을 다듬었다.
 
 현재 구현과 조작 안내는 [루트 README](../README.md), 단계별 기록은 [개발 마일스톤](milestones/README.md)을 따른다. 완료된 마일스톤 문서는 덮어쓰지 않는다.
 
@@ -26,36 +26,41 @@
 
 ### 핵심 게임 흐름
 
-1. 플레이어 유닛을 선택한다.
-2. 이동 가능한 육각 타일로 이동하거나 사거리 안의 적을 공격한다.
-3. 거점을 점령하고, 상대 수도를 점령하면 승리한다.
-4. 턴을 종료하고 소유 거점에서 자원을 획득한다.
-5. AI가 같은 규칙으로 행동하고 생산한다.
-6. 한 세력이 상대 수도를 점령하면 게임이 끝난다.
+1. 시작 화면에서 맵 크기·세력 수·내 세력·seed를 고른다.
+2. 플레이어 유닛을 선택한다.
+3. 이동 가능 칸을 우클릭해 이동하거나, 사거리 안의 적을 좌클릭해 공격한다.
+4. 거점을 점령하고, 상대 수도를 모두 점령하면 승리한다.
+5. 턴을 종료하고 소유 거점에서 자원을 획득한다.
+6. AI가 같은 규칙으로 행동하고 생산한다.
+7. 내 수도를 잃거나 상대 수도를 모두 점령하면 게임이 끝난다.
 
 ## 3. 구현 범위
 
 ### 현재 구현
 
-- axial 좌표의 12×12 뾰족형 육각 지도 144칸
-- seed로 재현되는 지형, 거점 8개, 시작 유닛 배치
+- axial 좌표의 뾰족형 육각 지도
+- 맵 프리셋: 초소형 15×10(듀얼 전용), 소형 21×14, 표준 42×28, 대형 84×56
+- 세력 2~4개(`f1`~`f4`), 시작 화면에서 내 세력 선택
+- seed로 재현되는 지형·거점·시작 유닛 배치
 - 평지, 언덕, 숲, 산, 물의 지형 5종
-- 성, 도시, 마을, 광산의 거점 4종
-- 플레이어와 AI의 2개 세력
+- 성, 도시(마을), 농장, 광산의 거점 4종
 - 세력별 수도(성) 1개와 시작 유닛 3개(보병 2, 기병 1)
 - 보병, 기병, 궁병, 창병
 - 최대 체력 100, 근접/원거리 전투력과 병종 상성
 - 궁병 공격은 반격 없음, 반격은 근접 전투력 사용
 - 육각 6방향 이동, 통제 구역, 사거리 공격
-- 지형 이동 비용과 숲·언덕 전투력 보정
-- 거점 점령, 수도 점령 승패
+- 지형 이동 비용과 언덕·숲 전투력 보정(+3)
+- 거점 점령, 다세력 수도 점령 승패
 - 턴 종료 시 소유 거점 수입과 유닛 생산
-- 규칙 기반 AI 턴
-- localStorage 저장과 불러오기(스키마 6)
-- seed 입력, 무작위 지도, 새 게임
+- 규칙 기반 AI 턴(활성 세력 순회)
+- localStorage 저장과 불러오기(스키마 7, 스키마 6 마이그레이션)
+- 시작 화면·seed 입력·무작위 지도·새 게임
+- 지도 휠 줌·드래그 팬·미니맵
+- 지형/유닛 호버 툴팁, 성·부대 정보창, 우클릭 이동
 
 ### 아직 제외
 
+- 건설·건물·생산 대기열(성 메뉴에 미구현 표시만)
 - 무한 지도와 월드 스트리밍
 - 지도 편집기
 - 장수 성장과 장비
@@ -70,7 +75,7 @@
 
 ### 첫 MVP(완료)
 
-Milestone 01–05에서 10×10 사각 지도, 지형 3종, 도시 2개, 보병·기병으로 시작해 전투·AI·저장·생산·궁병·창병까지 완성했다. 사각 좌표와 스키마 4·5 저장은 Milestone 06에서 육각 스키마 6으로 교체했으며 이전 저장은 불러오지 않는다.
+Milestone 01–05에서 사각 지도·지형·도시·보병·기병으로 시작해 전투·AI·저장·생산·궁병·창병까지 완성했다. Milestone 06에서 육각 스키마로 전환했고, Milestone 07–08에서 UI·가변 지도·다세력을 추가했다. 사각 좌표 기반 스키마 4·5 저장은 불러오지 않는다.
 
 ## 4. 기술 스택
 
@@ -122,66 +127,73 @@ React UI ── GameAction ──> 게임 reducer / 규칙 함수
 - 이동 가능 타일, 선택 유닛의 전투력 합계 같은 값은 저장하지 않고 계산한다.
 - 배열과 객체를 직접 변경하지 않고 새로운 상태를 반환한다.
 - UI는 게임 상태를 임의로 수정하지 않고 `GameAction`을 전달한다.
-- 게임 엔진 상태와 모달, 전투 연출, seed 입력 같은 일시적인 UI 상태를 구분한다.
+- 게임 엔진 상태와 모달, 전투 연출, seed 입력, 성/생산 HUD 같은 일시적인 UI 상태를 구분한다.
 - 유닛, 거점, 세력은 화면 위치가 아니라 안정적인 ID로 참조한다.
 
 ### 현재 데이터 모델
 
 ```ts
 type Position = {
-  q: number;
-  r: number;
-};
+  q: number
+  r: number
+}
 
-type Terrain = "plain" | "mountain" | "water" | "hill" | "forest";
-type FactionId = "player" | "enemy";
-type SiteOwnerId = FactionId | "neutral";
-type SiteType = "stronghold" | "city" | "village" | "mine";
-type UnitType = "infantry" | "cavalry" | "archer" | "spearman";
-type GamePhase = "playing" | "victory" | "defeat";
+type Terrain = 'plain' | 'mountain' | 'water' | 'hill' | 'forest'
+type FactionId = 'f1' | 'f2' | 'f3' | 'f4' | 'player' | 'enemy' // player/enemy는 스키마 6 마이그레이션용
+type FactionCount = 2 | 3 | 4
+type BoardSize = { columns: number; rows: number }
+type SiteOwnerId = FactionId | 'neutral'
+type SiteType = 'stronghold' | 'city' | 'village' | 'mine'
+type UnitType = 'infantry' | 'cavalry' | 'archer' | 'spearman'
+type GamePhase = 'playing' | 'victory' | 'defeat'
 
 type Tile = {
-  id: string;
-  position: Position;
-  terrain: Terrain;
-  siteId?: string;
-};
+  id: string
+  position: Position
+  terrain: Terrain
+  terrainVariant?: number
+  siteId?: string
+}
 
 type Unit = {
-  id: string;
-  name: string;
-  factionId: FactionId;
-  type: UnitType;
-  position: Position;
-  hp: number;
-  maxHp: number;
-  movementRemaining: number;
-  hasActed: boolean;
-};
+  id: string
+  name: string
+  factionId: FactionId
+  type: UnitType
+  position: Position
+  hp: number
+  maxHp: number
+  movementRemaining: number
+  hasActed: boolean
+}
 
 type Site = {
-  id: string;
-  name: string;
-  kind: SiteType;
-  position: Position;
-  ownerId: SiteOwnerId;
-  capitalFor?: FactionId;
-  lastProducedTurn?: number;
-};
+  id: string
+  name: string
+  kind: SiteType
+  position: Position
+  ownerId: SiteOwnerId
+  capitalFor?: FactionId
+  lastProducedTurn?: number
+}
 
 type GameState = {
-  schemaVersion: number;
-  mapSeed: string;
-  mapGenerationVersion: number;
-  turn: number;
-  phase: GamePhase;
-  activeFactionId: FactionId;
-  selectedUnitId?: string;
-  resources: Record<FactionId, number>;
-  tiles: Tile[];
-  units: Unit[];
-  sites: Site[];
-};
+  schemaVersion: number // 7
+  mapSeed: string
+  mapGenerationVersion: number // 5
+  boardSize: BoardSize
+  factionCount: FactionCount
+  humanFactionId: FactionId
+  factionOrder: FactionId[]
+  turn: number
+  phase: GamePhase
+  activeFactionId: FactionId
+  selectedUnitId?: string
+  resources: Record<FactionId, number>
+  tiles: Tile[]
+  units: Unit[]
+  sites: Site[]
+}
 ```
 
 구현 중 규칙이 확정되면 타입도 함께 수정한다. 선택 가능한 경우를 문자열 하나로 뭉개지 않고 union 타입으로 표현해 잘못된 상태를 줄인다.
@@ -190,20 +202,26 @@ type GameState = {
 
 ```ts
 type GameAction =
-  | { type: "unitSelected"; unitId: string }
-  | { type: "selectionCleared" }
-  | { type: "unitMoved"; unitId: string; destination: Position }
-  | { type: "unitAttacked"; attackerId: string; defenderId: string }
-  | { type: "unitWaited"; unitId: string }
+  | { type: 'unitSelected'; unitId: string }
+  | { type: 'selectionCleared' }
+  | { type: 'unitMoved'; unitId: string; destination: Position }
+  | { type: 'unitAttacked'; attackerId: string; defenderId: string }
+  | { type: 'unitWaited'; unitId: string }
   | {
-      type: "unitProduced";
-      siteId: string;
-      unitType: UnitType;
-      destination: Position;
+      type: 'unitProduced'
+      siteId: string
+      unitType: UnitType
+      destination: Position
     }
-  | { type: "turnEnded" }
-  | { type: "gameLoaded"; state: GameState }
-  | { type: "gameRestarted"; seed: string };
+  | { type: 'turnEnded' }
+  | { type: 'gameLoaded'; state: GameState }
+  | {
+      type: 'gameRestarted'
+      seed: string
+      boardSize?: BoardSize
+      factionCount?: FactionCount
+      humanFactionId?: FactionId
+    }
 ```
 
 ## 6. 디렉터리 구조
@@ -211,26 +229,38 @@ type GameAction =
 ```text
 src/
 ├─ game/
-│  ├─ types.ts          # 게임 데이터 및 명령 타입
-│  ├─ hex.ts            # 육각 좌표, 인접, 거리, 픽셀 위치
+│  ├─ types.ts
+│  ├─ hex.ts            # 보드 프리셋, 육각 좌표·인접·픽셀
 │  ├─ mapGenerator.ts   # seed 기반 지도·거점·시작 배치
-│  ├─ initialState.ts   # 초기 게임 상태
-│  ├─ reducer.ts        # 명령에 따른 상태 전이
-│  ├─ rules.ts          # 이동, 전투, 점령, 생산 규칙
-│  ├─ selectors.ts      # 이동 가능 범위 등 파생 값
-│  ├─ ai.ts             # 규칙 기반 AI 행동 선택
-│  └─ state.ts          # 상태 복제
+│  ├─ initialState.ts
+│  ├─ reducer.ts
+│  ├─ rules.ts
+│  ├─ selectors.ts
+│  ├─ ai.ts
+│  ├─ spatialIndex.ts
+│  ├─ priorityQueue.ts
+│  └─ state.ts
 ├─ components/
+│  ├─ StartScreen.tsx
+│  ├─ AppChrome.tsx
+│  ├─ NewGameMenu.tsx
 │  ├─ GameMap.tsx
+│  ├─ Minimap.tsx
 │  ├─ StatusBar.tsx
 │  ├─ InfoPanel.tsx
+│  ├─ CityPanel.tsx
 │  ├─ ProductionPanel.tsx
 │  ├─ SavePanel.tsx
 │  ├─ Legend.tsx
 │  ├─ GameResultPanel.tsx
+│  ├─ SiteIcon.tsx
+│  ├─ TerrainIcon.tsx
 │  └─ UnitIcon.tsx
 ├─ hooks/
-│  └─ useAiTurn.ts
+│  ├─ useAiTurn.ts
+│  ├─ useMapPan.ts
+│  ├─ useMapZoom.ts
+│  └─ useMapViewport.ts
 ├─ storage/
 │  └─ saveGame.ts
 ├─ App.tsx
@@ -241,7 +271,7 @@ src/
 
 ## 7. 개발 단계와 완료 조건
 
-01–06은 완료됐다. 각 단계의 상세 기록은 마일스톤 문서를 따른다.
+01–08은 완료됐다. 각 단계의 상세 기록은 마일스톤 문서를 따른다.
 
 ### 0단계: 프로젝트 기반
 
@@ -251,38 +281,18 @@ src/
 
 완료 조건: 새 환경에서 문서의 명령만으로 개발 서버와 테스트를 실행할 수 있다.
 
-### Milestone 01: 지도와 유닛 이동
+### Milestone 01–07
 
-상세 기록: [Milestone 01: 지도와 유닛 이동](milestones/01-map-and-movement.md)
+상세 기록은 [개발 마일스톤](milestones/README.md)의 각 문서를 따른다.
 
-첫 구현은 10×10 사각 지도에서 선택과 이동을 완성했다. 현재 지도는 Milestone 06의 육각 좌표를 사용한다.
+### Milestone 08: 가변 지도·다세력·HUD 조작
 
-### Milestone 02: 전투와 도시 점령
+상세 기록: [Milestone 08](milestones/08-variable-map-and-hud.md)
 
-상세 기록: [Milestone 02: 전투와 도시 점령](milestones/02-combat-and-capture.md)
-
-### Milestone 03: 규칙 기반 AI와 턴 전환
-
-상세 기록: [Milestone 03: 규칙 기반 AI와 턴 전환](milestones/03-rule-based-ai.md)
-
-### Milestone 04: 저장과 불러오기
-
-상세 기록: [Milestone 04: 저장과 불러오기](milestones/04-save-and-load.md)
-
-### Milestone 05: 도시 자원과 유닛 생산
-
-상세 기록: [Milestone 05: 도시 자원과 유닛 생산](milestones/05-economy-and-production.md)
-
-### Milestone 06: 무작위 육각 지도와 seed
-
-상세 기록: [Milestone 06: 무작위 육각 지도와 seed](milestones/06-procedural-hex-map.md)
-
-- 육각 좌표와 6방향 이동·전투·통제 구역
-- seed로 재현 가능한 무작위 지도
-- 평지, 산, 물, 언덕, 숲
-- 성, 도시, 마을, 광산
-
-완료 조건: 같은 seed로 같은 육각 지도를 만들고 확장 지형과 거점에서 한 판을 끝낼 수 있다.
+- 맵 크기·세력 수·내 세력 시작 설정
+- 휠 줌·팬·미니맵
+- 우클릭 이동, 성/부대 정보창, 지형·유닛 툴팁
+- 스키마 7
 
 ## 8. 테스트 전략
 
@@ -299,14 +309,19 @@ src/
 - 상대 수도를 점령하면 즉시 승패가 결정된다.
 - 턴 종료 시 소유 거점 수입만큼 자원이 정확히 증가한다.
 - 같은 seed는 같은 지도와 시작 배치를 만든다.
+- 프리셋·세력 수 조합으로 유효한 지도가 생성된다.
+- 초소형 맵은 2세력으로 강제된다.
 - 승리 또는 패배 후 추가 행동으로 상태가 변경되지 않는다.
 - 동일한 초기 상태와 명령 목록은 동일한 결과를 만든다.
 - 저장 후 불러온 상태가 원래 상태와 같다.
 
 ### UI 테스트
 
-- 144칸 육각 지도와 현재 seed가 보인다.
-- 유닛 선택 시 정보와 이동 가능 타일이 보인다.
+- 시작 화면에서 맵·세력 설정을 고르고 게임을 시작할 수 있다.
+- 유닛 선택 시 부대 정보창과 이동 가능 타일이 보인다.
+- 이동은 우클릭으로 수행된다.
+- 성 클릭 시 성 정보창이 열리고 생산 메뉴로 부대 생산이 가능하다.
+- 지형 호버 시 툴팁이 표시된다.
 - seed 입력으로 결정론적 새 게임을 시작할 수 있다.
 - 유효하지 않은 타일 클릭 시 유닛이 이동하거나 생산되지 않는다.
 - 턴 종료 버튼이 올바른 단계에서 동작한다.
@@ -316,8 +331,9 @@ src/
 
 localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지만 사용자가 사이트 데이터를 삭제하거나 저장 공간이 제한되면 사라질 수 있다. 따라서 저장은 편의 기능으로 간주하며 영구 보관을 보장하지 않는다.
 
-- 저장 데이터에 `schemaVersion`과 `mapSeed`, `mapGenerationVersion`을 포함한다.
-- 현재 스키마는 6이다.
+- 저장 데이터에 `schemaVersion`, `mapSeed`, `mapGenerationVersion`, `boardSize`, `factionCount`, `humanFactionId`, `factionOrder`를 포함한다.
+- 현재 스키마는 7이다.
+- 스키마 6은 `player`/`enemy`를 `f1`/`f2`로 바꿔 불러온다.
 - JSON을 읽은 뒤 필요한 필드와 값의 범위를 검증한다.
 - 스키마 4·5를 포함한 지원하지 않는 버전은 불러오지 않고 사용자에게 알린다.
 - 파생 상태와 일시적인 UI 상태는 저장하지 않는다.
@@ -344,16 +360,16 @@ localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지
 - 오류를 재현하는 테스트를 먼저 작성할 수 있다.
 - 성능 문제를 추측이 아니라 측정 결과로 판단할 수 있다.
 
-## 11. Milestone 07 이후 후보
+## 11. Milestone 08 이후 후보
 
 실제 플레이 결과를 확인한 뒤 다음 기능의 우선순위를 정한다. 후보 목록은 [개발 마일스톤](milestones/README.md)과 같다.
 
 ### 가까운 후보
 
+- 건설·건물·생산 대기열, 유지비
 - AI 난이도·성향, 후퇴·주둔 판단
 - 여러 저장 슬롯, 자동 저장
 - 전장의 안개
-- 건물·생산 대기열, 유지비
 
 ### 큰 확장
 
@@ -364,16 +380,8 @@ localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지
 
 ## 12. 현재 개발 목표
 
-첫 구현 시나리오와 육각 지도·메인 UI 재구성은 완료됐다. 현재 기준 시나리오는 다음과 같다.
+가변 지도·다세력·HUD 조작까지 반영한 현재 기준 시나리오는 다음과 같다.
 
-> seed로 만든 12×12 육각 지도가 화면 중심에 있고, 유닛을 선택하면 이동·공격 칸이 표시되며, 거점을 점령하거나 부대를 생산하고 상대 수도를 점령하면 한 판이 끝난다. seed·저장·범례·도움말은 상단 메뉴에서 다루며 같은 seed는 같은 지도를 재현한다.
+> 시작 화면에서 맵과 세력을 고르고, seed로 만든 육각 지도에서 유닛을 좌클릭으로 선택·공격하고 이동 칸은 우클릭으로 이동한다. 성에서 부대를 생산하고, 상대 수도를 모두 점령하면 한 판이 끝난다. 같은 seed는 같은 지도를 재현한다.
 
 다음 기능을 추가할 때는 새 마일스톤 문서를 만들고, 이 시나리오의 규칙 테스트와 UI 테스트가 계속 통과하는지 확인한다.
-
-### Milestone 07: 메인 UI 재구성
-
-상세 기록: [Milestone 07: 메인 UI 재구성](milestones/07-main-ui.md)
-
-- compact brand bar와 상단 메뉴(새 게임·범례·저장·도움말)
-- board 안 status-bar, 우측은 부대 정보·생산
-- 맵 우선 레이아웃과 유닛 호버 툴팁

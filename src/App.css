@@ -508,7 +508,8 @@
 }
 
 .map-hud .info-card,
-.map-hud .production-card {
+.map-hud .production-card,
+.map-hud .city-card {
   margin: 0;
   padding: 12px;
   background: rgba(18, 26, 32, 0.94);
@@ -517,54 +518,156 @@
   backdrop-filter: blur(6px);
 }
 
-.map-hud .info-card {
-  display: grid;
-  width: 100%;
-  height: 220px;
-  box-sizing: border-box;
-}
-
-.map-hud .info-card h2,
-.map-hud .production-card h2 {
-  font-size: 1rem;
-}
-
-.map-hud .unit-details {
-  margin-top: 0;
-  height: 100%;
-  align-content: start;
-  grid-template-rows: 54px minmax(0, 1fr);
-}
-
-.map-hud .unit-details dl {
-  min-height: 0;
-  align-content: start;
-  overflow: visible;
-}
-
-.map-hud .terrain-portrait {
-  width: 54px;
-  height: 54px;
-}
-
-.map-hud .info-card__empty {
-  display: grid;
-  height: 100%;
-  place-items: center;
-  margin: 0;
-  color: var(--muted);
-  text-align: center;
-}
-
-.map-hud .info-card__empty p {
-  margin: 0;
-  font-size: 0.78rem;
-  line-height: 1.55;
-}
-
 .map-hud .production-list {
   max-height: none;
   overflow: visible;
+}
+
+.city-stack {
+  display: grid;
+  gap: 8px;
+}
+
+.city-card {
+  display: grid;
+  gap: 12px;
+}
+
+.city-card__menu {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  background: rgba(18, 26, 32, 0.94);
+  border: 1px solid rgba(228, 185, 95, 0.35);
+  border-radius: 6px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(6px);
+}
+
+.city-card__menu button {
+  padding: 6px 9px;
+  color: var(--ink);
+  background: #18232a;
+  border: 1px solid var(--panel-border);
+  border-radius: 3px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.city-card__menu button[aria-selected='true'] {
+  color: #172029;
+  background: #56d7c2;
+  border-color: #56d7c2;
+}
+
+.city-card__menu button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.city-card__menu small {
+  font-size: 0.58rem;
+}
+
+.city-card__menu .city-card__close {
+  margin-left: auto;
+  min-width: 29px;
+  padding: 3px 8px;
+  font-size: 1.1rem;
+}
+
+.city-card__summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.city-card__icon {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  background: rgba(228, 185, 95, 0.1);
+  border: 1px solid rgba(228, 185, 95, 0.28);
+  border-radius: 4px;
+}
+
+.city-card__icon [data-site-icon] {
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
+}
+
+.unit-card__icon {
+  color: #d7e8f2;
+}
+
+.unit-card__icon [data-unit-icon] {
+  width: 34px;
+  height: 34px;
+  overflow: visible;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
+}
+
+.unit-card__icon--f1,
+.unit-card__icon--player {
+  color: #9fd4f0;
+  background: rgba(74, 163, 216, 0.14);
+  border-color: rgba(74, 163, 216, 0.42);
+}
+
+.unit-card__icon--f2,
+.unit-card__icon--enemy {
+  color: #f0a39b;
+  background: rgba(196, 90, 82, 0.14);
+  border-color: rgba(196, 90, 82, 0.42);
+}
+
+.unit-card__icon--f3 {
+  color: #f0d48a;
+  background: rgba(215, 180, 90, 0.14);
+  border-color: rgba(215, 180, 90, 0.42);
+}
+
+.unit-card__icon--f4 {
+  color: #d2b4f0;
+  background: rgba(154, 110, 196, 0.14);
+  border-color: rgba(154, 110, 196, 0.42);
+}
+
+.city-card__summary div {
+  display: grid;
+  gap: 2px;
+}
+
+.city-card__summary span,
+.city-card dl {
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.city-card dl {
+  display: grid;
+  margin: 0;
+  gap: 4px;
+}
+
+.city-card dl div {
+  display: flex;
+  justify-content: space-between;
+}
+
+.city-card dt,
+.city-card dd {
+  margin: 0;
+}
+
+.city-card dd {
+  color: var(--ink);
+  font-weight: 700;
 }
 
 .minimap__svg {
@@ -687,7 +790,8 @@
   align-items: start;
 }
 
-.unit-tooltip {
+.unit-tooltip,
+.map-tooltip {
   position: absolute;
   z-index: 6;
   top: 0;
@@ -705,39 +809,46 @@
   transform: translate(-50%, -100%) translateY(-6px);
 }
 
-.unit-tooltip--fixed {
+.unit-tooltip--fixed,
+.map-tooltip--fixed {
   position: fixed;
   z-index: 60;
 }
 
-.unit-tooltip--below {
+.unit-tooltip--below,
+.map-tooltip--below {
   top: auto;
   bottom: 0;
   transform: translate(-50%, 100%) translateY(8px);
 }
 
-.unit-tooltip--fixed.unit-tooltip--above {
+.unit-tooltip--fixed.unit-tooltip--above,
+.map-tooltip--fixed.map-tooltip--above {
   transform: translate(-50%, -100%) translateY(-6px);
 }
 
-.unit-tooltip--fixed.unit-tooltip--below {
+.unit-tooltip--fixed.unit-tooltip--below,
+.map-tooltip--fixed.map-tooltip--below {
   top: auto;
   bottom: auto;
   transform: translate(-50%, 8px);
 }
 
-.unit-tooltip strong {
+.unit-tooltip strong,
+.map-tooltip strong {
   font-size: 0.72rem;
   line-height: 1.3;
 }
 
-.unit-tooltip dl {
+.unit-tooltip dl,
+.map-tooltip dl {
   display: grid;
   margin: 0;
   gap: 2px;
 }
 
-.unit-tooltip dl div {
+.unit-tooltip dl div,
+.map-tooltip dl div {
   display: flex;
   justify-content: space-between;
   gap: 10px;
@@ -745,11 +856,13 @@
   font-size: 0.62rem;
 }
 
-.unit-tooltip dt {
+.unit-tooltip dt,
+.map-tooltip dt {
   margin: 0;
 }
 
-.unit-tooltip dd {
+.unit-tooltip dd,
+.map-tooltip dd {
   margin: 0;
   color: #e8edf2;
   font-weight: 700;
@@ -810,11 +923,11 @@
   filter: brightness(1.08);
 }
 
-.map-tile:disabled {
+.map-tile[aria-disabled='true'] {
   cursor: not-allowed;
 }
 
-.map-tile:disabled:hover {
+.map-tile[aria-disabled='true']:hover {
   filter: none;
 }
 
@@ -859,8 +972,8 @@
   z-index: 2;
 }
 
-.map-tile--attackable:not(:disabled),
-.map-tile--attackable:not(:disabled) * {
+.map-tile--attackable:not([aria-disabled='true']),
+.map-tile--attackable:not([aria-disabled='true']) * {
   cursor: url('./assets/crossed-swords.svg') 16 16, crosshair;
 }
 

@@ -1,5 +1,13 @@
 import type { CSSProperties } from 'react'
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { createPortal } from 'react-dom'
 import { getHexPixelPosition, HEX_HEIGHT, HEX_WIDTH } from '../game/hex'
 import {
@@ -8,7 +16,9 @@ import {
   positionKey,
   getDisplayedCombatStrength,
   SITE_TYPE_LABELS,
+  TERRAIN_COMBAT_BONUS,
   TERRAIN_LABELS,
+  TERRAIN_MOVEMENT_COST,
   UNIT_STATS,
   UNIT_TYPE_LABELS,
 } from '../game/rules'
@@ -18,8 +28,8 @@ import { SiteIcon } from './SiteIcon'
 import { hasTerrainImage, TerrainIcon } from './TerrainIcon'
 import { UnitIcon } from './UnitIcon'
 
-const UNIT_TOOLTIP_SHOW_DELAY_MS = 400
-const UNIT_TOOLTIP_TOP_SAFE_PX = 120
+const MAP_TOOLTIP_SHOW_DELAY_MS = 500
+const MAP_TOOLTIP_TOP_SAFE_PX = 120
 const VIEWPORT_OVERSCAN_PX = Math.max(HEX_WIDTH, HEX_HEIGHT) * 2
 /** Matches `.game-map` content-box padding (8*2) + border (1*2). */
 const MAP_FRAME_PX = 18
@@ -38,6 +48,10 @@ export type CombatAnimation = {
   phase: CombatAnimationPhase
 }
 
+type HoverTarget =
+  | { kind: 'unit'; unitId: string; element: HTMLElement }
+  | { kind: 'terrain'; tileKey: string; element: HTMLElement }
+
 type GameMapProps = {
   state: GameState
   scrollElement: HTMLElement | null
@@ -51,7 +65,7 @@ type GameMapProps = {
   disabled: boolean
   suppressClickRef?: { current: boolean }
   onTileClick: (tile: Tile) => void
-  onTileHoverChange?: (tile: Tile | undefined) => void
+  onTileContextMenu?: (tile: Tile) => void
 }
 
 type TileButtonProps = {
@@ -68,9 +82,12 @@ type TileButtonProps = {
   disabled: boolean
   style: CSSProperties
   onClick: (tile: Tile) => void
+  onContextMenu?: (tile: Tile) => void
   suppressClickRef?: { current: boolean }
-  onUnitHoverChange: (unitId: string | undefined, options?: { immediate?: boolean }) => void
-  onTileHoverChange?: (tile: Tile | undefined) => void
+  onHoverChange: (
+    target: HoverTarget | undefined,
+    options?: { immediate?: boolean },
+  ) => void
 }
 
 function ownerLabel(site: Site): string {
@@ -129,12 +146,6 @@ function getOverlayStyle(
   return { left: pixel.x - minimumX, top: pixel.y - minimumY }
 }
 
-function getUnitStatusLabel(unit: Unit) {
-  if (unit.hasActed) return '행동 완료'
-  if (unit.movementRemaining === 0) return '공격만 가능'
-  return '행동 가능'
-}
-
 function getUnitTooltipRows(unit: Unit) {
   const stats = UNIT_STATS[unit.type]
   const rows = [
@@ -155,7 +166,40 @@ function getUnitTooltipRows(unit: Unit) {
     value: `${unit.movementRemaining}/${stats.movement}`,
   })
 
-  rows.push({ label: '상태', value: getUnitStatusLabel(unit) })
+  return rows
+}
+
+function movementCostLabel(terrain: Tile['terrain']) {
+  const cost = TERRAIN_MOVEMENT_COST[terrain]
+  return cost === null ? '통과 불가' : String(cost)
+}
+
+function getTerrainTooltipRows(tile: Tile, site?: Site) {
+  const rows = [
+    {
+      label: '좌표',
+      value: `${tile.position.q}, ${tile.position.r}`,
+    },
+    {
+      label: '이동',
+      value: movementCostLabel(tile.terrain),
+    },
+    {
+      label: '전투',
+      value:
+        TERRAIN_COMBAT_BONUS[tile.terrain] > 0
+          ? `+${TERRAIN_COMBAT_BONUS[tile.terrain]}`
+          : '없음',
+    },
+  ]
+
+  if (site) {
+    rows.push({
+      label: '거점',
+      value: `${site.name} (${ownerLabel(site)} ${SITE_TYPE_LABELS[site.kind]})`,
+    })
+  }
+
   return rows
 }
 
@@ -173,9 +217,9 @@ const TileButton = memo(function TileButton({
   disabled,
   style,
   onClick,
+  onContextMenu,
   suppressClickRef,
-  onUnitHoverChange,
-  onTileHoverChange,
+  onHoverChange,
 }: TileButtonProps) {
   const classNames = [
     'map-tile',
@@ -190,6 +234,24 @@ const TileButton = memo(function TileButton({
   ]
     .filter(Boolean)
     .join(' ')
+
+  const announceHover = (
+    element: HTMLElement,
+    immediate = false,
+  ) => {
+    if (unit) {
+      onHoverChange({ kind: 'unit', unitId: unit.id, element }, { immediate })
+      return
+    }
+    onHoverChange(
+      {
+        kind: 'terrain',
+        tileKey: positionKey(tile.position),
+        element,
+      },
+      { immediate },
+    )
+  }
 
   return (
     <button
@@ -206,23 +268,24 @@ const TileButton = memo(function TileButton({
       data-deployable={deployable ? 'true' : undefined}
       data-zone-of-control={inZoneOfControl ? 'true' : undefined}
       data-site-selected={siteSelected ? 'true' : undefined}
-      disabled={disabled}
+      aria-disabled={disabled || undefined}
       onClick={() => {
-        if (suppressClickRef?.current) {
+        if (disabled || suppressClickRef?.current) {
           return
         }
         onClick(tile)
       }}
-      onMouseEnter={() => {
-        onTileHoverChange?.(tile)
-        onUnitHoverChange(unit?.id)
+      onContextMenu={(event) => {
+        event.preventDefault()
+        if (disabled || suppressClickRef?.current || !onContextMenu) {
+          return
+        }
+        onContextMenu(tile)
       }}
-      onMouseLeave={() => onUnitHoverChange(undefined)}
-      onFocus={() => {
-        onTileHoverChange?.(tile)
-        onUnitHoverChange(unit?.id, { immediate: true })
-      }}
-      onBlur={() => onUnitHoverChange(undefined)}
+      onMouseEnter={(event) => announceHover(event.currentTarget)}
+      onMouseLeave={() => onHoverChange(undefined)}
+      onFocus={(event) => announceHover(event.currentTarget, true)}
+      onBlur={() => onHoverChange(undefined)}
     >
       {hasTerrainImage(tile.terrain) && (
         <span className={`terrain-mark terrain-mark--${tile.terrain}`} aria-hidden="true">
@@ -238,6 +301,46 @@ const TileButton = memo(function TileButton({
   )
 })
 
+function MapTooltip({
+  title,
+  rows,
+  placement,
+  anchor,
+  unitId,
+  terrainKey,
+}: {
+  title: string
+  rows: Array<{ label: string; value: string }>
+  placement: 'above' | 'below'
+  anchor: DOMRect
+  unitId?: string
+  terrainKey?: string
+}) {
+  return createPortal(
+    <span
+      className={`map-tooltip map-tooltip--fixed map-tooltip--${placement}`}
+      role="tooltip"
+      data-unit-tooltip={unitId}
+      data-terrain-tooltip={terrainKey}
+      style={{
+        left: anchor.left + anchor.width / 2,
+        top: placement === 'above' ? anchor.top : anchor.bottom,
+      }}
+    >
+      <strong>{title}</strong>
+      <dl>
+        {rows.map((row) => (
+          <div key={row.label}>
+            <dt>{row.label}</dt>
+            <dd>{row.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </span>,
+    document.body,
+  )
+}
+
 function UnitTooltip({
   unit,
   placement,
@@ -247,27 +350,36 @@ function UnitTooltip({
   placement: 'above' | 'below'
   anchor: DOMRect
 }) {
-  return createPortal(
-    <span
-      className={`unit-tooltip unit-tooltip--fixed unit-tooltip--${placement}`}
-      role="tooltip"
-      data-unit-tooltip={unit.id}
-      style={{
-        left: anchor.left + anchor.width / 2,
-        top: placement === 'above' ? anchor.top : anchor.bottom,
-      }}
-    >
-      <strong>{unit.name}</strong>
-      <dl>
-        {getUnitTooltipRows(unit).map((row) => (
-          <div key={row.label}>
-            <dt>{row.label}</dt>
-            <dd>{row.value}</dd>
-          </div>
-        ))}
-      </dl>
-    </span>,
-    document.body,
+  return (
+    <MapTooltip
+      title={unit.name}
+      rows={getUnitTooltipRows(unit)}
+      placement={placement}
+      anchor={anchor}
+      unitId={unit.id}
+    />
+  )
+}
+
+function TerrainTooltip({
+  tile,
+  site,
+  placement,
+  anchor,
+}: {
+  tile: Tile
+  site?: Site
+  placement: 'above' | 'below'
+  anchor: DOMRect
+}) {
+  return (
+    <MapTooltip
+      title={TERRAIN_LABELS[tile.terrain]}
+      rows={getTerrainTooltipRows(tile, site)}
+      placement={placement}
+      anchor={anchor}
+      terrainKey={positionKey(tile.position)}
+    />
   )
 }
 
@@ -392,36 +504,47 @@ function GameMapComponent({
   disabled,
   suppressClickRef,
   onTileClick,
-  onTileHoverChange,
+  onTileContextMenu,
 }: GameMapProps) {
   const viewport = useMapViewport(scrollElement)
   const [hoveredUnitId, setHoveredUnitId] = useState<string>()
+  const [hoveredTerrainKey, setHoveredTerrainKey] = useState<string>()
   const [tooltipAnchor, setTooltipAnchor] = useState<DOMRect>()
   const hoverTimerRef = useRef<number | undefined>(undefined)
   const tooltipFrameRef = useRef<number | undefined>(undefined)
   const hoveredUnitIdRef = useRef<string | undefined>(undefined)
+  const hoveredTerrainKeyRef = useRef<string | undefined>(undefined)
+  const hoverElementRef = useRef<HTMLElement | null>(null)
   const unitTokenRefs = useRef(new Map<string, HTMLSpanElement>())
 
   useEffect(() => {
     return () => window.clearTimeout(hoverTimerRef.current)
   }, [])
 
-  useEffect(() => {
-    if (!hoveredUnitId) {
+  useLayoutEffect(() => {
+    if (!hoveredUnitId && !hoveredTerrainKey) {
+      setTooltipAnchor(undefined)
       return
     }
 
     const updateAnchor = () => {
       tooltipFrameRef.current = undefined
-      const token = unitTokenRefs.current.get(hoveredUnitId)
-      setTooltipAnchor(token?.getBoundingClientRect())
+      const token = hoveredUnitId
+        ? unitTokenRefs.current.get(hoveredUnitId)
+        : undefined
+      const element = token ?? hoverElementRef.current
+      if (!element) {
+        setTooltipAnchor(undefined)
+        return
+      }
+      setTooltipAnchor(element.getBoundingClientRect())
     }
     const scheduleAnchorUpdate = () => {
       if (tooltipFrameRef.current !== undefined) return
       tooltipFrameRef.current = window.requestAnimationFrame(updateAnchor)
     }
 
-    scheduleAnchorUpdate()
+    updateAnchor()
     scrollElement?.addEventListener('scroll', scheduleAnchorUpdate, {
       passive: true,
     })
@@ -430,34 +553,59 @@ function GameMapComponent({
     return () => {
       if (tooltipFrameRef.current !== undefined) {
         window.cancelAnimationFrame(tooltipFrameRef.current)
+        tooltipFrameRef.current = undefined
       }
       scrollElement?.removeEventListener('scroll', scheduleAnchorUpdate)
       window.removeEventListener('resize', scheduleAnchorUpdate)
     }
-  }, [hoveredUnitId, scrollElement])
+  }, [hoveredTerrainKey, hoveredUnitId, scrollElement])
 
-  const handleUnitHoverChange = useCallback((
-    unitId: string | undefined,
+  const handleHoverChange = useCallback((
+    target: HoverTarget | undefined,
     options?: { immediate?: boolean },
   ) => {
     window.clearTimeout(hoverTimerRef.current)
 
-    if (!unitId) {
+    if (!target) {
       hoveredUnitIdRef.current = undefined
+      hoveredTerrainKeyRef.current = undefined
+      hoverElementRef.current = null
       setHoveredUnitId(undefined)
+      setHoveredTerrainKey(undefined)
       return
     }
 
-    if (options?.immediate || hoveredUnitIdRef.current) {
-      hoveredUnitIdRef.current = unitId
-      setHoveredUnitId(unitId)
+    const applyHover = () => {
+      hoverElementRef.current = target.element
+      if (target.kind === 'unit') {
+        hoveredUnitIdRef.current = target.unitId
+        hoveredTerrainKeyRef.current = undefined
+        setHoveredUnitId(target.unitId)
+        setHoveredTerrainKey(undefined)
+        return
+      }
+      hoveredUnitIdRef.current = undefined
+      hoveredTerrainKeyRef.current = target.tileKey
+      setHoveredUnitId(undefined)
+      setHoveredTerrainKey(target.tileKey)
+    }
+
+    // Dismiss any visible tooltip while waiting on a new tile.
+    hoveredUnitIdRef.current = undefined
+    hoveredTerrainKeyRef.current = undefined
+    hoverElementRef.current = target.element
+    setHoveredUnitId(undefined)
+    setHoveredTerrainKey(undefined)
+
+    if (options?.immediate) {
+      applyHover()
       return
     }
 
-    hoverTimerRef.current = window.setTimeout(() => {
-      hoveredUnitIdRef.current = unitId
-      setHoveredUnitId(unitId)
-    }, UNIT_TOOLTIP_SHOW_DELAY_MS)
+    hoverTimerRef.current = window.setTimeout(
+      applyHover,
+      MAP_TOOLTIP_SHOW_DELAY_MS,
+    )
   }, [])
 
   const layout = useMemo(() => {
@@ -588,13 +736,22 @@ function GameMapComponent({
   const hoveredUnit = hoveredUnitId
     ? state.units.find((unit) => unit.id === hoveredUnitId)
     : undefined
+  const hoveredTerrain = hoveredTerrainKey
+    ? layout.byKey.get(hoveredTerrainKey)?.tile
+    : undefined
+  const hoveredTerrainSite = hoveredTerrain
+    ? getSiteAt(state, hoveredTerrain.position)
+    : undefined
   const hoveredTooltipPlacement =
-    tooltipAnchor && tooltipAnchor.top < UNIT_TOOLTIP_TOP_SAFE_PX
+    tooltipAnchor && tooltipAnchor.top < MAP_TOOLTIP_TOP_SAFE_PX
       ? 'below'
       : hoveredUnit &&
           getHexPixelPosition(hoveredUnit.position).y - minimumY < HEX_HEIGHT
         ? 'below'
-        : 'above'
+        : hoveredTerrain &&
+            getHexPixelPosition(hoveredTerrain.position).y - minimumY < HEX_HEIGHT
+          ? 'below'
+          : 'above'
 
   return (
     <div
@@ -613,7 +770,7 @@ function GameMapComponent({
         transform: `scale(${zoom})`,
         transformOrigin: '0 0',
       }}
-      onMouseLeave={() => onTileHoverChange?.(undefined)}
+      onMouseLeave={() => handleHoverChange(undefined)}
     >
       <div className="map-layer map-layer--terrain">
         {visibleTiles.map(({ tile, style }) => {
@@ -642,9 +799,9 @@ function GameMapComponent({
               disabled={disabled}
               style={style}
               onClick={onTileClick}
+              onContextMenu={onTileContextMenu}
               suppressClickRef={suppressClickRef}
-              onUnitHoverChange={handleUnitHoverChange}
-              onTileHoverChange={onTileHoverChange}
+              onHoverChange={handleHoverChange}
             />
           )
         })}
@@ -695,6 +852,14 @@ function GameMapComponent({
       {hoveredUnit && tooltipAnchor && (
         <UnitTooltip
           unit={hoveredUnit}
+          placement={hoveredTooltipPlacement}
+          anchor={tooltipAnchor}
+        />
+      )}
+      {!hoveredUnit && hoveredTerrain && tooltipAnchor && (
+        <TerrainTooltip
+          tile={hoveredTerrain}
+          site={hoveredTerrainSite}
           placement={hoveredTooltipPlacement}
           anchor={tooltipAnchor}
         />

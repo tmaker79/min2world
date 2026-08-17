@@ -48,8 +48,8 @@ describe('Milestone 07 UI', () => {
     expect(container.querySelector('.site-marker')?.closest('.map-tile')).toBeNull()
     expect(screen.getByTestId('minimap')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '미니맵 접기' })).toBeInTheDocument()
-    expect(screen.getByLabelText('정보 패널')).toBeVisible()
-    expect(screen.getByLabelText('정보 패널')).toHaveAttribute('data-info-mode', 'empty')
+    expect(screen.queryByLabelText('정보 패널')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('부대 정보')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '저장' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '도움말' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '범례' })).not.toBeInTheDocument()
@@ -129,15 +129,21 @@ describe('Milestone 07 UI', () => {
     expect(tooltip).toHaveTextContent('체력')
     expect(tooltip).toHaveTextContent(`${enemy.hp}/${enemy.maxHp}`)
 
-    const infoCard = screen.getByLabelText('지형 정보')
-    expect(infoCard).toHaveAttribute('data-info-mode', 'terrain')
-    expect(infoCard).toHaveTextContent('이동 비용')
+    expect(screen.queryByLabelText('부대 정보')).not.toBeInTheDocument()
   })
 
-  it('shows terrain details in the info panel while no unit is selected', async () => {
+  it('shows terrain details in a tooltip while no unit is selected', async () => {
     const user = userEvent.setup()
     const state = createInitialGameState('ui-terrain-info')
-    const plain = state.tiles.find((tile) => tile.terrain === 'plain')!
+    const plain = state.tiles.find(
+      (tile) =>
+        tile.terrain === 'plain' &&
+        !state.units.some(
+          (unit) =>
+            unit.position.q === tile.position.q &&
+            unit.position.r === tile.position.r,
+        ),
+    )!
     const { container } = renderApp(state)
     const tile = container.querySelector<HTMLButtonElement>(
       `.map-tile[data-coordinate="${positionKey(plain.position)}"]`,
@@ -145,11 +151,19 @@ describe('Milestone 07 UI', () => {
 
     await user.hover(tile)
 
-    const infoCard = screen.getByLabelText('지형 정보')
-    expect(infoCard).toHaveTextContent('평지')
-    expect(infoCard).toHaveTextContent(`좌표 ${plain.position.q}, ${plain.position.r}`)
-    expect(infoCard).toHaveTextContent('이동 비용')
-    expect(infoCard).toHaveTextContent('1')
+    const tooltip = await waitFor(() => {
+      const next = document.querySelector(
+        `[data-terrain-tooltip="${positionKey(plain.position)}"]`,
+      )
+      expect(next).toBeVisible()
+      return next
+    })
+    expect(tooltip).toHaveTextContent('평지')
+    expect(tooltip).toHaveTextContent(`${plain.position.q}, ${plain.position.r}`)
+    expect(tooltip).toHaveTextContent('이동')
+    expect(tooltip).toHaveTextContent('1')
+
+    expect(screen.queryByLabelText('부대 정보')).not.toBeInTheDocument()
   })
 
   it('selects a unit with keyboard Enter and exposes reachable hexes', async () => {
@@ -168,7 +182,7 @@ describe('Milestone 07 UI', () => {
     expect(container.querySelectorAll('[data-reachable="true"]').length).toBeGreaterThan(0)
   })
 
-  it('moves the selected unit onto a reachable axial cell', async () => {
+  it('moves the selected unit onto a reachable axial cell with right-click', async () => {
     const user = userEvent.setup()
     const state = createInitialGameState('ui-move')
     const player = state.units.find((unit) => unit.factionId === 'player')!
@@ -179,11 +193,30 @@ describe('Milestone 07 UI', () => {
     const destination = container.querySelector<HTMLButtonElement>('[data-reachable="true"]')!
     const destinationKey = destination.dataset.coordinate
 
-    await user.click(destination)
+    fireEvent.contextMenu(destination)
     expect(container.querySelector(`[data-unit-id="${player.id}"]`)).toHaveAttribute(
       'data-coordinate',
       destinationKey,
     )
+  })
+
+  it('does not move on left-click of a reachable cell', async () => {
+    const user = userEvent.setup()
+    const state = createInitialGameState('ui-move-left')
+    const player = state.units.find((unit) => unit.factionId === 'player')!
+    const { container } = renderApp(state)
+    await user.click(container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(player.position)}"]`,
+    )!)
+    const destination = container.querySelector<HTMLButtonElement>('[data-reachable="true"]')!
+    const originKey = positionKey(player.position)
+
+    await user.click(destination)
+    expect(container.querySelector(`[data-unit-id="${player.id}"]`)).toHaveAttribute(
+      'data-coordinate',
+      originKey,
+    )
+    expect(container.querySelectorAll('[data-reachable="true"]').length).toBeGreaterThan(0)
   })
 
   it('starts a deterministic game from a trimmed seed and validates empty input', async () => {
@@ -228,7 +261,7 @@ describe('Milestone 07 UI', () => {
     expect(container.querySelector('.app-chrome__seed')).toHaveTextContent('progress')
   })
 
-  it('offers production only from a production-capable owned site', async () => {
+  it('opens city information before offering production from an owned stronghold', async () => {
     const user = userEvent.setup()
     const state = createInitialGameState('ui-production')
     const stronghold = state.sites.find(
@@ -243,6 +276,12 @@ describe('Milestone 07 UI', () => {
     )!
     await user.click(strongholdTile)
 
+    expect(screen.getByLabelText('성 정보')).toBeVisible()
+    expect(screen.getByText(stronghold.name)).toBeVisible()
+    expect(screen.getByRole('tab', { name: /건설/ })).toBeDisabled()
+    expect(container.querySelector('.production-card')).toBeNull()
+
+    await user.click(screen.getByRole('tab', { name: '생산' }))
     const options = container.querySelectorAll<HTMLButtonElement>('.production-option')
     expect(options).toHaveLength(4)
     await user.click(options[0])
@@ -283,6 +322,10 @@ describe('Milestone 07 UI', () => {
     expect(tile).toHaveAttribute('aria-pressed', 'true')
     expect(tile).toHaveAttribute('data-site-selected', 'true')
     expect(container.querySelector('.site-marker--selected')).toBeInTheDocument()
+    expect(screen.getByLabelText('성 정보')).toBeVisible()
+    expect(container.querySelector('.production-card')).toBeNull()
+
+    await user.click(screen.getByRole('tab', { name: '생산' }))
     expect(container.querySelector('.production-card')).toBeInTheDocument()
     expect(screen.getByLabelText('부대 생산')).toBeVisible()
   })
@@ -324,7 +367,9 @@ describe('Milestone 07 UI', () => {
     await user.click(container.querySelector<HTMLButtonElement>(
       `.map-tile[data-coordinate="${positionKey(winner.position)}"]`,
     )!)
-    fireEvent.click(container.querySelector(`[data-coordinate="${positionKey(capital.position)}"]`)!)
+    fireEvent.contextMenu(
+      container.querySelector(`[data-coordinate="${positionKey(capital.position)}"]`)!,
+    )
 
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(screen.getByText('CAMPAIGN COMPLETE')).toBeInTheDocument()

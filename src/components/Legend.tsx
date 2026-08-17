@@ -66,7 +66,7 @@ export function Legend({ embedded = false }: LegendProps) {
         </li>
         <li>
           <span className="legend-swatch legend-swatch--reachable" />
-          이동 가능
+          이동 가능 <small>우클릭</small>
         </li>
         <li>
           <span className="legend-swatch legend-swatch--attackable" />
