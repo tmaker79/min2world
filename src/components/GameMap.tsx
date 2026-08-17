@@ -177,10 +177,6 @@ function movementCostLabel(terrain: Tile['terrain']) {
 function getTerrainTooltipRows(tile: Tile, site?: Site) {
   const rows = [
     {
-      label: '좌표',
-      value: `${tile.position.q}, ${tile.position.r}`,
-    },
-    {
       label: '이동',
       value: movementCostLabel(tile.terrain),
     },
@@ -523,7 +519,6 @@ function GameMapComponent({
 
   useLayoutEffect(() => {
     if (!hoveredUnitId && !hoveredTerrainKey) {
-      setTooltipAnchor(undefined)
       return
     }
 
@@ -572,6 +567,7 @@ function GameMapComponent({
       hoverElementRef.current = null
       setHoveredUnitId(undefined)
       setHoveredTerrainKey(undefined)
+      setTooltipAnchor(undefined)
       return
     }
 
@@ -596,6 +592,7 @@ function GameMapComponent({
     hoverElementRef.current = target.element
     setHoveredUnitId(undefined)
     setHoveredTerrainKey(undefined)
+    setTooltipAnchor(undefined)
 
     if (options?.immediate) {
       applyHover()

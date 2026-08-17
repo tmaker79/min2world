@@ -159,7 +159,7 @@ describe('Milestone 07 UI', () => {
       return next
     })
     expect(tooltip).toHaveTextContent('평지')
-    expect(tooltip).toHaveTextContent(`${plain.position.q}, ${plain.position.r}`)
+    expect(tooltip).not.toHaveTextContent('좌표')
     expect(tooltip).toHaveTextContent('이동')
     expect(tooltip).toHaveTextContent('1')
 
