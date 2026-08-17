@@ -43,7 +43,7 @@
 - 세력 2~4개(`f1`~`f4`), 시작 화면에서 내 세력 선택
 - seed로 재현되는 지형·거점·시작 유닛 배치
 - 평지, 언덕, 숲, 산, 물의 지형 5종
-- 성, 도시(마을), 농장, 광산의 거점 4종
+- 성, 마을, 농장, 광산의 거점 4종
 - 세력별 수도(성) 1개와 시작 유닛 3개(보병 2, 기병 1)
 - 보병, 기병, 궁병, 창병
 - 최대 체력 100, 근접/원거리 전투력과 병종 상성
@@ -368,7 +368,7 @@ localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지
 | --- | --- |
 | [09](milestones/09-terrain-expansion.md) | 사막·툰드라 |
 | [10](milestones/10-site-development.md) | 기존 거점 레벨업 |
-| [11](milestones/11-city-administration.md) | 건물·대기열 |
+| [11](milestones/11-city-administration.md) | 성 건물·대기열 |
 | [12](milestones/12-upkeep.md) | 유지비(소프트 제약) |
 | [13](milestones/13-ai-refinement.md) | 경제를 보는 AI |
 | [14](milestones/14-settlement-construction.md) | 개척자·건설자의 신규 거점 건설 |
