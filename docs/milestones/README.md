@@ -12,18 +12,18 @@
 | [06](06-procedural-hex-map.md) | 무작위 육각 지도와 seed | 완료 |
 | [07](07-main-ui.md) | 메인 UI 재구성 | 완료 |
 | [08](08-variable-map-and-hud.md) | 가변 지도·다세력·HUD 조작 | 완료 |
+| [09](09-terrain-expansion.md) | 지형 확장 (사막, 툰드라) | 다음 목표 |
+| [10](10-site-development.md) | 거점 개발 | 예정 |
+| [11](11-city-administration.md) | 도시 내정 (건물, 대기열) | 예정 |
+| [12](12-upkeep.md) | 유지비 | 예정 |
+| [13](13-ai-refinement.md) | AI 고도화 | 예정 |
+| [14](14-settlement-construction.md) | 거점 건설 | 예정 |
+| [15](15-supply-and-morale.md) | 보급, 사기 | 예정 |
 
 새 목표를 구체화할 때 `NN-kebab-case.md` 형식으로 문서를 추가한다. 기존 마일스톤 문서는 덮어쓰지 않는다.
 
-## Milestone 08 이후 후보
-
-우선순위를 정한 뒤 `09-…` 문서로 구체화한다.
-
 ### 가까운 후보
 
-- 사막 지형 추가
-- 건설·건물·생산 대기열, 유지비와 보급
-- AI 난이도·성향, 후퇴·주둔 판단
 - 여러 저장 슬롯, 자동 저장, 파일 내보내기/가져오기
 - 전장의 안개
 - 전투 사운드, 이동 경로 연출
