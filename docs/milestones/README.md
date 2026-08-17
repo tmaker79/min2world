@@ -17,7 +17,7 @@
 | [11](11-city-administration.md) | 도시 내정 (건물, 대기열) | 예정 |
 | [12](12-upkeep.md) | 유지비 | 예정 |
 | [13](13-ai-refinement.md) | AI 고도화 | 예정 |
-| [14](14-settlement-construction.md) | 거점 건설 | 예정 |
+| [14](14-settlement-construction.md) | 거점 건설 (개척자·건설자) | 예정 |
 | [15](15-supply-and-morale.md) | 보급, 사기 | 예정 |
 
 새 목표를 구체화할 때 `NN-kebab-case.md` 형식으로 문서를 추가한다. 기존 마일스톤 문서는 덮어쓰지 않는다.

@@ -371,7 +371,7 @@ localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지
 | [11](milestones/11-city-administration.md) | 건물·대기열 |
 | [12](milestones/12-upkeep.md) | 유지비(소프트 제약) |
 | [13](milestones/13-ai-refinement.md) | 경제를 보는 AI |
-| [14](milestones/14-settlement-construction.md) | 신규 거점 건설 |
+| [14](milestones/14-settlement-construction.md) | 개척자·건설자의 신규 거점 건설 |
 | [15](milestones/15-supply-and-morale.md) | 보급·사기(라이트) |
 
 ### 로드맵 밖 후보
