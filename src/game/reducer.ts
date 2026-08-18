@@ -253,7 +253,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       return {
         ...state,
-        selectedUnitId: unit.id,
+        selectedUnitId: undefined,
         resources: {
           ...state.resources,
           [state.activeFactionId]:

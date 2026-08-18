@@ -125,6 +125,7 @@ describe('gameReducer on a hex map', () => {
 
     expect(produced.units).toHaveLength(initial.units.length + 1)
     expect(produced.resources.player).toBe(initial.resources.player - 10)
+    expect(produced.selectedUnitId).toBeUndefined()
     expect(produced.sites.find((candidate) => candidate.id === site.id)?.lastProducedTurn).toBe(1)
     expect(gameReducer(produced, {
       type: 'unitProduced', siteId: site.id, unitType: 'infantry', destination,

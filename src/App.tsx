@@ -430,11 +430,10 @@ function GameApp({ initialState }: { initialState: GameState }) {
         unitType: activeProductionUnitType,
         destination: tile.position,
       })
-      setProductionFeedback({
-        type: 'status',
-        message: `${UNIT_TYPE_LABELS[activeProductionUnitType]} 생산을 완료했습니다.`,
-      })
       setProductionUnitType(undefined)
+      setProductionPanelOpen(false)
+      setCityInfoSiteId(undefined)
+      setProductionFeedback(undefined)
       return
     }
 
@@ -628,24 +627,60 @@ function GameApp({ initialState }: { initialState: GameState }) {
 
       <main className="game-layout">
         <section className="board-panel" aria-label="전략 지도">
-          <StatusBar
-            turn={state.turn}
-            resource={state.resources[state.humanFactionId] ?? 0}
-            activeFactionId={state.activeFactionId}
-            humanFactionId={state.humanFactionId}
-            disabled={
-              state.phase !== 'playing' ||
-              state.activeFactionId !== state.humanFactionId ||
-              Boolean(activeCombat)
-            }
-            onEndTurn={() => {
-              setProductionUnitType(undefined)
-              setProductionPanelOpen(false)
-              setCityInfoSiteId(undefined)
-              setProductionFeedback(undefined)
-              dispatch({ type: 'turnEnded' })
-            }}
-          />
+          <div className="status-bar-slot">
+            <StatusBar
+              turn={state.turn}
+              resource={state.resources[state.humanFactionId] ?? 0}
+              activeFactionId={state.activeFactionId}
+              humanFactionId={state.humanFactionId}
+              disabled={
+                state.phase !== 'playing' ||
+                state.activeFactionId !== state.humanFactionId ||
+                Boolean(activeCombat)
+              }
+              onEndTurn={() => {
+                setProductionUnitType(undefined)
+                setProductionPanelOpen(false)
+                setCityInfoSiteId(undefined)
+                setProductionFeedback(undefined)
+                dispatch({ type: 'turnEnded' })
+              }}
+            />
+
+            {activeProductionUnitType && (
+              <section className="deployment-bar" aria-label="부대 배치">
+                <div className="deployment-bar__copy">
+                  <strong>
+                    {UNIT_TYPE_LABELS[activeProductionUnitType]} 배치
+                  </strong>
+                  <span
+                    className={
+                      productionFeedback?.type === 'error'
+                        ? 'deployment-bar__message deployment-bar__message--error'
+                        : 'deployment-bar__message'
+                    }
+                    role={
+                      productionFeedback?.type === 'error' ? 'alert' : undefined
+                    }
+                  >
+                    {productionFeedback?.type === 'error'
+                      ? productionFeedback.message
+                      : '청록색 타일을 선택하세요.'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  aria-label="부대 배치 취소"
+                  onClick={() => {
+                    setProductionUnitType(undefined)
+                    setProductionFeedback(undefined)
+                  }}
+                >
+                  취소 <kbd>Esc</kbd>
+                </button>
+              </section>
+            )}
+          </div>
 
           <div className="map-stage">
             <div
@@ -684,7 +719,8 @@ function GameApp({ initialState }: { initialState: GameState }) {
               scrollElement={mapScrollElement}
               zoom={mapZoom}
             />
-            {(cityInfoSite || productionPanelOpen || selectedUnit) && (
+            {!activeProductionUnitType &&
+              (cityInfoSite || productionPanelOpen || selectedUnit) && (
               <aside className="map-hud" aria-label="선택 정보">
                 {cityInfoSite && (
                   <CityPanel
@@ -743,7 +779,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
                   />
                 )}
               </aside>
-            )}
+              )}
           </div>
 
           {state.phase !== 'playing' && (

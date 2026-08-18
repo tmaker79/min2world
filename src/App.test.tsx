@@ -291,11 +291,52 @@ describe('Milestone 07 UI', () => {
     const options = container.querySelectorAll<HTMLButtonElement>('.production-option')
     expect(options).toHaveLength(4)
     await user.click(options[0])
+
+    expect(container.querySelector('.production-card')).toBeNull()
+    const deploymentBar = screen.getByLabelText('부대 배치')
+    expect(deploymentBar).toHaveTextContent(
+      '청록색 타일을 선택하세요.',
+    )
+    expect(deploymentBar.parentElement).toHaveClass('status-bar-slot')
+    expect(deploymentBar.parentElement).toContainElement(
+      container.querySelector('.status-bar'),
+    )
+
     const destination = container.querySelector<HTMLButtonElement>('[data-deployable="true"]')!
     await user.click(destination)
 
     expect(container.querySelectorAll('.unit-token')).toHaveLength(7)
     expect(container.querySelector('.status-bar')).toHaveTextContent('5')
+    expect(screen.queryByLabelText('부대 배치')).not.toBeInTheDocument()
+    expect(container.querySelector('.production-card')).toBeNull()
+    expect(container.querySelector('.map-hud')).toBeNull()
+    expect(container.querySelector('.map-tile[aria-pressed="true"]')).toBeNull()
+    expect(container.querySelector('[data-site-selected="true"]')).toBeNull()
+  })
+
+  it('returns to production options when deployment is cancelled', async () => {
+    const user = userEvent.setup()
+    const state = createInitialGameState('ui-production-cancel')
+    const stronghold = state.sites.find(
+      (site) => site.ownerId === 'player' && site.kind === 'stronghold',
+    )!
+    const { container } = renderApp(state)
+    const strongholdTile = container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(stronghold.position)}"]`,
+    )!
+
+    await user.click(strongholdTile)
+    await user.click(screen.getByRole('tab', { name: '생산' }))
+    await user.click(
+      container.querySelector<HTMLButtonElement>('.production-option')!,
+    )
+
+    expect(container.querySelector('.map-hud')).toBeNull()
+    await user.click(screen.getByRole('button', { name: '부대 배치 취소' }))
+
+    expect(screen.queryByLabelText('부대 배치')).not.toBeInTheDocument()
+    expect(container.querySelector('.production-card')).toBeInTheDocument()
+    expect(container.querySelectorAll('.unit-token')).toHaveLength(6)
   })
 
   it('selects a unit on a stronghold first, then the stronghold on the next click', async () => {
