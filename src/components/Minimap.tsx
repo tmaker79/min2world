@@ -15,8 +15,8 @@ const TERRAIN_FILL: Record<Terrain, string> = {
   water: '#365172',
 }
 
-const MINIMAP_MAX_WIDTH = 168
-const MINIMAP_MAX_HEIGHT = 168
+const MINIMAP_MAX_WIDTH = 200
+const MINIMAP_MAX_HEIGHT = 140
 
 type Viewport = {
   left: number

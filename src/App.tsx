@@ -744,8 +744,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
                   >
                     {productionPanelOpen && (
                       <ProductionPanel
-                        sites={playerProductionSites}
-                        selectedSiteId={availableProductionSiteId}
+                        site={productionSite}
                         selectedUnitType={activeProductionUnitType}
                         resource={state.resources[state.humanFactionId] ?? 0}
                         turn={state.turn}
@@ -756,12 +755,6 @@ function GameApp({ initialState }: { initialState: GameState }) {
                           Boolean(activeCombat)
                         }
                         feedback={productionFeedback}
-                        onSiteSelected={(siteId) => {
-                          setProductionSiteId(siteId)
-                          setCityInfoSiteId(siteId)
-                          setProductionUnitType(undefined)
-                          setProductionFeedback(undefined)
-                        }}
                         onUnitTypeSelected={(unitType) => {
                           setProductionUnitType(unitType)
                           setProductionFeedback(undefined)

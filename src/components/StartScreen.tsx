@@ -14,7 +14,7 @@ type StartScreenProps = {
 }
 
 const SIZE_OPTIONS = [
-  { id: 'tiny', label: '2인용', detail: '15 × 10', available: true },
+  { id: 'tiny', label: '2인용', detail: '15 × 11', available: true },
   { id: 'small', label: '초소형', detail: '21 × 14', available: false },
   { id: 'standard', label: '소형', detail: '42 × 28', available: false },
   { id: 'large', label: '중형', detail: '84 × 56', available: false },

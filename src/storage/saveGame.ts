@@ -210,6 +210,8 @@ function parseBoardSize(value: unknown): BoardSize | undefined {
   const boardSize = { columns: value.columns, rows: value.rows }
   const allowedSizes = [
     ...Object.values(BOARD_SIZE_PRESETS),
+    // Previous two-player preset; keep schema 8 saves loadable.
+    { columns: 15, rows: 10 },
     // Legacy presets from earlier schema 7 builds.
     { columns: 18, rows: 12 },
     { columns: 24, rows: 16 },

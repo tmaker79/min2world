@@ -1,7 +1,7 @@
 import type { BoardSize, Position } from './types'
 
 export const BOARD_SIZE_PRESETS = {
-  tiny: { columns: 15, rows: 10 },
+  tiny: { columns: 15, rows: 11 },
   small: { columns: 21, rows: 14 },
   standard: { columns: 42, rows: 28 },
   large: { columns: 84, rows: 56 },

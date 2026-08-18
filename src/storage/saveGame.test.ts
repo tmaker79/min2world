@@ -74,6 +74,22 @@ describe('saved games', () => {
     if (loaded.ok) expect(loaded.value.gameState.mapType).toBe('balanced')
   })
 
+  it('loads schema 8 saves created with the previous 15x10 board', () => {
+    const storage = new MemoryStorage()
+    const state = createInitialGameState('legacy-tiny-board', {
+      boardSize: { columns: 15, rows: 10 },
+      factionCount: 2,
+    })
+    storeEnvelope(storage, state)
+
+    const loaded = loadGame(storage)
+
+    expect(loaded.ok).toBe(true)
+    if (loaded.ok) {
+      expect(loaded.value.gameState.boardSize).toEqual({ columns: 15, rows: 10 })
+    }
+  })
+
   it('migrates schema 7 town and farm site IDs to their explicit types', () => {
     const storage = new MemoryStorage()
     const state = createInitialGameState('site-type-migration')

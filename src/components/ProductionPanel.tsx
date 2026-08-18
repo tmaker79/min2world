@@ -8,56 +8,35 @@ type ProductionFeedback = {
 }
 
 type ProductionPanelProps = {
-  sites: Site[]
-  selectedSiteId?: string
+  site?: Site
   selectedUnitType?: UnitType
   resource: number
   turn: number
   deployableCount: number
   disabled: boolean
   feedback?: ProductionFeedback
-  onSiteSelected: (siteId: string) => void
   onUnitTypeSelected: (unitType: UnitType) => void
   onCancel: () => void
 }
 
 export function ProductionPanel({
-  sites,
-  selectedSiteId,
+  site,
   selectedUnitType,
   resource,
   turn,
   deployableCount,
   disabled,
   feedback,
-  onSiteSelected,
   onUnitTypeSelected,
   onCancel,
 }: ProductionPanelProps) {
-  const site = sites.find((candidate) => candidate.id === selectedSiteId)
   const unavailable =
     disabled || !site || site.lastProducedTurn === turn || deployableCount === 0
 
   return (
     <section className="production-card" aria-label="부대 생산">
-      {sites.length > 0 ? (
+      {site ? (
         <>
-          <label className="production-card__city">
-            <select
-              aria-label="생산 거점"
-              value={selectedSiteId}
-              disabled={disabled}
-              onChange={(event) => onSiteSelected(event.target.value)}
-            >
-              {sites.map((candidate) => (
-                <option key={candidate.id} value={candidate.id}>
-                  {candidate.name}
-                  {candidate.lastProducedTurn === turn ? ' · 생산 완료' : ''}
-                </option>
-              ))}
-            </select>
-          </label>
-
           <div className="production-list">
             {UNIT_TYPES.map((unitType) => {
               const stats = UNIT_STATS[unitType]

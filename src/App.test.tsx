@@ -335,6 +335,7 @@ describe('Milestone 07 UI', () => {
     expect(container.querySelector('.production-card')).toBeNull()
 
     await user.click(screen.getByRole('tab', { name: '생산' }))
+    expect(screen.queryByRole('combobox', { name: '생산 거점' })).not.toBeInTheDocument()
     expect(
       cityMenu.compareDocumentPosition(screen.getByLabelText('부대 생산')) &
         Node.DOCUMENT_POSITION_FOLLOWING,
