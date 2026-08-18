@@ -1,13 +1,13 @@
 import type { SiteType } from '../game/types'
-import farmIcon from '../assets/farm-icon.svg'
-import mineIcon from '../assets/mine-icon.svg'
-import strongholdIcon from '../assets/stronghold-icon.svg'
-import villageIcon from '../assets/village-icon.svg'
+import cityIcon from '../assets/sites/city.png'
+import mineIcon from '../assets/sites/mine.png'
+import strongholdIcon from '../assets/sites/stronghold.png'
+import villageIcon from '../assets/sites/village.png'
 
 const SITE_ICONS: Record<SiteType, string> = {
   stronghold: strongholdIcon,
-  city: villageIcon,
-  village: farmIcon,
+  city: cityIcon,
+  village: villageIcon,
   mine: mineIcon,
 }
 
