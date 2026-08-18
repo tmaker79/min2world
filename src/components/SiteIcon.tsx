@@ -1,16 +1,16 @@
 import type { SiteType } from '../game/types'
-import settlementIcon from '../assets/sites/city.png'
-import farmIcon from '../assets/sites/village.png'
+import farmIcon from '../assets/sites/farm.png'
 import mineIcon from '../assets/sites/mine.png'
 import strongholdIcon from '../assets/sites/stronghold.png'
+import villageIcon from '../assets/sites/village.png'
 
 const SITE_ICONS: Record<SiteType, string> = {
   stronghold: strongholdIcon,
-  village: settlementIcon,
+  village: villageIcon,
   farm: farmIcon,
   mine: mineIcon,
   // Temporary placeholder for the reserved city type.
-  city: settlementIcon,
+  city: villageIcon,
 }
 
 type SiteIconProps = {
