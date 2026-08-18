@@ -100,14 +100,9 @@ function MinimapComponent({
   zoom = 1,
 }: MinimapProps) {
   const bodyRef = useRef<HTMLDivElement>(null)
-  const [collapsed, setCollapsed] = useState(false)
   const [viewport, setViewport] = useState<Viewport>()
 
   const layout = useMemo(() => {
-    if (collapsed) {
-      return undefined
-    }
-
     const pixels = state.tiles.map((tile) => ({
       tile,
       pixel: getHexPixelPosition(tile.position),
@@ -139,13 +134,9 @@ function MinimapComponent({
         key: positionKey(tile.position),
       })),
     } satisfies MinimapLayout
-  }, [collapsed, state.tiles])
+  }, [state.tiles])
 
   const siteMarkers = useMemo(() => {
-    if (!layout) {
-      return []
-    }
-
     return state.sites.map((site) => {
       const pixel = getHexPixelPosition(site.position)
       return {
@@ -158,10 +149,6 @@ function MinimapComponent({
   }, [layout, state.sites])
 
   const unitMarkers = useMemo(() => {
-    if (!layout) {
-      return []
-    }
-
     return state.units.map((unit) => {
       const pixel = getHexPixelPosition(unit.position)
       return {
@@ -175,7 +162,7 @@ function MinimapComponent({
   }, [layout, state.selectedUnitId, state.units])
 
   useEffect(() => {
-    if (collapsed || !scrollElement) {
+    if (!scrollElement) {
       return
     }
 
@@ -200,7 +187,7 @@ function MinimapComponent({
       scrollElement.removeEventListener('scroll', updateViewport)
       window.removeEventListener('resize', updateViewport)
     }
-  }, [collapsed, scrollElement, state.mapSeed, state.tiles.length, zoom])
+  }, [scrollElement, state.mapSeed, state.tiles.length, zoom])
 
   const panTo = (clientX: number, clientY: number) => {
     if (!scrollElement || !bodyRef.current) {
@@ -223,7 +210,7 @@ function MinimapComponent({
   }
 
   const viewportRect =
-    layout && viewport && viewport.contentWidth > 0 && viewport.contentHeight > 0
+    viewport && viewport.contentWidth > 0 && viewport.contentHeight > 0
       ? {
           x: (viewport.left / viewport.contentWidth) * layout.width,
           y: (viewport.top / viewport.contentHeight) * layout.height,
@@ -233,41 +220,24 @@ function MinimapComponent({
       : undefined
 
   return (
-    <div
-      className={collapsed ? 'minimap minimap--collapsed' : 'minimap'}
-      data-testid="minimap"
-      data-collapsed={collapsed ? 'true' : 'false'}
-    >
-      <button
-        type="button"
-        className="minimap__toggle"
-        aria-expanded={!collapsed}
-        aria-controls="minimap-body"
-        aria-label={collapsed ? '미니맵 펼치기' : '미니맵 접기'}
-        onClick={() => setCollapsed((value) => !value)}
+    <div className="minimap" data-testid="minimap">
+      <div
+        ref={bodyRef}
+        className="minimap__body"
+        role="img"
+        aria-label="미니맵"
+        onPointerDown={(event) => {
+          event.preventDefault()
+          bodyRef.current?.setPointerCapture(event.pointerId)
+          panTo(event.clientX, event.clientY)
+        }}
+        onPointerMove={(event) => {
+          if (!bodyRef.current?.hasPointerCapture(event.pointerId)) {
+            return
+          }
+          panTo(event.clientX, event.clientY)
+        }}
       >
-        {collapsed ? '미니맵' : '접기'}
-      </button>
-
-      {!collapsed && layout && (
-        <div
-          id="minimap-body"
-          ref={bodyRef}
-          className="minimap__body"
-          role="img"
-          aria-label="미니맵"
-          onPointerDown={(event) => {
-            event.preventDefault()
-            bodyRef.current?.setPointerCapture(event.pointerId)
-            panTo(event.clientX, event.clientY)
-          }}
-          onPointerMove={(event) => {
-            if (!bodyRef.current?.hasPointerCapture(event.pointerId)) {
-              return
-            }
-            panTo(event.clientX, event.clientY)
-          }}
-        >
           <MinimapTerrain layout={layout} />
           <svg
             className="minimap__svg minimap__overlay"
@@ -310,8 +280,7 @@ function MinimapComponent({
               />
             )}
           </svg>
-        </div>
-      )}
+      </div>
     </div>
   )
 }

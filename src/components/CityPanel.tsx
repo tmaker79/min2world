@@ -20,30 +20,6 @@ export function CityPanel({
 }: CityPanelProps) {
   return (
     <div className="city-stack">
-      {children}
-
-      <div className="city-card__menu" role="tablist" aria-label="성 메뉴">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={productionOpen}
-          onClick={onProductionOpen}
-        >
-          생산
-        </button>
-        <button type="button" role="tab" disabled title="준비 중인 기능입니다.">
-          건설 <small>미구현</small>
-        </button>
-        <button
-          type="button"
-          className="city-card__close"
-          aria-label="성 정보 닫기"
-          onClick={onClose}
-        >
-          ×
-        </button>
-      </div>
-
       <section className="city-card" aria-label="성 정보">
         <div className="city-card__summary">
           <span className="city-card__icon" aria-hidden="true">
@@ -67,6 +43,30 @@ export function CityPanel({
           </div>
         </dl>
       </section>
+
+      <div className="city-card__menu" role="tablist" aria-label="성 메뉴">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={productionOpen}
+          onClick={onProductionOpen}
+        >
+          생산
+        </button>
+        <button type="button" role="tab" disabled title="준비 중인 기능입니다.">
+          건설
+        </button>
+        <button
+          type="button"
+          className="city-card__close"
+          aria-label="성 정보 닫기"
+          onClick={onClose}
+        >
+          ×
+        </button>
+      </div>
+
+      {children}
     </div>
   )
 }

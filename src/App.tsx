@@ -682,47 +682,50 @@ function GameApp({ initialState }: { initialState: GameState }) {
             )}
           </div>
 
-          <div className="map-stage">
-            <div
-              className={`map-scroll${isCompactBoard ? ' map-scroll--fit' : ''}`}
-              ref={setMapScrollElement}
-            >
-              <GameMap
+          <div className="board-workspace">
+            <div className="map-stage">
+              <div
+                className={`map-scroll${isCompactBoard ? ' map-scroll--fit' : ''}`}
+                ref={setMapScrollElement}
+              >
+                <GameMap
+                  state={state}
+                  scrollElement={mapScrollElement}
+                  zoom={mapZoom}
+                  reachableKeys={reachableKeys}
+                  attackableKeys={attackableKeys}
+                  deployableKeys={deployableKeys}
+                  zoneOfControlKeys={zoneOfControlKeys}
+                  selectedSiteId={
+                    cityInfoSite?.id ??
+                    (productionPanelOpen ? availableProductionSiteId : undefined)
+                  }
+                  combatAnimation={
+                    activeCombat
+                      ? { ...activeCombat, phase: combatPhase }
+                      : undefined
+                  }
+                  disabled={
+                    state.phase !== 'playing' ||
+                    state.activeFactionId !== state.humanFactionId ||
+                    Boolean(activeCombat)
+                  }
+                  suppressClickRef={mapDragMovedRef}
+                  onTileClick={handleTileClick}
+                  onTileContextMenu={handleTileContextMenu}
+                />
+              </div>
+            </div>
+
+            <aside className="map-sidebar" aria-label="지도 사이드바">
+              <Minimap
                 state={state}
                 scrollElement={mapScrollElement}
                 zoom={mapZoom}
-                reachableKeys={reachableKeys}
-                attackableKeys={attackableKeys}
-                deployableKeys={deployableKeys}
-                zoneOfControlKeys={zoneOfControlKeys}
-                selectedSiteId={
-                  cityInfoSite?.id ??
-                  (productionPanelOpen ? availableProductionSiteId : undefined)
-                }
-                combatAnimation={
-                  activeCombat
-                    ? { ...activeCombat, phase: combatPhase }
-                    : undefined
-                }
-                disabled={
-                  state.phase !== 'playing' ||
-                  state.activeFactionId !== state.humanFactionId ||
-                  Boolean(activeCombat)
-                }
-                suppressClickRef={mapDragMovedRef}
-                onTileClick={handleTileClick}
-                onTileContextMenu={handleTileContextMenu}
               />
-            </div>
-            <Minimap
-              state={state}
-              scrollElement={mapScrollElement}
-              zoom={mapZoom}
-            />
-            {!activeProductionUnitType &&
-              (cityInfoSite || productionPanelOpen || selectedUnit) && (
-              <aside className="map-hud" aria-label="선택 정보">
-                {cityInfoSite && (
+
+              <section className="map-sidebar__selection" aria-label="선택 정보">
+                {!activeProductionUnitType && cityInfoSite && (
                   <CityPanel
                     site={cityInfoSite}
                     productionOpen={productionPanelOpen}
@@ -772,14 +775,26 @@ function GameApp({ initialState }: { initialState: GameState }) {
                     )}
                   </CityPanel>
                 )}
-                {selectedUnit && (
+                {!activeProductionUnitType && selectedUnit && (
                   <InfoPanel
                     unit={selectedUnit}
                     onClose={() => dispatch({ type: 'selectionCleared' })}
                   />
                 )}
-              </aside>
-              )}
+                {activeProductionUnitType && (
+                  <div className="empty-selection empty-selection--compact">
+                    <span aria-hidden="true">⌖</span>
+                    <p>지도에서 청록색 배치 타일을 선택하세요.</p>
+                  </div>
+                )}
+                {!activeProductionUnitType && !cityInfoSite && !selectedUnit && (
+                  <div className="empty-selection empty-selection--compact">
+                    <span aria-hidden="true">◇</span>
+                    <p>유닛이나 거점을 선택하면 상세 정보가 표시됩니다.</p>
+                  </div>
+                )}
+              </section>
+            </aside>
           </div>
 
           {state.phase !== 'playing' && (

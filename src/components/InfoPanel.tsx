@@ -16,17 +16,6 @@ export function InfoPanel({ unit, onClose }: InfoPanelProps) {
 
   return (
     <div className="city-stack">
-      <div className="city-card__menu">
-        <button
-          type="button"
-          className="city-card__close"
-          aria-label="부대 정보 닫기"
-          onClick={onClose}
-        >
-          ×
-        </button>
-      </div>
-
       <section className="city-card" aria-label="부대 정보" data-info-mode="unit">
         <div className="city-card__summary">
           <span
@@ -65,6 +54,23 @@ export function InfoPanel({ unit, onClose }: InfoPanelProps) {
           )}
         </dl>
       </section>
+
+      <div className="city-card__menu" role="toolbar" aria-label="유닛 메뉴">
+        <button type="button" disabled title="준비 중인 기능입니다.">
+          요새화
+        </button>
+        <button type="button" disabled title="준비 중인 기능입니다.">
+          방어
+        </button>
+        <button
+          type="button"
+          className="city-card__close"
+          aria-label="부대 정보 닫기"
+          onClick={onClose}
+        >
+          ×
+        </button>
+      </div>
     </div>
   )
 }

@@ -52,8 +52,14 @@ describe('Milestone 07 UI', () => {
     expect(container.querySelector('.map-layer--units .unit-health-bar')).toBeInTheDocument()
     expect(container.querySelector('.unit-health-bar')?.closest('.map-tile')).toBeNull()
     expect(container.querySelector('.site-marker')?.closest('.map-tile')).toBeNull()
-    expect(screen.getByTestId('minimap')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '미니맵 접기' })).toBeInTheDocument()
+    const sidebar = screen.getByLabelText('지도 사이드바')
+    const minimap = screen.getByTestId('minimap')
+    expect(sidebar).toContainElement(minimap)
+    expect(container.querySelector('.map-stage')).not.toContainElement(minimap)
+    expect(screen.getByLabelText('선택 정보')).toHaveTextContent(
+      '유닛이나 거점을 선택하면 상세 정보가 표시됩니다.',
+    )
+    expect(screen.queryByRole('button', { name: /미니맵 (접기|펼치기)/ })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('정보 패널')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('부대 정보')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '저장' })).toBeInTheDocument()
@@ -61,17 +67,11 @@ describe('Milestone 07 UI', () => {
     expect(screen.queryByRole('button', { name: '범례' })).not.toBeInTheDocument()
   }, 20_000)
 
-  it('collapses and expands the minimap', async () => {
-    const user = userEvent.setup()
+  it('keeps the minimap visible without a collapse control', () => {
     renderApp()
 
-    await user.click(screen.getByRole('button', { name: '미니맵 접기' }))
-    expect(screen.getByTestId('minimap')).toHaveAttribute('data-collapsed', 'true')
-    expect(screen.queryByLabelText('미니맵')).not.toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: '미니맵 펼치기' }))
-    expect(screen.getByTestId('minimap')).toHaveAttribute('data-collapsed', 'false')
     expect(screen.getByLabelText('미니맵')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /미니맵 (접기|펼치기)/ })).not.toBeInTheDocument()
   })
 
   it('centers the player capital when a game starts', () => {
@@ -210,6 +210,20 @@ describe('Milestone 07 UI', () => {
 
     expect(tile).toHaveAttribute('aria-pressed', 'true')
     expect(container.querySelectorAll('[data-reachable="true"]').length).toBeGreaterThan(0)
+    expect(screen.getByLabelText('지도 사이드바')).toContainElement(
+      screen.getByLabelText('부대 정보'),
+    )
+    const unitInfo = screen.getByLabelText('부대 정보')
+    const unitMenu = screen.getByRole('toolbar', { name: '유닛 메뉴' })
+    expect(
+      unitInfo.compareDocumentPosition(unitMenu) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(screen.getByRole('button', { name: /요새화/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /방어/ })).toBeDisabled()
+    expect(screen.queryByText('미구현')).not.toBeInTheDocument()
+    expect(container.querySelector('.map-stage')).not.toContainElement(
+      unitInfo,
+    )
   })
 
   it('moves the selected unit onto a reachable axial cell with right-click', async () => {
@@ -306,12 +320,25 @@ describe('Milestone 07 UI', () => {
     )!
     await user.click(strongholdTile)
 
-    expect(screen.getByLabelText('성 정보')).toBeVisible()
+    const cityInfo = screen.getByLabelText('성 정보')
+    const cityMenu = screen.getByRole('tablist', { name: '성 메뉴' })
+    expect(cityInfo).toBeVisible()
+    expect(screen.getByLabelText('지도 사이드바')).toContainElement(
+      cityInfo,
+    )
+    expect(
+      cityInfo.compareDocumentPosition(cityMenu) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
     expect(screen.getByText(stronghold.name)).toBeVisible()
     expect(screen.getByRole('tab', { name: /건설/ })).toBeDisabled()
+    expect(screen.queryByText('미구현')).not.toBeInTheDocument()
     expect(container.querySelector('.production-card')).toBeNull()
 
     await user.click(screen.getByRole('tab', { name: '생산' }))
+    expect(
+      cityMenu.compareDocumentPosition(screen.getByLabelText('부대 생산')) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
     const options = container.querySelectorAll<HTMLButtonElement>('.production-option')
     expect(options).toHaveLength(4)
     await user.click(options[0])
@@ -333,7 +360,9 @@ describe('Milestone 07 UI', () => {
     expect(container.querySelector('.status-bar')).toHaveTextContent('5')
     expect(screen.queryByLabelText('부대 배치')).not.toBeInTheDocument()
     expect(container.querySelector('.production-card')).toBeNull()
-    expect(container.querySelector('.map-hud')).toBeNull()
+    expect(screen.getByLabelText('선택 정보')).toHaveTextContent(
+      '유닛이나 거점을 선택하면 상세 정보가 표시됩니다.',
+    )
     expect(container.querySelector('.map-tile[aria-pressed="true"]')).toBeNull()
     expect(container.querySelector('[data-site-selected="true"]')).toBeNull()
   })
@@ -355,7 +384,9 @@ describe('Milestone 07 UI', () => {
       container.querySelector<HTMLButtonElement>('.production-option')!,
     )
 
-    expect(container.querySelector('.map-hud')).toBeNull()
+    expect(screen.getByLabelText('선택 정보')).toHaveTextContent(
+      '지도에서 청록색 배치 타일을 선택하세요.',
+    )
     await user.click(screen.getByRole('button', { name: '부대 배치 취소' }))
 
     expect(screen.queryByLabelText('부대 배치')).not.toBeInTheDocument()
