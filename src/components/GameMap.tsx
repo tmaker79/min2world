@@ -14,12 +14,10 @@ import {
   getSiteAt,
   getUnitAt,
   positionKey,
-  getDisplayedCombatStrength,
   SITE_TYPE_LABELS,
   TERRAIN_COMBAT_BONUS,
   TERRAIN_LABELS,
   TERRAIN_MOVEMENT_COST,
-  UNIT_STATS,
   UNIT_TYPE_LABELS,
 } from '../game/rules'
 import type { GameState, Position, Site, Tile, Unit } from '../game/types'
@@ -28,7 +26,7 @@ import { SiteIcon } from './SiteIcon'
 import { hasTerrainImage, TerrainIcon } from './TerrainIcon'
 import { UnitIcon } from './UnitIcon'
 
-const MAP_TOOLTIP_SHOW_DELAY_MS = 500
+const MAP_TOOLTIP_SHOW_DELAY_MS = 1000
 const MAP_TOOLTIP_TOP_SAFE_PX = 120
 const VIEWPORT_OVERSCAN_PX = Math.max(HEX_WIDTH, HEX_HEIGHT) * 2
 /** Matches `.game-map` content-box padding (8*2) + border (1*2). */
@@ -90,7 +88,7 @@ type TileButtonProps = {
   ) => void
 }
 
-function ownerLabel(site: Site): string {
+function factionLabel(factionId: string): string {
   const labels: Record<string, string> = {
     player: '푸른 연맹',
     enemy: '붉은 제국',
@@ -100,7 +98,7 @@ function ownerLabel(site: Site): string {
     f4: '자색 공국',
     neutral: '중립',
   }
-  return labels[site.ownerId]
+  return labels[factionId] ?? factionId
 }
 
 function getTileLabel(
@@ -119,7 +117,7 @@ function getTileLabel(
   if (deployable) parts.push('생산 배치 가능')
   if (site) {
     parts.push(
-      `${site.name}, ${ownerLabel(site)} ${SITE_TYPE_LABELS[site.kind]}`,
+      `${site.name}, ${factionLabel(site.ownerId)} ${SITE_TYPE_LABELS[site.kind]}`,
     )
   }
   if (unit) {
@@ -146,53 +144,35 @@ function getOverlayStyle(
   return { left: pixel.x - minimumX, top: pixel.y - minimumY }
 }
 
-function getUnitTooltipRows(unit: Unit) {
-  const stats = UNIT_STATS[unit.type]
-  const rows = [
-    { label: '병종', value: UNIT_TYPE_LABELS[unit.type] },
-    { label: '체력', value: `${unit.hp}/${unit.maxHp}` },
-    { label: '근접', value: String(getDisplayedCombatStrength(unit, 'melee')) },
-  ]
-
-  if (stats.ranged > 0) {
-    rows.push({
-      label: '원거리',
-      value: String(getDisplayedCombatStrength(unit, 'ranged')),
-    })
-  }
-
-  rows.push({
-    label: '이동',
-    value: `${unit.movementRemaining}/${stats.movement}`,
-  })
-
-  return rows
-}
-
 function movementCostLabel(terrain: Tile['terrain']) {
   const cost = TERRAIN_MOVEMENT_COST[terrain]
   return cost === null ? '통과 불가' : String(cost)
 }
 
+function combatBonusLabel(terrain: Tile['terrain']) {
+  const bonus = TERRAIN_COMBAT_BONUS[terrain]
+  return bonus > 0 ? `+${bonus}` : '없음'
+}
+
 function getTerrainTooltipRows(tile: Tile, site?: Site) {
   const rows = [
     {
-      label: '이동',
+      label: '이동 비용',
       value: movementCostLabel(tile.terrain),
     },
-    {
-      label: '전투',
-      value:
-        TERRAIN_COMBAT_BONUS[tile.terrain] > 0
-          ? `+${TERRAIN_COMBAT_BONUS[tile.terrain]}`
-          : '없음',
-    },
   ]
+
+  if (TERRAIN_COMBAT_BONUS[tile.terrain] > 0) {
+    rows.push({
+      label: '방어 보정치',
+      value: combatBonusLabel(tile.terrain),
+    })
+  }
 
   if (site) {
     rows.push({
       label: '거점',
-      value: `${site.name} (${ownerLabel(site)} ${SITE_TYPE_LABELS[site.kind]})`,
+      value: `${site.name} (${factionLabel(site.ownerId)} ${SITE_TYPE_LABELS[site.kind]})`,
     })
   }
 
@@ -299,6 +279,7 @@ const TileButton = memo(function TileButton({
 
 function MapTooltip({
   title,
+  subtitle,
   rows,
   placement,
   anchor,
@@ -306,7 +287,8 @@ function MapTooltip({
   terrainKey,
 }: {
   title: string
-  rows: Array<{ label: string; value: string }>
+  subtitle?: string
+  rows?: Array<{ label: string; value: string }>
   placement: 'above' | 'below'
   anchor: DOMRect
   unitId?: string
@@ -324,14 +306,19 @@ function MapTooltip({
       }}
     >
       <strong>{title}</strong>
-      <dl>
-        {rows.map((row) => (
-          <div key={row.label}>
-            <dt>{row.label}</dt>
-            <dd>{row.value}</dd>
-          </div>
-        ))}
-      </dl>
+      {subtitle && (
+        <span className="map-tooltip__subtitle">{subtitle}</span>
+      )}
+      {rows && rows.length > 0 && (
+        <dl>
+          {rows.map((row) => (
+            <div key={row.label}>
+              <dt>{row.label}</dt>
+              <dd>{row.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
     </span>,
     document.body,
   )
@@ -339,17 +326,20 @@ function MapTooltip({
 
 function UnitTooltip({
   unit,
+  tile,
   placement,
   anchor,
 }: {
   unit: Unit
+  tile: Tile
   placement: 'above' | 'below'
   anchor: DOMRect
 }) {
   return (
     <MapTooltip
-      title={unit.name}
-      rows={getUnitTooltipRows(unit)}
+      title={`${factionLabel(unit.factionId)} - ${unit.name}`}
+      subtitle={TERRAIN_LABELS[tile.terrain]}
+      rows={getTerrainTooltipRows(tile)}
       placement={placement}
       anchor={anchor}
       unitId={unit.id}
@@ -733,6 +723,9 @@ function GameMapComponent({
   const hoveredUnit = hoveredUnitId
     ? state.units.find((unit) => unit.id === hoveredUnitId)
     : undefined
+  const hoveredUnitTile = hoveredUnit
+    ? layout.byKey.get(positionKey(hoveredUnit.position))?.tile
+    : undefined
   const hoveredTerrain = hoveredTerrainKey
     ? layout.byKey.get(hoveredTerrainKey)?.tile
     : undefined
@@ -846,9 +839,10 @@ function GameMapComponent({
         ))}
       </div>
 
-      {hoveredUnit && tooltipAnchor && (
+      {hoveredUnit && hoveredUnitTile && tooltipAnchor && (
         <UnitTooltip
           unit={hoveredUnit}
+          tile={hoveredUnitTile}
           placement={hoveredTooltipPlacement}
           anchor={tooltipAnchor}
         />

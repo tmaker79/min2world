@@ -114,28 +114,50 @@ describe('Milestone 07 UI', () => {
   })
 
   it('shows a compact unit summary tooltip on hover without changing selection', async () => {
-    const user = userEvent.setup()
+    vi.useFakeTimers()
     const state = createInitialGameState('ui-tooltip')
     const enemy = state.units.find((unit) => unit.factionId === 'enemy')!
+    const enemyTile = state.tiles.find(
+      (tile) => positionKey(tile.position) === positionKey(enemy.position),
+    )!
+    enemyTile.terrain = 'forest'
     const { container } = renderApp(state)
     const tile = container.querySelector<HTMLButtonElement>(
       `.map-tile[data-coordinate="${positionKey(enemy.position)}"]`,
     )!
 
-    await user.hover(tile)
+    fireEvent.mouseEnter(tile)
 
     expect(document.querySelector(`[data-unit-tooltip="${enemy.id}"]`)).toBeNull()
 
-    const tooltip = await waitFor(() => {
-      const next = document.querySelector(`[data-unit-tooltip="${enemy.id}"]`)
-      expect(next).toBeVisible()
-      return next
+    act(() => {
+      vi.advanceTimersByTime(999)
     })
-    expect(tooltip).toHaveTextContent(enemy.name)
-    expect(tooltip).toHaveTextContent('체력')
-    expect(tooltip).toHaveTextContent(`${enemy.hp}/${enemy.maxHp}`)
+    expect(document.querySelector(`[data-unit-tooltip="${enemy.id}"]`)).toBeNull()
+
+    act(() => {
+      vi.advanceTimersByTime(1)
+    })
+    const tooltip = document.querySelector(
+      `[data-unit-tooltip="${enemy.id}"]`,
+    )!
+    expect(tooltip).toBeVisible()
+    expect(tooltip).toHaveTextContent(`붉은 제국 - ${enemy.name}`)
+    expect(tooltip).toHaveTextContent('숲')
+    expect(tooltip).toHaveTextContent('이동 비용')
+    expect(tooltip).toHaveTextContent('2')
+    expect(tooltip).toHaveTextContent('방어 보정치')
+    expect(tooltip).toHaveTextContent('+3')
+    expect(tooltip.querySelector('dl')).toBeInTheDocument()
+    expect(
+      [...tooltip.querySelectorAll('dt')].some(
+        (label) => label.textContent === '지형',
+      ),
+    ).toBe(false)
+    expect(tooltip).not.toHaveTextContent('체력')
 
     expect(screen.queryByLabelText('부대 정보')).not.toBeInTheDocument()
+    vi.useRealTimers()
   })
 
   it('shows terrain details in a tooltip while no unit is selected', async () => {
@@ -163,11 +185,13 @@ describe('Milestone 07 UI', () => {
       )
       expect(next).toBeVisible()
       return next
-    })
+    }, { timeout: 1500 })
     expect(tooltip).toHaveTextContent('평지')
     expect(tooltip).not.toHaveTextContent('좌표')
-    expect(tooltip).toHaveTextContent('이동')
+    expect(tooltip).toHaveTextContent('이동 비용')
     expect(tooltip).toHaveTextContent('1')
+    expect(tooltip).not.toHaveTextContent('방어 보정치')
+    expect(tooltip).not.toHaveTextContent('없음')
 
     expect(screen.queryByLabelText('부대 정보')).not.toBeInTheDocument()
   })
