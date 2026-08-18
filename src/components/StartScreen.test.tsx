@@ -14,8 +14,13 @@ describe('StartScreen', () => {
     })
     expect(mapTypeSelect.querySelectorAll('option')).toHaveLength(4)
     expect(mapTypeSelect).toHaveValue('balanced')
+    expect(screen.getByText('평지와 험지가 고르게 분포합니다.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '무작위 seed' })).toHaveClass(
+      'start-screen__seed-random',
+    )
 
     await user.selectOptions(mapTypeSelect, 'forested')
+    expect(screen.getByText('숲이 많아 방어적인 전장이 형성됩니다.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '게임 시작' }))
 
     expect(onStart).toHaveBeenCalledWith(

@@ -21,11 +21,11 @@ const SIZE_OPTIONS = [
 ] as const
 const ACTIVE_FACTION_COUNT: FactionCount = 2
 
-const MAP_TYPE_OPTIONS: Array<{ id: MapType; label: string }> = [
-  { id: 'balanced', label: '균형' },
-  { id: 'plains', label: '평원' },
-  { id: 'mountainous', label: '산악' },
-  { id: 'forested', label: '삼림' },
+const MAP_TYPE_OPTIONS: Array<{ id: MapType; label: string; description: string }> = [
+  { id: 'balanced', label: '균형', description: '평지와 험지가 고르게 분포합니다.' },
+  { id: 'plains', label: '평원', description: '평지가 많아 이동과 확장이 쉽습니다.' },
+  { id: 'mountainous', label: '산악', description: '언덕과 산이 많아 이동 경로가 제한됩니다.' },
+  { id: 'forested', label: '삼림', description: '숲이 많아 방어적인 전장이 형성됩니다.' },
 ]
 
 const FACTION_OPTIONS: Array<{ id: FactionId; label: string }> = [
@@ -38,6 +38,9 @@ export function StartScreen({ onStart }: StartScreenProps) {
   const [mapType, setMapType] = useState<MapType>('balanced')
   const [seed, setSeed] = useState(createRandomMapSeed)
   const [error, setError] = useState<string>()
+  const mapTypeDescription = MAP_TYPE_OPTIONS.find(
+    (option) => option.id === mapType,
+  )?.description
 
   return (
     <main className="start-screen">
@@ -66,6 +69,7 @@ export function StartScreen({ onStart }: StartScreenProps) {
           <select
             className="start-screen__select"
             aria-label="지도 종류 선택"
+            aria-describedby="map-type-description"
             value={mapType}
             onChange={(event) => setMapType(event.target.value as MapType)}
           >
@@ -73,6 +77,9 @@ export function StartScreen({ onStart }: StartScreenProps) {
               <option key={option.id} value={option.id}>{option.label}</option>
             ))}
           </select>
+          <p id="map-type-description" className="start-screen__helper">
+            {mapTypeDescription}
+          </p>
         </fieldset>
 
         <fieldset>
@@ -89,21 +96,36 @@ export function StartScreen({ onStart }: StartScreenProps) {
           </select>
         </fieldset>
 
-        <label className="start-screen__seed">
-          <span>MAP SEED</span>
-          <input
-            value={seed}
-            maxLength={64}
-            onChange={(event) => {
-              setSeed(event.target.value)
-              setError(undefined)
-            }}
-          />
-        </label>
+        <div className="start-screen__seed">
+          <label htmlFor="start-map-seed">MAP SEED</label>
+          <div className="start-screen__seed-row">
+            <input
+              id="start-map-seed"
+              value={seed}
+              maxLength={64}
+              onChange={(event) => {
+                setSeed(event.target.value)
+                setError(undefined)
+              }}
+            />
+            <button
+              type="button"
+              className="start-screen__seed-random"
+              aria-label="무작위 seed"
+              title="무작위 seed"
+              onClick={() => {
+                setSeed(createRandomMapSeed())
+                setError(undefined)
+              }}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20 6v5h-5" />
+                <path d="M19 11a7 7 0 1 0 1 4" />
+              </svg>
+            </button>
+          </div>
+        </div>
         <div className="start-screen__actions">
-          <button type="button" onClick={() => setSeed(createRandomMapSeed())}>
-            무작위 seed
-          </button>
           <button
             type="button"
             className="start-screen__start"
@@ -122,7 +144,8 @@ export function StartScreen({ onStart }: StartScreenProps) {
               })
             }}
           >
-            게임 시작
+            <span>게임 시작</span>
+            <span className="start-screen__start-arrow" aria-hidden="true">→</span>
           </button>
         </div>
         {error && <p className="new-game-menu__error" role="alert">{error}</p>}
