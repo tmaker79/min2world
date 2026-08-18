@@ -33,7 +33,7 @@ export const DEFAULT_MAP_SEED = 'min2world'
 const STARTING_RESOURCES = 15
 const MAX_GENERATION_ATTEMPTS = 128
 const STANDARD_CAPITAL_DISTANCE = 18
-const SITE_PAIR_TYPES: readonly SiteType[] = ['city', 'village', 'mine']
+const SITE_PAIR_TYPES: readonly SiteType[] = ['village', 'farm', 'mine']
 const STARTING_UNIT_TYPES: readonly UnitType[] = [
   'infantry',
   'infantry',
@@ -231,6 +231,9 @@ function chooseNeutralSites(
 ): Site[] | undefined {
   const factionIds = getFactionIds(factionCount)
   const connected = getConnectedKeys(tiles, capitals[factionIds[0]], boardSize)
+  const tilesByPosition = new Map(
+    tiles.map((tile) => [positionKey(tile.position), tile]),
+  )
   const chosen: Position[] = factionIds.map((factionId) => capitals[factionId])
   const sites: Array<{ kind: SiteType; position: Position }> = []
   const candidates = shuffled(
@@ -248,7 +251,11 @@ function chooseNeutralSites(
   for (let index = 0; index < factionCount * SITE_PAIR_TYPES.length; index += 1) {
     const kind = SITE_PAIR_TYPES[index % SITE_PAIR_TYPES.length]
     const position = candidates.find((candidate) => {
-      return chosen.every((existing) => getHexDistance(candidate, existing) >= 3)
+      const tile = tilesByPosition.get(positionKey(candidate))
+      return (
+        (kind !== 'farm' || tile?.terrain === 'plain') &&
+        chosen.every((existing) => getHexDistance(candidate, existing) >= 3)
+      )
     })
 
     if (!position) return undefined
@@ -258,7 +265,7 @@ function chooseNeutralSites(
 
   return sites.map(({ kind, position }, index) => ({
     id: `site-${kind}-${index + 1}`,
-    name: `${kind === 'city' ? '중립 마을' : kind === 'village' ? '중립 농장' : '중립 광산'} ${Math.floor(index / SITE_PAIR_TYPES.length) + 1}`,
+    name: `${kind === 'village' ? '중립 마을' : kind === 'farm' ? '중립 농장' : '중립 광산'} ${Math.floor(index / SITE_PAIR_TYPES.length) + 1}`,
     kind,
     position: { ...position },
     ownerId: 'neutral',
@@ -310,8 +317,20 @@ export function validateGeneratedMap(state: GameState): string[] {
 
   const tileKeys = state.tiles.map((tile) => positionKey(tile.position))
   const siteKeys = state.sites.map((site) => positionKey(site.position))
+  const tilesByPosition = new Map(
+    state.tiles.map((tile) => [positionKey(tile.position), tile]),
+  )
   if (new Set(tileKeys).size !== tileKeys.length) issues.push('duplicateTiles')
   if (new Set(siteKeys).size !== siteKeys.length) issues.push('duplicateSites')
+  if (
+    state.sites.some(
+      (site) =>
+        site.kind === 'farm' &&
+        tilesByPosition.get(positionKey(site.position))?.terrain !== 'plain',
+    )
+  ) {
+    issues.push('farmTerrain')
+  }
 
   const capitals = Object.fromEntries(
     state.sites

@@ -202,19 +202,20 @@ describe('sites', () => {
   it('uses the configured income and production rules', () => {
     expect(SITE_STATS).toEqual({
       stronghold: { income: 5, canProduce: true },
-      city: { income: 4, canProduce: false },
-      village: { income: 2, canProduce: false },
+      village: { income: 4, canProduce: false },
+      farm: { income: 2, canProduce: false },
       mine: { income: 3, canProduce: false },
+      city: { income: 0, canProduce: false },
     })
 
     const state = createInitialGameState('sites')
     const playerCapital = state.sites.find((site) => site.capitalFor === 'player')!
-    const town = state.sites.find((site) => site.kind === 'city')!
     const village = state.sites.find((site) => site.kind === 'village')!
+    const farm = state.sites.find((site) => site.kind === 'farm')!
     expect(getFactionIncome(state, 'player')).toBe(5)
     expect(getDeployablePositions(state, playerCapital).length).toBeGreaterThan(0)
-    expect(getDeployablePositions(state, town)).toEqual([])
     expect(getDeployablePositions(state, village)).toEqual([])
+    expect(getDeployablePositions(state, farm)).toEqual([])
   })
 
   it('captures neutral sites while preserving immutable capital ownership', () => {

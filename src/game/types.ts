@@ -5,7 +5,7 @@ export type Terrain =
   | 'hill'
   | 'forest'
 
-export const GAME_SCHEMA_VERSION = 7
+export const GAME_SCHEMA_VERSION = 8
 export const MAP_GENERATION_VERSION = 5
 export const FOREST_TERRAIN_VARIANT_COUNT = 2
 
@@ -22,7 +22,7 @@ export type BoardSize = {
   rows: number
 }
 export type SiteOwnerId = FactionId | 'neutral'
-export type SiteType = 'stronghold' | 'city' | 'village' | 'mine'
+export type SiteType = 'stronghold' | 'village' | 'farm' | 'mine' | 'city'
 export type UnitType = 'infantry' | 'cavalry' | 'archer' | 'spearman'
 export type GamePhase = 'playing' | 'victory' | 'defeat'
 

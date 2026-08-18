@@ -53,7 +53,7 @@
 - 거점 점령, 다세력 수도 점령 승패
 - 턴 종료 시 소유 거점 수입과 유닛 생산
 - 규칙 기반 AI 턴(활성 세력 순회)
-- localStorage 저장과 불러오기(스키마 7, 스키마 6 마이그레이션)
+- localStorage 저장과 불러오기(스키마 8, 스키마 6·7 마이그레이션)
 - 시작 화면·seed 입력·무작위 지도·새 게임
 - 지도 휠 줌·드래그 팬·미니맵
 - 지형/유닛 호버 툴팁, 성·부대 정보창, 우클릭 이동
@@ -143,7 +143,7 @@ type FactionId = 'f1' | 'f2' | 'f3' | 'f4' | 'player' | 'enemy' // player/enemy�
 type FactionCount = 2 | 3 | 4
 type BoardSize = { columns: number; rows: number }
 type SiteOwnerId = FactionId | 'neutral'
-type SiteType = 'stronghold' | 'city' | 'village' | 'mine'
+type SiteType = 'stronghold' | 'village' | 'farm' | 'mine' | 'city' // city는 향후 도시용 예약
 type UnitType = 'infantry' | 'cavalry' | 'archer' | 'spearman'
 type GamePhase = 'playing' | 'victory' | 'defeat'
 
@@ -332,8 +332,9 @@ src/
 localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지만 사용자가 사이트 데이터를 삭제하거나 저장 공간이 제한되면 사라질 수 있다. 따라서 저장은 편의 기능으로 간주하며 영구 보관을 보장하지 않는다.
 
 - 저장 데이터에 `schemaVersion`, `mapSeed`, `mapGenerationVersion`, `boardSize`, `factionCount`, `humanFactionId`, `factionOrder`를 포함한다.
-- 현재 스키마는 7이다.
-- 스키마 6은 `player`/`enemy`를 `f1`/`f2`로 바꿔 불러온다.
+- 현재 스키마는 8이다.
+- 스키마 6은 `player`/`enemy`를 `f1`/`f2`로 바꾼 뒤 연쇄 마이그레이션한다.
+- 스키마 7은 기존 `city`(마을)를 `village`로, `village`(농장)를 `farm`으로 바꿔 불러온다.
 - JSON을 읽은 뒤 필요한 필드와 값의 범위를 검증한다.
 - 스키마 4·5를 포함한 지원하지 않는 버전은 불러오지 않고 사용자에게 알린다.
 - 파생 상태와 일시적인 UI 상태는 저장하지 않는다.

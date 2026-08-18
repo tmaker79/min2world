@@ -34,7 +34,7 @@ function storeEnvelope(storage: MemoryStorage, gameState: unknown, schemaVersion
   }))
 }
 
-describe('schema 6 saves', () => {
+describe('saved games', () => {
   it('round-trips the seed, hex map, sites, and fractional movement', () => {
     const storage = new MemoryStorage()
     const state = createInitialGameState('save-roundtrip')
@@ -49,6 +49,29 @@ describe('schema 6 saves', () => {
       expect(loaded.value.gameState.tiles).toHaveLength(HEX_TILE_COUNT)
       expect(loaded.value.gameState.sites).toHaveLength(8)
       expect(loaded.value.gameState.mapSeed).toBe('save-roundtrip')
+    }
+  })
+
+  it('migrates schema 7 town and farm site IDs to their explicit types', () => {
+    const storage = new MemoryStorage()
+    const state = createInitialGameState('site-type-migration')
+    const legacyState = {
+      ...state,
+      schemaVersion: 7,
+      sites: state.sites.map((site) => ({
+        ...site,
+        kind: site.kind === 'village' ? 'city' : site.kind === 'farm' ? 'village' : site.kind,
+      })),
+    }
+    storeEnvelope(storage, legacyState, 7)
+
+    const loaded = loadGame(storage)
+
+    expect(loaded.ok).toBe(true)
+    if (loaded.ok) {
+      expect(loaded.value.gameState.sites.filter((site) => site.kind === 'village')).toHaveLength(2)
+      expect(loaded.value.gameState.sites.filter((site) => site.kind === 'farm')).toHaveLength(2)
+      expect(loaded.value.gameState.sites.filter((site) => site.kind === 'city')).toHaveLength(0)
     }
   })
 

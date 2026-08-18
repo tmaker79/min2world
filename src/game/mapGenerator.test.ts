@@ -43,9 +43,21 @@ describe('procedural map generation', () => {
       expect(state.sites).toHaveLength(8)
       expect(state.units).toHaveLength(6)
       expect(state.sites.filter((site) => site.kind === 'stronghold')).toHaveLength(2)
-      expect(state.sites.filter((site) => site.kind === 'city')).toHaveLength(2)
       expect(state.sites.filter((site) => site.kind === 'village')).toHaveLength(2)
+      expect(state.sites.filter((site) => site.kind === 'farm')).toHaveLength(2)
       expect(state.sites.filter((site) => site.kind === 'mine')).toHaveLength(2)
+      expect(state.sites.filter((site) => site.kind === 'city')).toHaveLength(0)
+      const tilesByPosition = new Map(
+        state.tiles.map((tile) => [positionKey(tile.position), tile]),
+      )
+      expect(
+        state.sites
+          .filter((site) => site.kind === 'farm')
+          .every(
+            (site) =>
+              tilesByPosition.get(positionKey(site.position))?.terrain === 'plain',
+          ),
+      ).toBe(true)
       expect(state.mapGenerationVersion).toBe(MAP_GENERATION_VERSION)
       expect(state.schemaVersion).toBe(GAME_SCHEMA_VERSION)
     },

@@ -60,7 +60,7 @@ const TERRAINS = new Set<Terrain>([
   'plain', 'mountain', 'water', 'hill', 'forest',
 ])
 const UNIT_TYPES = new Set<UnitType>(['infantry', 'cavalry', 'archer', 'spearman'])
-const SITE_TYPES = new Set<SiteType>(['stronghold', 'city', 'village', 'mine'])
+const SITE_TYPES = new Set<SiteType>(['stronghold', 'village', 'farm', 'mine', 'city'])
 
 function success<T>(value: T): StorageResult<T> {
   return { ok: true, value }
@@ -395,10 +395,10 @@ function readSavedGame(storage?: StorageLike): StorageResult<SavedGame> {
     }
     parsed = {
       ...savedRecord,
-      schemaVersion: GAME_SCHEMA_VERSION,
+      schemaVersion: 7,
       gameState: {
         ...legacyState,
-        schemaVersion: GAME_SCHEMA_VERSION,
+        schemaVersion: 7,
         mapGenerationVersion: MAP_GENERATION_VERSION,
         boardSize: { columns: 48, rows: 32 },
         factionCount: 2,
@@ -414,6 +414,28 @@ function readSavedGame(storage?: StorageLike): StorageResult<SavedGame> {
           : legacyState.units,
         sites: Array.isArray(legacyState.sites)
           ? legacyState.sites.map(remapEntity)
+          : legacyState.sites,
+      },
+    }
+  }
+  const siteTypeRecord = parsed as Record<string, unknown>
+  if (siteTypeRecord.schemaVersion === 7 && isRecord(siteTypeRecord.gameState)) {
+    const legacyState = siteTypeRecord.gameState
+    const remapSiteType = (site: unknown) => {
+      if (!isRecord(site)) return site
+      return {
+        ...site,
+        kind: site.kind === 'city' ? 'village' : site.kind === 'village' ? 'farm' : site.kind,
+      }
+    }
+    parsed = {
+      ...siteTypeRecord,
+      schemaVersion: GAME_SCHEMA_VERSION,
+      gameState: {
+        ...legacyState,
+        schemaVersion: GAME_SCHEMA_VERSION,
+        sites: Array.isArray(legacyState.sites)
+          ? legacyState.sites.map(remapSiteType)
           : legacyState.sites,
       },
     }

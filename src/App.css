@@ -1830,8 +1830,8 @@
 }
 
 .legend-site--stronghold,
-.legend-site--city,
 .legend-site--village,
+.legend-site--farm,
 .legend-site--mine {
   overflow: hidden;
   border-radius: 2px 2px 7px 7px;

@@ -39,14 +39,14 @@ export function Legend({ embedded = false }: LegendProps) {
           성 <small>수입 5 · 생산</small>
         </li>
         <li>
-          <span className="legend-site legend-site--city">
-            <SiteIcon kind="city" />
+          <span className="legend-site legend-site--village">
+            <SiteIcon kind="village" />
           </span>
           마을 <small>수입 4</small>
         </li>
         <li>
-          <span className="legend-site legend-site--village">
-            <SiteIcon kind="village" />
+          <span className="legend-site legend-site--farm">
+            <SiteIcon kind="farm" />
           </span>
           농장 <small>수입 2</small>
         </li>

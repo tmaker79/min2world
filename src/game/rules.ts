@@ -53,16 +53,19 @@ export const UNIT_TYPE_LABELS: Record<UnitType, string> = {
 
 export const SITE_STATS: Record<SiteType, SiteStats> = {
   stronghold: { income: 5, canProduce: true },
-  city: { income: 4, canProduce: false },
-  village: { income: 2, canProduce: false },
+  village: { income: 4, canProduce: false },
+  farm: { income: 2, canProduce: false },
   mine: { income: 3, canProduce: false },
+  // Reserved until cities are implemented.
+  city: { income: 0, canProduce: false },
 }
 
 export const SITE_TYPE_LABELS: Record<SiteType, string> = {
   stronghold: '성',
-  city: '마을',
-  village: '농장',
+  village: '마을',
+  farm: '농장',
   mine: '광산',
+  city: '도시',
 }
 
 export const TERRAIN_MOVEMENT_COST: Record<Terrain, number | null> = {

@@ -1,6 +1,6 @@
 import { render } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import type { GameState, Tile } from '../game/types'
+import { GAME_SCHEMA_VERSION, type GameState, type Tile } from '../game/types'
 import { GameMap } from './GameMap'
 
 function createLargeRenderState(columns: number, rows: number): GameState {
@@ -16,7 +16,7 @@ function createLargeRenderState(columns: number, rows: number): GameState {
   }
 
   return {
-    schemaVersion: 7,
+    schemaVersion: GAME_SCHEMA_VERSION,
     mapSeed: 'large-render',
     mapGenerationVersion: 5,
     boardSize: { columns, rows },
