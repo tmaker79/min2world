@@ -360,7 +360,7 @@ localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지
 - 오류를 재현하는 테스트를 먼저 작성할 수 있다.
 - 성능 문제를 추측이 아니라 측정 결과로 판단할 수 있다.
 
-## 11. Milestone 09–15 로드맵
+## 11. Milestone 09–16 로드맵
 
 상세 명세는 [개발 마일스톤](milestones/README.md)의 각 문서를 따른다.
 
@@ -373,6 +373,7 @@ localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지
 | [13](milestones/13-ai-refinement.md) | 경제를 보는 AI |
 | [14](milestones/14-settlement-construction.md) | 개척자·건설자의 신규 거점 건설 |
 | [15](milestones/15-supply-and-morale.md) | 보급·사기(라이트) |
+| [16](milestones/16-site-expansion.md) | 농장 본체와 인접 농지 확장 |
 
 ### 로드맵 밖 후보
 
