@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { BOARD_SIZE_PRESETS } from '../game/hex'
 import { createRandomMapSeed, normalizeMapSeed } from '../game/mapGenerator'
-import type { BoardSize, FactionCount, FactionId } from '../game/types'
+import type { BoardSize, FactionCount, FactionId, MapType } from '../game/types'
 
 type StartScreenProps = {
   onStart: (options: {
@@ -9,56 +9,35 @@ type StartScreenProps = {
     boardSize: BoardSize
     factionCount: FactionCount
     humanFactionId: FactionId
+    mapType: MapType
   }) => void
 }
 
 const SIZE_OPTIONS = [
-  { id: 'tiny', label: '초소형', detail: '15 × 10 · 듀얼' },
-  { id: 'small', label: '소형', detail: '21 × 14' },
-  { id: 'standard', label: '표준', detail: '42 × 28' },
-  { id: 'large', label: '대형', detail: '84 × 56' },
+  { id: 'tiny', label: '2인용', detail: '15 × 10', available: true },
+  { id: 'small', label: '초소형', detail: '21 × 14', available: false },
+  { id: 'standard', label: '소형', detail: '42 × 28', available: false },
+  { id: 'large', label: '중형', detail: '84 × 56', available: false },
 ] as const
+const ACTIVE_FACTION_COUNT: FactionCount = 2
+
+const MAP_TYPE_OPTIONS: Array<{ id: MapType; label: string }> = [
+  { id: 'balanced', label: '균형' },
+  { id: 'plains', label: '평원' },
+  { id: 'mountainous', label: '산악' },
+  { id: 'forested', label: '삼림' },
+]
 
 const FACTION_OPTIONS: Array<{ id: FactionId; label: string }> = [
   { id: 'f1', label: '청색 연맹' },
   { id: 'f2', label: '적색 제국' },
-  { id: 'f3', label: '황금 왕국' },
-  { id: 'f4', label: '자색 공국' },
 ]
 
-function isTinyBoard(sizeId: keyof typeof BOARD_SIZE_PRESETS): boolean {
-  return sizeId === 'tiny'
-}
-
 export function StartScreen({ onStart }: StartScreenProps) {
-  const [sizeId, setSizeId] = useState<keyof typeof BOARD_SIZE_PRESETS>('standard')
-  const [factionCount, setFactionCount] = useState<FactionCount>(2)
   const [humanFactionId, setHumanFactionId] = useState<FactionId>('f1')
+  const [mapType, setMapType] = useState<MapType>('balanced')
   const [seed, setSeed] = useState(createRandomMapSeed)
   const [error, setError] = useState<string>()
-  const duelOnly = isTinyBoard(sizeId)
-  const effectiveFactionCount: FactionCount = duelOnly ? 2 : factionCount
-  const factions = FACTION_OPTIONS.slice(0, effectiveFactionCount)
-
-  const changeSize = (nextSizeId: keyof typeof BOARD_SIZE_PRESETS) => {
-    setSizeId(nextSizeId)
-    if (isTinyBoard(nextSizeId)) {
-      setFactionCount(2)
-      if (humanFactionId !== 'f1' && humanFactionId !== 'f2') {
-        setHumanFactionId('f1')
-      }
-    }
-  }
-
-  const changeFactionCount = (count: FactionCount) => {
-    if (duelOnly && count !== 2) {
-      return
-    }
-    setFactionCount(count)
-    if (!FACTION_OPTIONS.slice(0, count).some((faction) => faction.id === humanFactionId)) {
-      setHumanFactionId('f1')
-    }
-  }
 
   return (
     <main className="start-screen">
@@ -68,60 +47,46 @@ export function StartScreen({ onStart }: StartScreenProps) {
         <p className="start-screen__lead">새 전장을 설정하고 원정을 시작하세요.</p>
 
         <fieldset>
-          <legend>맵 크기</legend>
-          <div className="start-screen__choices">
+          <legend>지도 크기 선택</legend>
+          <select
+            className="start-screen__select"
+            aria-label="지도 크기 선택"
+            defaultValue="tiny"
+          >
             {SIZE_OPTIONS.map((option) => (
-              <label key={option.id} className="start-screen__choice">
-                <input
-                  type="radio"
-                  name="map-size"
-                  checked={sizeId === option.id}
-                  onChange={() => changeSize(option.id)}
-                />
-                <span>{option.label}</span>
-                <small>{option.detail}</small>
-              </label>
+              <option key={option.id} value={option.id} disabled={!option.available}>
+                {option.label} · {option.detail}
+              </option>
             ))}
-          </div>
+          </select>
         </fieldset>
 
         <fieldset>
-          <legend>세력 수{duelOnly ? ' (듀얼 전용)' : ''}</legend>
-          <div className="start-screen__choices">
-            {([2, 3, 4] as const).map((count) => (
-              <label
-                key={count}
-                className={`start-screen__choice${duelOnly && count !== 2 ? ' start-screen__choice--disabled' : ''}`}
-              >
-                <input
-                  type="radio"
-                  name="faction-count"
-                  checked={effectiveFactionCount === count}
-                  disabled={duelOnly && count !== 2}
-                  onChange={() => changeFactionCount(count)}
-                />
-                <span>{count} 세력</span>
-                <small>{count === 2 ? '1대1 듀얼' : `나 외 ${count - 1} AI`}</small>
-              </label>
+          <legend>지도 종류 선택</legend>
+          <select
+            className="start-screen__select"
+            aria-label="지도 종류 선택"
+            value={mapType}
+            onChange={(event) => setMapType(event.target.value as MapType)}
+          >
+            {MAP_TYPE_OPTIONS.map((option) => (
+              <option key={option.id} value={option.id}>{option.label}</option>
             ))}
-          </div>
+          </select>
         </fieldset>
 
         <fieldset>
-          <legend>내 세력</legend>
-          <div className="start-screen__choices">
-            {factions.map((faction) => (
-              <label key={faction.id} className={`start-screen__choice faction-${faction.id}`}>
-                <input
-                  type="radio"
-                  name="human-faction"
-                  checked={humanFactionId === faction.id}
-                  onChange={() => setHumanFactionId(faction.id)}
-                />
-                <span>{faction.label}</span>
-              </label>
+          <legend>세력 선택</legend>
+          <select
+            className="start-screen__select"
+            aria-label="세력 선택"
+            value={humanFactionId}
+            onChange={(event) => setHumanFactionId(event.target.value as FactionId)}
+          >
+            {FACTION_OPTIONS.map((faction) => (
+              <option key={faction.id} value={faction.id}>{faction.label}</option>
             ))}
-          </div>
+          </select>
         </fieldset>
 
         <label className="start-screen__seed">
@@ -150,14 +115,10 @@ export function StartScreen({ onStart }: StartScreenProps) {
               }
               onStart({
                 seed: normalized,
-                boardSize: BOARD_SIZE_PRESETS[sizeId],
-                factionCount: effectiveFactionCount,
-                humanFactionId:
-                  effectiveFactionCount < 3 &&
-                  humanFactionId !== 'f1' &&
-                  humanFactionId !== 'f2'
-                    ? 'f1'
-                    : humanFactionId,
+                boardSize: BOARD_SIZE_PRESETS.tiny,
+                factionCount: ACTIVE_FACTION_COUNT,
+                humanFactionId,
+                mapType,
               })
             }}
           >

@@ -5,6 +5,8 @@ export type Terrain =
   | 'hill'
   | 'forest'
 
+export type MapType = 'balanced' | 'plains' | 'mountainous' | 'forested'
+
 export const GAME_SCHEMA_VERSION = 8
 export const MAP_GENERATION_VERSION = 5
 export const FOREST_TERRAIN_VARIANT_COUNT = 2
@@ -73,6 +75,7 @@ export type Site = {
 export type GameState = {
   schemaVersion: number
   mapSeed: string
+  mapType: MapType
   mapGenerationVersion: number
   boardSize: BoardSize
   factionCount: FactionCount
@@ -108,4 +111,5 @@ export type GameAction =
       boardSize?: BoardSize
       factionCount?: FactionCount
       humanFactionId?: FactionId
+      mapType?: MapType
     }

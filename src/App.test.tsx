@@ -16,13 +16,19 @@ describe('Milestone 07 UI', () => {
     vi.restoreAllMocks()
   })
 
-  it('opens with setup and starts a selected faction configuration', async () => {
+  it('starts only a tiny two-faction game with the selected side', async () => {
     const user = userEvent.setup()
     render(<App />)
 
     expect(screen.getByRole('heading', { name: 'min2world' })).toBeInTheDocument()
-    await user.click(screen.getByRole('radio', { name: /3 세력/ }))
-    await user.click(screen.getByRole('radio', { name: '적색 제국' }))
+    expect(screen.getByRole('combobox', { name: '지도 크기 선택' })).toHaveValue('tiny')
+    expect(screen.getByRole('option', { name: '초소형 · 21 × 14' })).toBeDisabled()
+    expect(screen.getByRole('option', { name: '소형 · 42 × 28' })).toBeDisabled()
+    expect(screen.getByRole('option', { name: '중형 · 84 × 56' })).toBeDisabled()
+    expect(screen.queryByRole('slider', { name: '세력 수' })).not.toBeInTheDocument()
+    const factionSelect = screen.getByRole('combobox', { name: '세력 선택' })
+    expect(factionSelect.querySelectorAll('option')).toHaveLength(2)
+    await user.selectOptions(factionSelect, 'f2')
     await user.click(screen.getByRole('button', { name: '게임 시작' }))
 
     const map = await screen.findByTestId('game-map')

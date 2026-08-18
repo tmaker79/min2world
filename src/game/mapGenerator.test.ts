@@ -11,11 +11,88 @@ import {
   GAME_SCHEMA_VERSION,
   MAP_GENERATION_VERSION,
 } from './types'
+import type { MapType, Terrain } from './types'
 import { HEX_TILE_COUNT } from './hex'
+
+const MAP_TYPES: MapType[] = ['balanced', 'plains', 'mountainous', 'forested']
 
 describe('procedural map generation', () => {
   it('reproduces an identical state from the same seed', () => {
     expect(generateGameState('same-seed')).toEqual(generateGameState('same-seed'))
+  })
+
+  it('preserves the existing balanced terrain for the default map type', () => {
+    const implicit = generateGameState('balanced-compatibility')
+    const explicit = generateGameState('balanced-compatibility', {
+      mapType: 'balanced',
+    })
+
+    expect(explicit.tiles).toEqual(implicit.tiles)
+    expect(explicit.sites.map((site) => site.position)).toEqual(
+      implicit.sites.map((site) => site.position),
+    )
+  })
+
+  it('creates distinct terrain profiles from the same seed', () => {
+    const signatures = MAP_TYPES.map((mapType) =>
+      JSON.stringify(
+        generateGameState('map-type-difference', { mapType }).tiles.map(
+          (tile) => tile.terrain,
+        ),
+      ),
+    )
+
+    expect(new Set(signatures)).toHaveLength(MAP_TYPES.length)
+  })
+
+  it('biases terrain counts toward the selected map type', () => {
+    const seeds = ['profile-alpha', 'profile-bravo', 'profile-charlie', 'profile-delta']
+    const countTerrain = (mapType: MapType) => {
+      const counts: Record<Terrain, number> = {
+        plain: 0,
+        water: 0,
+        hill: 0,
+        mountain: 0,
+        forest: 0,
+      }
+      for (const seed of seeds) {
+        const state = generateGameState(seed, {
+          boardSize: BOARD_SIZE_PRESETS.standard,
+          factionCount: 2,
+          humanFactionId: 'f1',
+          mapType,
+        })
+        for (const tile of state.tiles) counts[tile.terrain] += 1
+      }
+      return counts
+    }
+
+    const balanced = countTerrain('balanced')
+    const plains = countTerrain('plains')
+    const mountainous = countTerrain('mountainous')
+    const forested = countTerrain('forested')
+
+    expect(plains.plain).toBeGreaterThan(balanced.plain)
+    expect(mountainous.hill + mountainous.mountain).toBeGreaterThan(
+      balanced.hill + balanced.mountain,
+    )
+    expect(forested.forest).toBeGreaterThan(balanced.forest)
+  })
+
+  it.each(
+    MAP_TYPES.flatMap((mapType) =>
+      ['type-alpha', 'type-bravo'].map((seed) => [mapType, seed] as const),
+    ),
+  )('generates a valid %s map for %s', (mapType, seed) => {
+    const state = generateGameState(seed, {
+      boardSize: BOARD_SIZE_PRESETS.tiny,
+      factionCount: 2,
+      humanFactionId: 'f1',
+      mapType,
+    })
+
+    expect(state.mapType).toBe(mapType)
+    expect(validateGeneratedMap(state)).toEqual([])
   })
 
   it('creates different terrain and sites for a different seed', () => {

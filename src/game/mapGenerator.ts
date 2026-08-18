@@ -19,6 +19,7 @@ import type {
   FactionCount,
   FactionId,
   GameState,
+  MapType,
   Position,
   Site,
   SiteType,
@@ -29,6 +30,7 @@ import type {
 } from './types'
 
 export const DEFAULT_MAP_SEED = 'min2world'
+export const DEFAULT_MAP_TYPE: MapType = 'balanced'
 
 const STARTING_RESOURCES = 15
 const MAX_GENERATION_ATTEMPTS = 128
@@ -127,11 +129,35 @@ function createClusteredValues(
   return values
 }
 
-function terrainFromNoise(elevation: number, moisture: number): Terrain {
-  if (elevation < 0.34) return 'water'
-  if (elevation > 0.68) return 'mountain'
-  if (elevation > 0.59) return 'hill'
-  if (moisture > 0.61) return 'forest'
+const MAP_TYPE_PROFILES: Record<
+  MapType,
+  { elevationScale: number; elevationOffset: number; moistureOffset: number }
+> = {
+  balanced: { elevationScale: 1, elevationOffset: 0, moistureOffset: 0 },
+  plains: { elevationScale: 0.65, elevationOffset: 0, moistureOffset: -0.12 },
+  mountainous: { elevationScale: 1, elevationOffset: 0.1, moistureOffset: -0.05 },
+  forested: { elevationScale: 0.9, elevationOffset: 0, moistureOffset: 0.14 },
+}
+
+function clampNoise(value: number): number {
+  return Math.max(0, Math.min(1, value))
+}
+
+function terrainFromNoise(
+  elevation: number,
+  moisture: number,
+  mapType: MapType,
+): Terrain {
+  const profile = MAP_TYPE_PROFILES[mapType]
+  const adjustedElevation = clampNoise(
+    0.5 + (elevation - 0.5) * profile.elevationScale + profile.elevationOffset,
+  )
+  const adjustedMoisture = clampNoise(moisture + profile.moistureOffset)
+
+  if (adjustedElevation < 0.34) return 'water'
+  if (adjustedElevation > 0.68) return 'mountain'
+  if (adjustedElevation > 0.59) return 'hill'
+  if (adjustedMoisture > 0.61) return 'forest'
   return 'plain'
 }
 
@@ -515,6 +541,7 @@ export type MapGenerationOptions = {
   boardSize?: BoardSize
   factionCount?: FactionCount
   humanFactionId?: FactionId
+  mapType?: MapType
 }
 
 function toLegacyTwoFactionState(state: GameState): GameState {
@@ -548,6 +575,7 @@ function buildCandidate(
   boardSize: BoardSize,
   factionCount: FactionCount,
   humanFactionId: FactionId,
+  mapType: MapType,
   fallback = false,
 ): GameState | undefined {
   const random = createRandom(
@@ -568,6 +596,7 @@ function buildCandidate(
       : terrainFromNoise(
           elevation.get(positionKey(position)) ?? 0.5,
           moisture.get(positionKey(position)) ?? 0.5,
+          mapType,
         ),
   }))
 
@@ -602,6 +631,7 @@ function buildCandidate(
   const state: GameState = {
     schemaVersion: GAME_SCHEMA_VERSION,
     mapSeed: seed,
+    mapType,
     mapGenerationVersion: MAP_GENERATION_VERSION,
     boardSize: { ...boardSize },
     factionCount,
@@ -635,6 +665,7 @@ export function generateGameState(
   const useLegacyIds = Object.keys(options).length === 0
   const boardSize = options.boardSize ?? DEFAULT_BOARD_SIZE
   const requestedFactionCount = options.factionCount ?? 2
+  const mapType = options.mapType ?? DEFAULT_MAP_TYPE
   const isTinyBoard =
     boardSize.columns === BOARD_SIZE_PRESETS.tiny.columns &&
     boardSize.rows === BOARD_SIZE_PRESETS.tiny.rows
@@ -651,6 +682,7 @@ export function generateGameState(
       boardSize,
       factionCount,
       humanFactionId,
+      mapType,
     )
     if (state) return useLegacyIds ? toLegacyTwoFactionState(state) : state
   }
@@ -661,6 +693,7 @@ export function generateGameState(
     boardSize,
     factionCount,
     humanFactionId,
+    mapType,
     true,
   )
   if (!fallback) throw new Error('Unable to generate a valid map.')

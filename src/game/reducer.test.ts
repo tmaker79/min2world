@@ -148,4 +148,19 @@ describe('gameReducer on a hex map', () => {
     expect(restarted).toEqual(createInitialGameState('new-seed'))
     expect(gameReducer(over, { type: 'turnEnded' })).toBe(over)
   })
+
+  it('preserves the requested map type when restarting', () => {
+    const state = createInitialGameState('old-forest', {
+      mapType: 'forested',
+      humanFactionId: 'f1',
+    })
+    const restarted = gameReducer(state, {
+      type: 'gameRestarted',
+      seed: 'new-forest',
+      mapType: state.mapType,
+    })
+
+    expect(restarted.mapSeed).toBe('new-forest')
+    expect(restarted.mapType).toBe('forested')
+  })
 })

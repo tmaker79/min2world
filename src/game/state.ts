@@ -7,6 +7,7 @@ export function cloneGameState(
   return {
     schemaVersion: state.schemaVersion,
     mapSeed: state.mapSeed,
+    mapType: state.mapType,
     mapGenerationVersion: state.mapGenerationVersion,
     boardSize: { ...state.boardSize },
     factionCount: state.factionCount,

@@ -14,6 +14,7 @@ import type {
   FactionCount,
   FactionId,
   GameState,
+  MapType,
   Position,
   Site,
   SiteOwnerId,
@@ -61,6 +62,7 @@ const TERRAINS = new Set<Terrain>([
 ])
 const UNIT_TYPES = new Set<UnitType>(['infantry', 'cavalry', 'archer', 'spearman'])
 const SITE_TYPES = new Set<SiteType>(['stronghold', 'village', 'farm', 'mine', 'city'])
+const MAP_TYPES = new Set<MapType>(['balanced', 'plains', 'mountainous', 'forested'])
 
 function success<T>(value: T): StorageResult<T> {
   return { ok: true, value }
@@ -231,9 +233,12 @@ function parseGameState(value: unknown): StorageResult<GameState> {
   const boardSize = parseBoardSize(value.boardSize)
   const factionCount = value.factionCount
   const factionOrder = value.factionOrder
+  const mapType = value.mapType ?? 'balanced'
   if (
     value.schemaVersion !== GAME_SCHEMA_VERSION ||
     !isNonEmptyString(value.mapSeed, 64) ||
+    typeof mapType !== 'string' ||
+    !MAP_TYPES.has(mapType as MapType) ||
     value.mapGenerationVersion !== MAP_GENERATION_VERSION ||
     !isIntegerInRange(value.turn, 1) ||
     value.phase !== 'playing' ||
@@ -297,6 +302,7 @@ function parseGameState(value: unknown): StorageResult<GameState> {
   const state: GameState = {
     schemaVersion: GAME_SCHEMA_VERSION,
     mapSeed: value.mapSeed.trim(),
+    mapType: mapType as MapType,
     mapGenerationVersion: MAP_GENERATION_VERSION,
     boardSize,
     factionCount,

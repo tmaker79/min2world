@@ -39,9 +39,10 @@
 ### 현재 구현
 
 - axial 좌표의 뾰족형 육각 지도
-- 맵 프리셋: 초소형 15×10(듀얼 전용), 소형 21×14, 표준 42×28, 대형 84×56
-- 세력 2~4개(`f1`~`f4`), 시작 화면에서 내 세력 선택
-- seed로 재현되는 지형·거점·시작 유닛 배치
+- 현재 플레이 범위는 2인용 15×10·2세력(`f1`, `f2`)으로 고정하고 시작 화면에서 내 세력을 선택한다.
+- 초소형·소형·중형은 시작 화면의 지도 크기 드롭다운에 비활성 상태로 노출한다. 세력 수는 현재 2로 고정하며 별도 설정을 표시하지 않는다. 가변 지도와 최대 4세력 생성 로직은 내부에 유지한다.
+- seed와 지도 종류로 재현되는 지형·거점·시작 유닛 배치
+- 지도 종류 선택: 균형, 평원, 산악, 삼림
 - 평지, 언덕, 숲, 산, 물의 지형 5종
 - 성, 마을, 농장, 광산의 거점 4종
 - 세력별 수도(성) 1개와 시작 유닛 3개(보병 2, 기병 1)
@@ -139,6 +140,7 @@ type Position = {
 }
 
 type Terrain = 'plain' | 'mountain' | 'water' | 'hill' | 'forest'
+type MapType = 'balanced' | 'plains' | 'mountainous' | 'forested'
 type FactionId = 'f1' | 'f2' | 'f3' | 'f4' | 'player' | 'enemy' // player/enemy는 스키마 6 마이그레이션용
 type FactionCount = 2 | 3 | 4
 type BoardSize = { columns: number; rows: number }
@@ -178,8 +180,9 @@ type Site = {
 }
 
 type GameState = {
-  schemaVersion: number // 7
+  schemaVersion: number // 8
   mapSeed: string
+  mapType: MapType
   mapGenerationVersion: number // 5
   boardSize: BoardSize
   factionCount: FactionCount
@@ -308,9 +311,9 @@ src/
 - 거점 위에 적 유닛이 도착하면 소유권이 변경된다.
 - 상대 수도를 점령하면 즉시 승패가 결정된다.
 - 턴 종료 시 소유 거점 수입만큼 자원이 정확히 증가한다.
-- 같은 seed는 같은 지도와 시작 배치를 만든다.
-- 프리셋·세력 수 조합으로 유효한 지도가 생성된다.
-- 초소형 맵은 2세력으로 강제된다.
+- 같은 seed와 지도 종류는 같은 지도와 시작 배치를 만든다.
+- 시작 화면에서 선택 가능한 2인용 맵이 2세력으로 생성된다.
+- 내부 확장 프리셋·세력 수 조합도 유효한 지도를 생성한다.
 - 승리 또는 패배 후 추가 행동으로 상태가 변경되지 않는다.
 - 동일한 초기 상태와 명령 목록은 동일한 결과를 만든다.
 - 저장 후 불러온 상태가 원래 상태와 같다.
@@ -331,10 +334,11 @@ src/
 
 localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지만 사용자가 사이트 데이터를 삭제하거나 저장 공간이 제한되면 사라질 수 있다. 따라서 저장은 편의 기능으로 간주하며 영구 보관을 보장하지 않는다.
 
-- 저장 데이터에 `schemaVersion`, `mapSeed`, `mapGenerationVersion`, `boardSize`, `factionCount`, `humanFactionId`, `factionOrder`를 포함한다.
+- 저장 데이터에 `schemaVersion`, `mapSeed`, `mapType`, `mapGenerationVersion`, `boardSize`, `factionCount`, `humanFactionId`, `factionOrder`를 포함한다.
 - 현재 스키마는 8이다.
 - 스키마 6은 `player`/`enemy`를 `f1`/`f2`로 바꾼 뒤 연쇄 마이그레이션한다.
 - 스키마 7은 기존 `city`(마을)를 `village`로, `village`(농장)를 `farm`으로 바꿔 불러온다.
+- 스키마 8 저장에 `mapType`이 없으면 기존 생성 방식인 `balanced`로 불러온다.
 - JSON을 읽은 뒤 필요한 필드와 값의 범위를 검증한다.
 - 스키마 4·5를 포함한 지원하지 않는 버전은 불러오지 않고 사용자에게 알린다.
 - 파생 상태와 일시적인 UI 상태는 저장하지 않는다.

@@ -18,6 +18,7 @@ function createLargeRenderState(columns: number, rows: number): GameState {
   return {
     schemaVersion: GAME_SCHEMA_VERSION,
     mapSeed: 'large-render',
+    mapType: 'balanced',
     mapGenerationVersion: 5,
     boardSize: { columns, rows },
     factionCount: 2,

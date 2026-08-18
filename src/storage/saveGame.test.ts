@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { HEX_TILE_COUNT } from '../game/hex'
 import { createInitialGameState } from '../game/initialState'
+import { GAME_SCHEMA_VERSION } from '../game/types'
 import {
   deleteSavedGame,
   inspectSavedGame,
@@ -26,7 +27,11 @@ class MemoryStorage implements StorageLike {
   }
 }
 
-function storeEnvelope(storage: MemoryStorage, gameState: unknown, schemaVersion = 6) {
+function storeEnvelope(
+  storage: MemoryStorage,
+  gameState: unknown,
+  schemaVersion = GAME_SCHEMA_VERSION,
+) {
   storage.setItem(SAVE_STORAGE_KEY, JSON.stringify({
     schemaVersion,
     savedAt: '2026-08-13T00:00:00.000Z',
@@ -37,7 +42,10 @@ function storeEnvelope(storage: MemoryStorage, gameState: unknown, schemaVersion
 describe('saved games', () => {
   it('round-trips the seed, hex map, sites, and fractional movement', () => {
     const storage = new MemoryStorage()
-    const state = createInitialGameState('save-roundtrip')
+    const state = createInitialGameState('save-roundtrip', {
+      mapType: 'forested',
+      humanFactionId: 'f1',
+    })
     state.units[0].movementRemaining = 1.5
 
     expect(saveGame(state, storage, new Date('2026-08-13T00:00:00Z')).ok).toBe(true)
@@ -49,7 +57,21 @@ describe('saved games', () => {
       expect(loaded.value.gameState.tiles).toHaveLength(HEX_TILE_COUNT)
       expect(loaded.value.gameState.sites).toHaveLength(8)
       expect(loaded.value.gameState.mapSeed).toBe('save-roundtrip')
+      expect(loaded.value.gameState.mapType).toBe('forested')
     }
+  })
+
+  it('defaults schema 8 saves without a map type to balanced', () => {
+    const storage = new MemoryStorage()
+    const state = createInitialGameState('legacy-map-type')
+    const legacyState: Partial<typeof state> = { ...state }
+    delete legacyState.mapType
+    storeEnvelope(storage, legacyState)
+
+    const loaded = loadGame(storage)
+
+    expect(loaded.ok).toBe(true)
+    if (loaded.ok) expect(loaded.value.gameState.mapType).toBe('balanced')
   })
 
   it('migrates schema 7 town and farm site IDs to their explicit types', () => {
@@ -90,6 +112,7 @@ describe('saved games', () => {
   it.each([
     ['empty seed', (state: ReturnType<typeof createInitialGameState>) => { state.mapSeed = '' }],
     ['generation version', (state: ReturnType<typeof createInitialGameState>) => { state.mapGenerationVersion = 1 }],
+    ['unknown map type', (state: ReturnType<typeof createInitialGameState>) => { state.mapType = 'oceanic' as never }],
     ['out-of-board coordinate', (state: ReturnType<typeof createInitialGameState>) => { state.tiles[0].position = { q: 20, r: 0 } }],
     ['unknown terrain', (state: ReturnType<typeof createInitialGameState>) => { state.tiles[0].terrain = 'lava' as never }],
     ['broken site reference', (state: ReturnType<typeof createInitialGameState>) => { state.tiles.find((tile) => tile.siteId)!.siteId = 'missing' }],

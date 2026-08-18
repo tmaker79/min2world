@@ -83,6 +83,16 @@
   color: #a6b7c1;
 }
 
+.start-screen__select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #334651;
+  border-radius: 0;
+  color: #dce7ec;
+  background: #18242d;
+}
+
 .start-screen__seed input {
   width: 100%;
   box-sizing: border-box;
