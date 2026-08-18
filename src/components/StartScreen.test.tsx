@@ -19,12 +19,17 @@ describe('StartScreen', () => {
       'start-screen__seed-random',
     )
 
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: '지도 크기 선택' }),
+      'large',
+    )
     await user.selectOptions(mapTypeSelect, 'forested')
     expect(screen.getByText('숲이 많아 방어적인 전장이 형성됩니다.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '게임 시작' }))
 
     expect(onStart).toHaveBeenCalledWith(
       expect.objectContaining({
+        boardSize: { columns: 41, rows: 29 },
         mapType: 'forested',
         factionCount: 2,
       }),

@@ -90,6 +90,22 @@ describe('saved games', () => {
     }
   })
 
+  it('loads schema 8 saves created with the previous 21x14 board', () => {
+    const storage = new MemoryStorage()
+    const state = createInitialGameState('legacy-small-board', {
+      boardSize: { columns: 21, rows: 14 },
+      factionCount: 2,
+    })
+    storeEnvelope(storage, state)
+
+    const loaded = loadGame(storage)
+
+    expect(loaded.ok).toBe(true)
+    if (loaded.ok) {
+      expect(loaded.value.gameState.boardSize).toEqual({ columns: 21, rows: 14 })
+    }
+  })
+
   it('migrates schema 7 town and farm site IDs to their explicit types', () => {
     const storage = new MemoryStorage()
     const state = createInitialGameState('site-type-migration')

@@ -212,6 +212,11 @@ function parseBoardSize(value: unknown): BoardSize | undefined {
     ...Object.values(BOARD_SIZE_PRESETS),
     // Previous two-player preset; keep schema 8 saves loadable.
     { columns: 15, rows: 10 },
+    // Previous small preset; keep schema 8 saves loadable.
+    { columns: 21, rows: 14 },
+    // Previous standard and large presets; keep schema 8 saves loadable.
+    { columns: 42, rows: 28 },
+    { columns: 84, rows: 56 },
     // Legacy presets from earlier schema 7 builds.
     { columns: 18, rows: 12 },
     { columns: 24, rows: 16 },

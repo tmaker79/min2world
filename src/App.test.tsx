@@ -16,18 +16,22 @@ describe('Milestone 07 UI', () => {
     vi.restoreAllMocks()
   })
 
-  it('starts only a tiny two-faction game with the selected side', async () => {
+  it('starts an available two-faction map with the selected size and side', async () => {
     const user = userEvent.setup()
     render(<App />)
 
     expect(screen.getByRole('heading', { name: 'min2world' })).toBeInTheDocument()
     expect(screen.getByRole('combobox', { name: '지도 크기 선택' })).toHaveValue('tiny')
-    expect(screen.getByRole('option', { name: '초소형 · 21 × 14' })).toBeDisabled()
-    expect(screen.getByRole('option', { name: '소형 · 42 × 28' })).toBeDisabled()
-    expect(screen.getByRole('option', { name: '중형 · 84 × 56' })).toBeDisabled()
+    expect(screen.getByRole('option', { name: '초소형 · 21 × 15' })).toBeEnabled()
+    expect(screen.getByRole('option', { name: '소형 · 29 × 21' })).toBeEnabled()
+    expect(screen.getByRole('option', { name: '중형 · 41 × 29' })).toBeEnabled()
     expect(screen.queryByRole('slider', { name: '세력 수' })).not.toBeInTheDocument()
     const factionSelect = screen.getByRole('combobox', { name: '세력 선택' })
     expect(factionSelect.querySelectorAll('option')).toHaveLength(2)
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: '지도 크기 선택' }),
+      'small',
+    )
     await user.selectOptions(factionSelect, 'f2')
     await user.click(screen.getByRole('button', { name: '게임 시작' }))
 
@@ -41,7 +45,7 @@ describe('Milestone 07 UI', () => {
     const tiles = map.querySelectorAll<HTMLButtonElement>('.map-tile')
 
     expect(tiles.length).toBeGreaterThan(0)
-    expect(tiles.length).toBeLessThan(HEX_TILE_COUNT)
+    expect(tiles.length).toBeLessThanOrEqual(HEX_TILE_COUNT)
     expect([...tiles].every((tile) => tile.type === 'button' && !tile.disabled)).toBe(true)
     expect(container.querySelector('.app-chrome__seed')).toHaveTextContent('ui-seed')
     expect(container.querySelectorAll('.site-marker')).toHaveLength(8)
@@ -280,7 +284,7 @@ describe('Milestone 07 UI', () => {
     await user.type(input, '  next-map  ')
     await user.click(submit)
     expect(container.querySelector('.app-chrome__seed')).toHaveTextContent('next-map')
-    expect(container.querySelectorAll('.map-tile').length).toBeLessThan(
+    expect(container.querySelectorAll('.map-tile').length).toBeLessThanOrEqual(
       HEX_TILE_COUNT,
     )
   })

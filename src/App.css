@@ -730,7 +730,8 @@
 }
 
 .map-sidebar__selection .production-list {
-  max-height: 240px;
+  min-height: 0;
+  max-height: none;
   padding-right: 4px;
   overflow-x: hidden;
   overflow-y: auto;
@@ -755,7 +756,18 @@
 }
 
 .map-sidebar__selection .city-stack {
+  min-height: 0;
+  height: 100%;
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 0;
+  overflow: hidden;
+}
+
+.map-sidebar__selection .production-card {
+  display: grid;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr) auto auto auto;
+  overflow: hidden;
 }
 
 .map-sidebar__selection .city-stack > * {

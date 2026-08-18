@@ -35,6 +35,7 @@ export const DEFAULT_MAP_TYPE: MapType = 'balanced'
 const STARTING_RESOURCES = 15
 const MAX_GENERATION_ATTEMPTS = 128
 const STANDARD_CAPITAL_DISTANCE = 18
+const STANDARD_CAPITAL_DISTANCE_REFERENCE_COLUMNS = 42
 const SITE_PAIR_TYPES: readonly SiteType[] = ['village', 'farm', 'mine']
 const STARTING_UNIT_TYPES: readonly UnitType[] = [
   'infantry',
@@ -174,7 +175,7 @@ function getCapitalDistance(boardSize: BoardSize): number {
     6,
     Math.round(
       (STANDARD_CAPITAL_DISTANCE * boardSize.columns) /
-        DEFAULT_BOARD_SIZE.columns,
+        STANDARD_CAPITAL_DISTANCE_REFERENCE_COLUMNS,
     ),
   )
 }

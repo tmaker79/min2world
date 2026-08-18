@@ -15,10 +15,11 @@ type StartScreenProps = {
 
 const SIZE_OPTIONS = [
   { id: 'tiny', label: '2인용', detail: '15 × 11', available: true },
-  { id: 'small', label: '초소형', detail: '21 × 14', available: false },
-  { id: 'standard', label: '소형', detail: '42 × 28', available: false },
-  { id: 'large', label: '중형', detail: '84 × 56', available: false },
+  { id: 'small', label: '초소형', detail: '21 × 15', available: true },
+  { id: 'standard', label: '소형', detail: '29 × 21', available: true },
+  { id: 'large', label: '중형', detail: '41 × 29', available: true },
 ] as const
+type SizeOptionId = (typeof SIZE_OPTIONS)[number]['id']
 const ACTIVE_FACTION_COUNT: FactionCount = 2
 
 const MAP_TYPE_OPTIONS: Array<{ id: MapType; label: string; description: string }> = [
@@ -34,6 +35,7 @@ const FACTION_OPTIONS: Array<{ id: FactionId; label: string }> = [
 ]
 
 export function StartScreen({ onStart }: StartScreenProps) {
+  const [sizeId, setSizeId] = useState<SizeOptionId>('tiny')
   const [humanFactionId, setHumanFactionId] = useState<FactionId>('f1')
   const [mapType, setMapType] = useState<MapType>('balanced')
   const [seed, setSeed] = useState(createRandomMapSeed)
@@ -54,7 +56,8 @@ export function StartScreen({ onStart }: StartScreenProps) {
           <select
             className="start-screen__select"
             aria-label="지도 크기 선택"
-            defaultValue="tiny"
+            value={sizeId}
+            onChange={(event) => setSizeId(event.target.value as SizeOptionId)}
           >
             {SIZE_OPTIONS.map((option) => (
               <option key={option.id} value={option.id} disabled={!option.available}>
@@ -137,7 +140,7 @@ export function StartScreen({ onStart }: StartScreenProps) {
               }
               onStart({
                 seed: normalized,
-                boardSize: BOARD_SIZE_PRESETS.tiny,
+                boardSize: BOARD_SIZE_PRESETS[sizeId],
                 factionCount: ACTIVE_FACTION_COUNT,
                 humanFactionId,
                 mapType,
