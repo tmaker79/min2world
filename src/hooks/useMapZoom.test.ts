@@ -5,6 +5,7 @@ import {
   MAP_ZOOM_FACTOR,
   MAP_ZOOM_MAX,
   MAP_ZOOM_MIN,
+  MAP_ZOOM_STEPS_PER_DIRECTION,
   nextMapZoom,
   useMapZoom,
   zoomScrollOffset,
@@ -51,6 +52,21 @@ describe('map zoom helpers', () => {
     expect(nextMapZoom(1, 100)).toBeCloseTo(1 / MAP_ZOOM_FACTOR)
     expect(nextMapZoom(MAP_ZOOM_MAX, -100)).toBe(MAP_ZOOM_MAX)
     expect(nextMapZoom(MAP_ZOOM_MIN, 100)).toBe(MAP_ZOOM_MIN)
+  })
+
+  it('limits zoom to five steps in either direction from the default', () => {
+    let zoomedIn = MAP_ZOOM_DEFAULT
+    let zoomedOut = MAP_ZOOM_DEFAULT
+
+    for (let step = 0; step < MAP_ZOOM_STEPS_PER_DIRECTION; step += 1) {
+      zoomedIn = nextMapZoom(zoomedIn, -100)
+      zoomedOut = nextMapZoom(zoomedOut, 100)
+    }
+
+    expect(zoomedIn).toBeCloseTo(MAP_ZOOM_MAX)
+    expect(zoomedOut).toBeCloseTo(MAP_ZOOM_MIN)
+    expect(nextMapZoom(zoomedIn, -100)).toBe(MAP_ZOOM_MAX)
+    expect(nextMapZoom(zoomedOut, 100)).toBe(MAP_ZOOM_MIN)
   })
 
   it('keeps the content point under the cursor stable', () => {

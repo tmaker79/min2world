@@ -1,9 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
-export const MAP_ZOOM_MIN = 0.5
-export const MAP_ZOOM_MAX = 2.5
 export const MAP_ZOOM_DEFAULT = 1
 export const MAP_ZOOM_FACTOR = 1.1
+export const MAP_ZOOM_STEPS_PER_DIRECTION = 5
+export const MAP_ZOOM_MIN =
+  MAP_ZOOM_DEFAULT / MAP_ZOOM_FACTOR ** MAP_ZOOM_STEPS_PER_DIRECTION
+export const MAP_ZOOM_MAX =
+  MAP_ZOOM_DEFAULT * MAP_ZOOM_FACTOR ** MAP_ZOOM_STEPS_PER_DIRECTION
 
 export function nextMapZoom(current: number, deltaY: number): number {
   const next =
