@@ -13,6 +13,7 @@ const TERRAIN_FILL: Record<Terrain, string> = {
   hill: '#6a7a48',
   mountain: '#4f5358',
   water: '#365172',
+  desert: '#d8aa49',
 }
 
 const MINIMAP_MAX_WIDTH = 200

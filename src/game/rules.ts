@@ -74,6 +74,7 @@ export const TERRAIN_MOVEMENT_COST: Record<Terrain, number | null> = {
   water: null,
   hill: 2,
   forest: 2,
+  desert: 2,
 }
 
 export const TERRAIN_COMBAT_BONUS: Record<Terrain, number> = {
@@ -82,6 +83,7 @@ export const TERRAIN_COMBAT_BONUS: Record<Terrain, number> = {
   water: 0,
   hill: 3,
   forest: 3,
+  desert: 0,
 }
 
 export const TERRAIN_LABELS: Record<Terrain, string> = {
@@ -90,6 +92,7 @@ export const TERRAIN_LABELS: Record<Terrain, string> = {
   water: '물',
   hill: '언덕',
   forest: '숲',
+  desert: '사막',
 }
 
 export function getTileAt(state: GameState, position: Position) {

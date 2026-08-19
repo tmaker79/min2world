@@ -49,6 +49,7 @@ const TERRAIN_COST: Record<Terrain, number | null> = {
   water: null,
   hill: 2,
   forest: 2,
+  desert: 2,
 }
 
 function hashSeed(value: string): number {
@@ -147,6 +148,7 @@ function clampNoise(value: number): number {
 function terrainFromNoise(
   elevation: number,
   moisture: number,
+  temperature: number,
   mapType: MapType,
 ): Terrain {
   const profile = MAP_TYPE_PROFILES[mapType]
@@ -159,7 +161,26 @@ function terrainFromNoise(
   if (adjustedElevation > 0.68) return 'mountain'
   if (adjustedElevation > 0.59) return 'hill'
   if (adjustedMoisture > 0.61) return 'forest'
+  if (adjustedMoisture < 0.4 && temperature > 0.58) return 'desert'
   return 'plain'
+}
+
+function temperatureAt(
+  position: Position,
+  boardSize: BoardSize,
+  elevation: number,
+  climateNoise: number,
+): number {
+  const row = position.r + Math.floor(boardSize.rows / 2)
+  const normalizedLatitude =
+    boardSize.rows <= 1
+      ? 0
+      : Math.abs((row / (boardSize.rows - 1)) * 2 - 1)
+  const elevationCooling = Math.max(0, elevation - 0.5) * 0.4
+
+  return clampNoise(
+    0.85 - normalizedLatitude * 0.55 + (climateNoise - 0.5) * 0.3 - elevationCooling,
+  )
 }
 
 function opposite(position: Position, boardSize: BoardSize): Position {
@@ -587,6 +608,7 @@ function buildCandidate(
   const positions = getAllHexPositions(boardSize)
   const elevation = createClusteredValues(positions, random, boardSize)
   const moisture = createClusteredValues(positions, random, boardSize)
+  const climateNoise = createClusteredValues(positions, random, boardSize)
   const capitals = chooseCapitals(random, boardSize, factionCount)
   if (!capitals) return undefined
   const tiles: Tile[] = positions.map((position) => ({
@@ -597,6 +619,12 @@ function buildCandidate(
       : terrainFromNoise(
           elevation.get(positionKey(position)) ?? 0.5,
           moisture.get(positionKey(position)) ?? 0.5,
+          temperatureAt(
+            position,
+            boardSize,
+            elevation.get(positionKey(position)) ?? 0.5,
+            climateNoise.get(positionKey(position)) ?? 0.5,
+          ),
           mapType,
         ),
   }))
@@ -608,6 +636,7 @@ function buildCandidate(
     for (const tile of localTiles) {
       if (tile.terrain === 'water') tile.terrain = 'plain'
       if (tile.terrain === 'mountain') tile.terrain = 'hill'
+      if (tile.terrain === 'desert') tile.terrain = 'plain'
     }
   }
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { HEX_TILE_COUNT } from '../game/hex'
 import { createInitialGameState } from '../game/initialState'
-import { GAME_SCHEMA_VERSION } from '../game/types'
+import { GAME_SCHEMA_VERSION, MAP_GENERATION_VERSION } from '../game/types'
 import {
   deleteSavedGame,
   inspectSavedGame,
@@ -72,6 +72,22 @@ describe('saved games', () => {
 
     expect(loaded.ok).toBe(true)
     if (loaded.ok) expect(loaded.value.gameState.mapType).toBe('balanced')
+  })
+
+  it('loads and re-saves map generation version 5 games', () => {
+    const storage = new MemoryStorage()
+    const state = createInitialGameState('generation-v5')
+    state.mapGenerationVersion = 5
+    storeEnvelope(storage, state)
+
+    const loaded = loadGame(storage)
+
+    expect(loaded.ok).toBe(true)
+    if (loaded.ok) {
+      expect(loaded.value.gameState.mapGenerationVersion).toBe(5)
+      expect(saveGame(loaded.value.gameState, storage).ok).toBe(true)
+    }
+    expect(MAP_GENERATION_VERSION).toBe(6)
   })
 
   it('loads schema 8 saves created with the previous 15x10 board', () => {

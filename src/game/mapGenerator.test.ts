@@ -54,6 +54,7 @@ describe('procedural map generation', () => {
         hill: 0,
         mountain: 0,
         forest: 0,
+        desert: 0,
       }
       for (const seed of seeds) {
         const state = generateGameState(seed, {
@@ -72,7 +73,9 @@ describe('procedural map generation', () => {
     const mountainous = countTerrain('mountainous')
     const forested = countTerrain('forested')
 
-    expect(plains.plain).toBeGreaterThan(balanced.plain)
+    expect(plains.plain + plains.desert).toBeGreaterThan(
+      balanced.plain + balanced.desert,
+    )
     expect(mountainous.hill + mountainous.mountain).toBeGreaterThan(
       balanced.hill + balanced.mountain,
     )
@@ -105,6 +108,17 @@ describe('procedural map generation', () => {
     }
 
     expect(signature('alpha')).not.toBe(signature('bravo'))
+  })
+
+  it('generates passable desert away from capitals', () => {
+    const states = ['desert-alpha', 'desert-bravo', 'desert-charlie'].map(
+      (seed) => generateGameState(seed),
+    )
+    const deserts = states.flatMap((state) =>
+      state.tiles.filter((tile) => tile.terrain === 'desert'),
+    )
+
+    expect(deserts.length).toBeGreaterThan(0)
   })
 
   it.each(['alpha', 'bravo', 'hex-world', '균형 지도', '00000000'])(

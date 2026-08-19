@@ -1178,6 +1178,10 @@
   background: #8db56e;
 }
 
+.map-tile--desert {
+  background: #e0b454;
+}
+
 .map-tile--forest {
   background: linear-gradient(145deg, #547352, #365b45);
 }
@@ -1275,6 +1279,7 @@
 .terrain-mark--hill,
 .terrain-mark--forest,
 .terrain-mark--water,
+.terrain-mark--desert,
 .terrain-mark--plain {
   display: grid;
   place-items: center;
@@ -1285,6 +1290,7 @@
 .terrain-mark--hill,
 .terrain-mark--forest,
 .terrain-mark--water,
+.terrain-mark--desert,
 .terrain-mark--plain {
   inset: 0;
 }
@@ -1293,6 +1299,7 @@
 .terrain-mark [data-terrain-icon='hill'],
 .terrain-mark [data-terrain-icon='mountain'],
 .terrain-mark [data-terrain-icon='water'],
+.terrain-mark [data-terrain-icon='desert'],
 .terrain-mark [data-terrain-icon='plain'] {
   width: 100%;
   height: 100%;
@@ -1788,6 +1795,10 @@
   background: #8db56e;
 }
 
+.terrain-portrait--desert {
+  background: #d8aa49;
+}
+
 .unit-details__heading {
   display: flex;
   flex-direction: column;
@@ -2035,10 +2046,15 @@
   background: #8db56e;
 }
 
+.legend-swatch--desert {
+  background: #d8aa49;
+}
+
 .legend-swatch--forest,
 .legend-swatch--hill,
 .legend-swatch--mountain,
 .legend-swatch--water,
+.legend-swatch--desert,
 .legend-swatch--plain {
   display: grid;
   overflow: hidden;
@@ -2061,6 +2077,7 @@
 .legend-swatch [data-terrain-icon='hill'],
 .legend-swatch [data-terrain-icon='mountain'],
 .legend-swatch [data-terrain-icon='water'],
+.legend-swatch [data-terrain-icon='desert'],
 .legend-swatch [data-terrain-icon='plain'] {
   width: 100%;
   height: 100%;

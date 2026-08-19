@@ -8,7 +8,11 @@ import {
 } from '../game/hex'
 import { cloneGameState } from '../game/state'
 import { SITE_STATS, TERRAIN_MOVEMENT_COST, UNIT_STATS } from '../game/rules'
-import { GAME_SCHEMA_VERSION, MAP_GENERATION_VERSION } from '../game/types'
+import {
+  GAME_SCHEMA_VERSION,
+  MAP_GENERATION_VERSION,
+  SUPPORTED_MAP_GENERATION_VERSIONS,
+} from '../game/types'
 import type {
   BoardSize,
   FactionCount,
@@ -58,7 +62,7 @@ const SITE_OWNERS = new Set<SiteOwnerId>([
   'neutral',
 ])
 const TERRAINS = new Set<Terrain>([
-  'plain', 'mountain', 'water', 'hill', 'forest',
+  'plain', 'mountain', 'water', 'hill', 'forest', 'desert',
 ])
 const UNIT_TYPES = new Set<UnitType>(['infantry', 'cavalry', 'archer', 'spearman'])
 const SITE_TYPES = new Set<SiteType>(['stronghold', 'village', 'farm', 'mine', 'city'])
@@ -246,7 +250,8 @@ function parseGameState(value: unknown): StorageResult<GameState> {
     !isNonEmptyString(value.mapSeed, 64) ||
     typeof mapType !== 'string' ||
     !MAP_TYPES.has(mapType as MapType) ||
-    value.mapGenerationVersion !== MAP_GENERATION_VERSION ||
+    typeof value.mapGenerationVersion !== 'number' ||
+    !SUPPORTED_MAP_GENERATION_VERSIONS.includes(value.mapGenerationVersion) ||
     !isIntegerInRange(value.turn, 1) ||
     value.phase !== 'playing' ||
     !boardSize ||
@@ -310,7 +315,7 @@ function parseGameState(value: unknown): StorageResult<GameState> {
     schemaVersion: GAME_SCHEMA_VERSION,
     mapSeed: value.mapSeed.trim(),
     mapType: mapType as MapType,
-    mapGenerationVersion: MAP_GENERATION_VERSION,
+    mapGenerationVersion: value.mapGenerationVersion,
     boardSize,
     factionCount,
     humanFactionId: value.humanFactionId as FactionId,
@@ -484,7 +489,7 @@ export function saveGame(
 ): StorageResult<SavedGame> {
   if (
     state.schemaVersion !== GAME_SCHEMA_VERSION ||
-    state.mapGenerationVersion !== MAP_GENERATION_VERSION ||
+    !SUPPORTED_MAP_GENERATION_VERSIONS.includes(state.mapGenerationVersion) ||
     state.phase !== 'playing' ||
     state.activeFactionId !== state.humanFactionId ||
     Number.isNaN(now.getTime())
