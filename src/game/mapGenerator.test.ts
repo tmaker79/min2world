@@ -56,6 +56,7 @@ describe('procedural map generation', () => {
         forest: 0,
         desert: 0,
         desertHill: 0,
+        oasis: 0,
         tundra: 0,
         tundraForest: 0,
         tundraMountain: 0,
@@ -77,8 +78,8 @@ describe('procedural map generation', () => {
     const mountainous = countTerrain('mountainous')
     const forested = countTerrain('forested')
 
-    expect(plains.plain + plains.desert).toBeGreaterThan(
-      balanced.plain + balanced.desert,
+    expect(plains.plain + plains.desert + plains.oasis).toBeGreaterThan(
+      balanced.plain + balanced.desert + balanced.oasis,
     )
     expect(
       mountainous.hill +
@@ -143,6 +144,37 @@ describe('procedural map generation', () => {
     ).flat()
 
     expect(desertHills.length).toBeGreaterThan(0)
+  })
+
+  it('occasionally places sparse oases in hot and dry terrain', () => {
+    const states = Array.from({ length: 24 }, (_, index) =>
+      generateGameState(`oasis-${index}`),
+    )
+    const oases = states.flatMap((state) =>
+      state.tiles.filter((tile) => tile.terrain === 'oasis'),
+    )
+    const deserts = states.flatMap((state) =>
+      state.tiles.filter((tile) => tile.terrain === 'desert'),
+    )
+
+    expect(oases.length).toBeGreaterThan(0)
+    expect(oases.length).toBeLessThan(deserts.length)
+    expect(oases.length / (oases.length + deserts.length)).toBeLessThan(0.06)
+
+    for (const state of states) {
+      const oasisKeys = new Set(
+        state.tiles
+          .filter((tile) => tile.terrain === 'oasis')
+          .map((tile) => positionKey(tile.position)),
+      )
+      for (const tile of state.tiles.filter((tile) => tile.terrain === 'oasis')) {
+        expect(
+          getHexNeighbors(tile.position, state.boardSize).every(
+            (neighbor) => !oasisKeys.has(positionKey(neighbor)),
+          ),
+        ).toBe(true)
+      }
+    }
   })
 
   it('generates passable tundra in cold regions', () => {

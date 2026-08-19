@@ -51,6 +51,7 @@ const TERRAIN_COST: Record<Terrain, number | null> = {
   forest: 2,
   desert: 2,
   desertHill: 2,
+  oasis: 1,
   tundra: 2,
   tundraForest: 2,
   tundraMountain: null,
@@ -153,6 +154,7 @@ function terrainFromNoise(
   elevation: number,
   moisture: number,
   temperature: number,
+  featureNoise: number,
   mapType: MapType,
 ): Terrain {
   const profile = MAP_TYPE_PROFILES[mapType]
@@ -173,7 +175,9 @@ function terrainFromNoise(
       : 'hill'
   }
   if (adjustedMoisture > 0.61) return 'forest'
-  if (adjustedMoisture < 0.4 && temperature > 0.58) return 'desert'
+  if (adjustedMoisture < 0.4 && temperature > 0.58) {
+    return featureNoise > 0.97 ? 'oasis' : 'desert'
+  }
   return 'plain'
 }
 
@@ -647,6 +651,9 @@ function buildCandidate(
   const positions = getAllHexPositions(boardSize)
   const elevation = createClusteredValues(positions, random, boardSize)
   const moisture = createClusteredValues(positions, random, boardSize)
+  const featureNoise = new Map(
+    positions.map((position) => [positionKey(position), random()] as const),
+  )
   const climateRoll = random()
   const coldEdge =
     climateRoll < 0.4 ? 'none' : climateRoll < 0.7 ? 'top' : 'bottom'
@@ -671,9 +678,28 @@ function buildCandidate(
             edgeTemperatures,
             climateOffset,
           ),
+          featureNoise.get(positionKey(position)) ?? 0.5,
           mapType,
         ),
   }))
+
+  const retainedOases = new Set<string>()
+  for (const tile of tiles
+    .filter((candidate) => candidate.terrain === 'oasis')
+    .sort(
+      (left, right) =>
+        (featureNoise.get(positionKey(right.position)) ?? 0) -
+        (featureNoise.get(positionKey(left.position)) ?? 0),
+    )) {
+    const touchesOasis = getHexNeighbors(tile.position, boardSize).some(
+      (neighbor) => retainedOases.has(positionKey(neighbor)),
+    )
+    if (touchesOasis) {
+      tile.terrain = 'desert'
+    } else {
+      retainedOases.add(positionKey(tile.position))
+    }
+  }
 
   for (const factionId of getFactionIds(factionCount)) {
     const localTiles = tiles.filter(

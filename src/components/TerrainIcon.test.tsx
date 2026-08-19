@@ -27,6 +27,15 @@ describe('TerrainIcon', () => {
     )
   })
 
+  it('renders the oasis asset', () => {
+    const { container } = render(<TerrainIcon terrain="oasis" />)
+
+    expect(container.querySelector('img')).toHaveAttribute(
+      'data-terrain-icon',
+      'oasis',
+    )
+  })
+
   it('renders the windswept tundra tile', () => {
     const { container } = render(
       <TerrainIcon terrain="tundra" variantIndex={0} />,

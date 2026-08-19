@@ -87,6 +87,13 @@ describe('hex movement rules', () => {
     expect(getMovementCost(state, infantry, { q: 2, r: -1 })).toBeUndefined()
   })
 
+  it('treats an oasis as passable terrain with movement cost 1', () => {
+    const infantry = unit('p1', 'player', 'infantry', { q: 0, r: 0 })
+    const state = withTerrain(rulesState([infantry]), { q: 1, r: 0 }, 'oasis')
+
+    expect(getMovementCost(state, infantry, { q: 1, r: 0 })).toBe(1)
+  })
+
   it('uses all six adjacent cells for enemy zone of control', () => {
     const enemy = unit('e1', 'enemy', 'infantry', { q: 0, r: 0 })
     expect(getEnemyZoneOfControlPositions(rulesState([enemy]), 'player')).toHaveLength(6)

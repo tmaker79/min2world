@@ -9,6 +9,7 @@ import hillTile from '../assets/terrain/hill-tile.png'
 import hillTileFew from '../assets/terrain/hill-tile-few.png'
 import mountainTileFull from '../assets/terrain/mountain-tile-full.png'
 import mountainTilePeak from '../assets/terrain/mountain-tile-peak.png'
+import oasisTile from '../assets/terrain/oasis-tile.png'
 import plainTile from '../assets/terrain/plain-tile.png'
 import plainTileBush from '../assets/terrain/plain-tile-bush.png'
 import plainTileGrass1 from '../assets/terrain/plain-tile-grass-1.png'
@@ -40,6 +41,7 @@ const TERRAIN_VARIANTS: Partial<Record<Terrain, readonly string[]>> = {
   water: [waterTile],
   desert: [desertTileCactus, desertTileDunes, desertTileScrub],
   desertHill: [desertHillTile],
+  oasis: [oasisTile],
   tundra: [tundraTileWindswept],
   tundraForest: [tundraForestTile],
   tundraMountain: [tundraMountainTile, tundraMountainTileSummit],
