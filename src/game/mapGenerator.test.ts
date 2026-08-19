@@ -147,24 +147,116 @@ describe('procedural map generation', () => {
     expect(tundraForests.length).toBeGreaterThan(0)
   })
 
-  it('uses latitude as a climate tendency instead of forcing tundra at map edges', () => {
+  it('places tundra along at most one cold edge of the regional map', () => {
     const states = ['regional-alpha', 'regional-bravo', 'regional-charlie'].map(
       (seed) => generateGameState(seed),
     )
     const edgeRow = Math.floor(BOARD_SIZE_PRESETS.standard.rows / 2)
-    const edgeTiles = states.flatMap((state) =>
-      state.tiles.filter((tile) => Math.abs(tile.position.r) >= edgeRow - 1),
-    )
-    const interiorTundra = states.flatMap((state) =>
-      state.tiles.filter(
-        (tile) => Math.abs(tile.position.r) <= 2 && tile.terrain === 'tundra',
-      ),
+
+    for (const state of states) {
+      const tundraTiles = state.tiles.filter(
+        (tile) => tile.terrain === 'tundra' || tile.terrain === 'tundraForest',
+      )
+      const isTopEdge = tundraTiles.every((tile) => tile.position.r < 0)
+      const isBottomEdge = tundraTiles.every((tile) => tile.position.r > 0)
+
+      expect(isTopEdge || isBottomEdge).toBe(true)
+      expect(
+        tundraTiles.every((tile) => Math.abs(tile.position.r) >= edgeRow * 0.5),
+      ).toBe(true)
+    }
+  })
+
+  it('can generate worlds both with and without tundra', () => {
+    const tundraCounts = Array.from({ length: 24 }, (_, index) =>
+      generateGameState(`optional-tundra-${index}`).tiles.filter(
+        (tile) => tile.terrain === 'tundra' || tile.terrain === 'tundraForest',
+      ).length,
     )
 
-    expect(edgeTiles.filter((tile) => tile.terrain !== 'tundra').length).toBeGreaterThan(
-      edgeTiles.filter((tile) => tile.terrain === 'tundra').length,
-    )
-    expect(interiorTundra.length).toBeGreaterThan(0)
+    expect(tundraCounts.some((count) => count === 0)).toBe(true)
+    expect(tundraCounts.some((count) => count > 0)).toBe(true)
+  })
+
+  it('does not place ordinary terrain beyond the tundra boundary', () => {
+    const coldTerrains: Terrain[] = ['tundra', 'tundraForest']
+
+    for (let index = 0; index < 12; index += 1) {
+      const state = generateGameState(`solid-tundra-edge-${index}`)
+      const tundraTiles = state.tiles.filter((tile) =>
+        coldTerrains.includes(tile.terrain),
+      )
+      if (tundraTiles.length === 0) continue
+
+      const topEdge = tundraTiles.every((tile) => tile.position.r < 0)
+      const tilesByColumn = new Map<number, typeof state.tiles>()
+      for (const tile of state.tiles) {
+        const column =
+          tile.position.q +
+          Math.floor(state.boardSize.columns / 2) +
+          Math.floor(tile.position.r / 2)
+        const columnTiles = tilesByColumn.get(column) ?? []
+        columnTiles.push(tile)
+        tilesByColumn.set(column, columnTiles)
+      }
+
+      for (const columnTiles of tilesByColumn.values()) {
+        const columnTundra = columnTiles.filter((tile) =>
+          coldTerrains.includes(tile.terrain),
+        )
+        if (columnTundra.length === 0) continue
+        const boundaryRow = topEdge
+          ? Math.max(...columnTundra.map((tile) => tile.position.r))
+          : Math.min(...columnTundra.map((tile) => tile.position.r))
+        const tilesBeyondBoundary = columnTiles.filter((tile) =>
+          topEdge
+            ? tile.position.r <= boundaryRow
+            : tile.position.r >= boundaryRow,
+        )
+
+        expect(
+          tilesBeyondBoundary.every((tile) => coldTerrains.includes(tile.terrain)),
+        ).toBe(true)
+      }
+    }
+  })
+
+  it('keeps every tundra row from spanning the full map width', () => {
+    const coldTerrains: Terrain[] = ['tundra', 'tundraForest']
+
+    for (let index = 0; index < 12; index += 1) {
+      const state = generateGameState(`ragged-tundra-edge-${index}`)
+      const tilesByRow = new Map<number, typeof state.tiles>()
+      for (const tile of state.tiles) {
+        const rowTiles = tilesByRow.get(tile.position.r) ?? []
+        rowTiles.push(tile)
+        tilesByRow.set(tile.position.r, rowTiles)
+      }
+
+      for (const rowTiles of tilesByRow.values()) {
+        expect(rowTiles.some((tile) => !coldTerrains.includes(tile.terrain))).toBe(true)
+      }
+    }
+  })
+
+  it('keeps hot desert and cold tundra out of the same climate row', () => {
+    const coldTerrains: Terrain[] = ['tundra', 'tundraForest']
+
+    for (const seed of ['climate-alpha', 'climate-bravo', 'climate-charlie']) {
+      const state = generateGameState(seed)
+      const rows = new Map<number, Set<Terrain>>()
+
+      for (const tile of state.tiles) {
+        const terrains = rows.get(tile.position.r) ?? new Set<Terrain>()
+        terrains.add(tile.terrain)
+        rows.set(tile.position.r, terrains)
+      }
+
+      for (const terrains of rows.values()) {
+        const hasColdTerrain = coldTerrains.some((terrain) => terrains.has(terrain))
+        expect(terrains.has('desert') && hasColdTerrain).toBe(false)
+      }
+    }
   })
 
   it.each(['alpha', 'bravo', 'hex-world', '균형 지도', '00000000'])(

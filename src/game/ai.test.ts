@@ -43,23 +43,27 @@ describe('hex-map AI', () => {
   })
 
   it('moves toward the player capital over a valid weighted hex path', () => {
-    const initial = enemyTurn('ai-move')
-    const enemy = initial.units.find((unit) => unit.factionId === 'enemy')!
+    const initial = enemyTurn('ai-move-open')
     const capital = initial.sites.find((site) => site.capitalFor === 'player')!
-    const state = {
-      ...initial,
-      selectedUnitId: enemy.id,
-      units: initial.units.filter((unit) => unit.factionId === 'enemy'),
-    }
-    const action = chooseAiAction(state)
+    const movable = initial.units
+      .filter((unit) => unit.factionId === 'enemy')
+      .map((enemy) => {
+        const state = {
+          ...initial,
+          selectedUnitId: enemy.id,
+          units: initial.units.filter((unit) => unit.factionId === 'enemy'),
+        }
+        return { enemy, state, action: chooseAiAction(state) }
+      })
+      .find(({ action }) => action?.type === 'unitMoved')
 
-    expect(action?.type).toBe('unitMoved')
-    if (action?.type === 'unitMoved') {
-      expect(action.destination).not.toEqual(enemy.position)
-      expect(getHexDistance(action.destination, capital.position)).toBeLessThanOrEqual(
-        getHexDistance(enemy.position, capital.position),
+    expect(movable?.action?.type).toBe('unitMoved')
+    if (movable?.action?.type === 'unitMoved') {
+      expect(movable.action.destination).not.toEqual(movable.enemy.position)
+      expect(getHexDistance(movable.action.destination, capital.position)).toBeLessThanOrEqual(
+        getHexDistance(movable.enemy.position, capital.position),
       )
-      expect(gameReducer(state, action)).not.toBe(state)
+      expect(gameReducer(movable.state, movable.action)).not.toBe(movable.state)
     }
   })
 

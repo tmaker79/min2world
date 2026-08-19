@@ -159,12 +159,12 @@ function terrainFromNoise(
   )
   const adjustedMoisture = clampNoise(moisture + profile.moistureOffset)
 
-  if (adjustedElevation < 0.34) return 'water'
-  if (adjustedElevation > 0.68) return 'mountain'
-  if (adjustedElevation > 0.59) return 'hill'
   if (temperature < 0.43) {
     return adjustedMoisture > 0.52 ? 'tundraForest' : 'tundra'
   }
+  if (adjustedElevation < 0.34) return 'water'
+  if (adjustedElevation > 0.68) return 'mountain'
+  if (adjustedElevation > 0.59) return 'hill'
   if (adjustedMoisture > 0.61) return 'forest'
   if (adjustedMoisture < 0.4 && temperature > 0.58) return 'desert'
   return 'plain'
@@ -173,19 +173,46 @@ function terrainFromNoise(
 function temperatureAt(
   position: Position,
   boardSize: BoardSize,
-  elevation: number,
-  climateNoise: number,
+  coldEdge: 'top' | 'bottom' | 'none',
+  temperateTemperature: number,
+  edgeTemperatures: readonly number[],
+  climateOffset: number,
 ): number {
   const row = position.r + Math.floor(boardSize.rows / 2)
-  const normalizedLatitude =
-    boardSize.rows <= 1
-      ? 0
-      : Math.abs((row / (boardSize.rows - 1)) * 2 - 1)
-  const elevationCooling = Math.max(0, elevation - 0.5) * 0.3
+  const rowProgress = boardSize.rows <= 1 ? 0.5 : row / (boardSize.rows - 1)
+
+  if (coldEdge === 'none') {
+    return clampNoise(temperateTemperature)
+  }
+
+  const distanceFromColdEdge = coldEdge === 'top' ? rowProgress : 1 - rowProgress
+  const column =
+    position.q + Math.floor(boardSize.columns / 2) + Math.floor(position.r / 2)
+  const edgeTemperature = edgeTemperatures[column] ?? 0.42
 
   return clampNoise(
-    0.59 - normalizedLatitude * 0.1 + (climateNoise - 0.5) * 0.8 - elevationCooling,
+    edgeTemperature + distanceFromColdEdge * 0.36 + climateOffset,
   )
+}
+
+function createColdEdgeTemperatures(
+  boardSize: BoardSize,
+  random: () => number,
+): number[] {
+  const primaryPhase = random() * Math.PI * 2
+  const secondaryPhase = random() * Math.PI * 2
+  const raw = Array.from({ length: boardSize.columns }, (_, column) => {
+    const progress = boardSize.columns <= 1 ? 0.5 : column / (boardSize.columns - 1)
+    return (
+      Math.sin(progress * Math.PI * 2 + primaryPhase) * 0.05 +
+      Math.sin(progress * Math.PI * 4 + secondaryPhase) * 0.02
+    )
+  })
+  const minimum = Math.min(...raw)
+  const maximum = Math.max(...raw)
+  const range = maximum - minimum || 1
+
+  return raw.map((value) => 0.35 + ((value - minimum) / range) * 0.14)
 }
 
 function opposite(position: Position, boardSize: BoardSize): Position {
@@ -613,7 +640,12 @@ function buildCandidate(
   const positions = getAllHexPositions(boardSize)
   const elevation = createClusteredValues(positions, random, boardSize)
   const moisture = createClusteredValues(positions, random, boardSize)
-  const climateNoise = createClusteredValues(positions, random, boardSize)
+  const climateRoll = random()
+  const coldEdge =
+    climateRoll < 0.4 ? 'none' : climateRoll < 0.7 ? 'top' : 'bottom'
+  const temperateTemperature = 0.55 + random() * 0.14
+  const edgeTemperatures = createColdEdgeTemperatures(boardSize, random)
+  const climateOffset = (random() - 0.5) * 0.04
   const capitals = chooseCapitals(random, boardSize, factionCount)
   if (!capitals) return undefined
   const tiles: Tile[] = positions.map((position) => ({
@@ -627,8 +659,10 @@ function buildCandidate(
           temperatureAt(
             position,
             boardSize,
-            elevation.get(positionKey(position)) ?? 0.5,
-            climateNoise.get(positionKey(position)) ?? 0.5,
+            coldEdge,
+            temperateTemperature,
+            edgeTemperatures,
+            climateOffset,
           ),
           mapType,
         ),
@@ -642,8 +676,6 @@ function buildCandidate(
       if (tile.terrain === 'water') tile.terrain = 'plain'
       if (tile.terrain === 'mountain') tile.terrain = 'hill'
       if (tile.terrain === 'desert') tile.terrain = 'plain'
-      if (tile.terrain === 'tundra') tile.terrain = 'plain'
-      if (tile.terrain === 'tundraForest') tile.terrain = 'forest'
     }
   }
 
