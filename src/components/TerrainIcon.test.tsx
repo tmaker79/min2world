@@ -18,9 +18,9 @@ describe('TerrainIcon', () => {
     )
   })
 
-  it.each([0, 1])('renders tundra variant %s', (variantIndex) => {
+  it('renders the windswept tundra tile', () => {
     const { container } = render(
-      <TerrainIcon terrain="tundra" variantIndex={variantIndex} />,
+      <TerrainIcon terrain="tundra" variantIndex={0} />,
     )
 
     expect(container.querySelector('img')).toHaveAttribute(
@@ -29,7 +29,7 @@ describe('TerrainIcon', () => {
     )
     expect(container.querySelector('img')).toHaveAttribute(
       'data-terrain-variant',
-      String(variantIndex),
+      '0',
     )
   })
 
@@ -39,6 +39,21 @@ describe('TerrainIcon', () => {
     expect(container.querySelector('img')).toHaveAttribute(
       'data-terrain-icon',
       'tundraForest',
+    )
+  })
+
+  it.each([0, 1])('renders tundra mountain variant %s', (variantIndex) => {
+    const { container } = render(
+      <TerrainIcon terrain="tundraMountain" variantIndex={variantIndex} />,
+    )
+
+    expect(container.querySelector('img')).toHaveAttribute(
+      'data-terrain-icon',
+      'tundraMountain',
+    )
+    expect(container.querySelector('img')).toHaveAttribute(
+      'data-terrain-variant',
+      String(variantIndex),
     )
   })
 })

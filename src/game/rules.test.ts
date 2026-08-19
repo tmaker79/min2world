@@ -67,7 +67,7 @@ describe('hex movement rules', () => {
     expect(reachable.every((position) => getHexDistance(position, infantry.position) <= 2)).toBe(true)
   })
 
-  it('blocks water and mountain and charges 2 for rough climate terrain', () => {
+  it('blocks water and mountains and charges 2 for rough climate terrain', () => {
     const infantry = unit('p1', 'player', 'infantry', { q: 0, r: 0 })
     let state = rulesState([infantry])
     state = withTerrain(state, { q: 1, r: 0 }, 'water')
@@ -76,6 +76,7 @@ describe('hex movement rules', () => {
     state = withTerrain(state, { q: -1, r: 1 }, 'desert')
     state = withTerrain(state, { q: -1, r: 0 }, 'tundra')
     state = withTerrain(state, { q: 0, r: -1 }, 'tundraForest')
+    state = withTerrain(state, { q: 2, r: -1 }, 'tundraMountain')
 
     expect(getMovementCost(state, infantry, { q: 1, r: 0 })).toBeUndefined()
     expect(getMovementCost(state, infantry, { q: 1, r: -1 })).toBeUndefined()
@@ -83,6 +84,7 @@ describe('hex movement rules', () => {
     expect(getMovementCost(state, infantry, { q: -1, r: 1 })).toBe(2)
     expect(getMovementCost(state, infantry, { q: -1, r: 0 })).toBe(2)
     expect(getMovementCost(state, infantry, { q: 0, r: -1 })).toBe(2)
+    expect(getMovementCost(state, infantry, { q: 2, r: -1 })).toBeUndefined()
   })
 
   it('uses all six adjacent cells for enemy zone of control', () => {

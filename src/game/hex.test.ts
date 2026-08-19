@@ -74,4 +74,17 @@ describe('hex coordinates', () => {
     )
     expect(variants.size).toBeGreaterThan(1)
   })
+
+  it('does not alternate two terrain variants in a fixed coordinate pattern', () => {
+    const variants = Array.from({ length: 29 }, (_, index) =>
+      getTerrainVariantIndex({ q: index - 14, r: 3 }, 2, 'tundra-map'),
+    )
+
+    expect(
+      variants.some((variant, index) => index > 0 && variant === variants[index - 1]),
+    ).toBe(true)
+    expect(
+      variants.some((variant, index) => index > 1 && variant !== variants[index - 2]),
+    ).toBe(true)
+  })
 })

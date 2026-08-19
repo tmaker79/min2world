@@ -16,8 +16,9 @@ import plainTileGrass3 from '../assets/terrain/plain-tile-grass-3.png'
 import plainTileGrass4 from '../assets/terrain/plain-tile-grass-4.png'
 import plainTileGround from '../assets/terrain/plain-tile-ground.png'
 import plainTileTrees from '../assets/terrain/plain-tile-trees.png'
-import tundraTileFrostScrub from '../assets/terrain/tundra-tile-frost-scrub.png'
 import tundraForestTile from '../assets/terrain/tundra-forest-tile.png'
+import tundraMountainTileSummit from '../assets/terrain/tundra-mountain-tile-summit.png'
+import tundraMountainTile from '../assets/terrain/tundra-mountain-tile.png'
 import tundraTileWindswept from '../assets/terrain/tundra-tile-windswept.png'
 import waterTile from '../assets/terrain/water-tile.png'
 
@@ -37,8 +38,9 @@ const TERRAIN_VARIANTS: Partial<Record<Terrain, readonly string[]>> = {
   mountain: [mountainTileFull, mountainTilePeak],
   water: [waterTile],
   desert: [desertTileCactus, desertTileDunes, desertTileScrub],
-  tundra: [tundraTileFrostScrub, tundraTileWindswept],
+  tundra: [tundraTileWindswept],
   tundraForest: [tundraForestTile],
+  tundraMountain: [tundraMountainTile, tundraMountainTileSummit],
 }
 
 if (TERRAIN_VARIANTS.forest?.length !== FOREST_TERRAIN_VARIANT_COUNT) {
@@ -59,12 +61,18 @@ export function getTerrainVariantIndex(
   count: number,
   seed = '',
 ) {
-  let hash = ((position.q * 73856093) ^ (position.r * 19349663)) >>> 0
+  let hash = 0x811c9dc5
 
   for (let index = 0; index < seed.length; index += 1) {
     hash ^= seed.charCodeAt(index)
     hash = Math.imul(hash, 0x01000193)
   }
+
+  hash ^= Math.imul(position.q, 0x9e3779b1)
+  hash = Math.imul(hash ^ (hash >>> 16), 0x85ebca6b)
+  hash ^= Math.imul(position.r, 0xc2b2ae35)
+  hash = Math.imul(hash ^ (hash >>> 13), 0xc2b2ae35)
+  hash ^= hash >>> 16
 
   return (hash >>> 0) % count
 }

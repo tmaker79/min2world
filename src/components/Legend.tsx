@@ -6,6 +6,7 @@ const TERRAIN_ITEMS = [
   ['desert', '사막', '비용 2'],
   ['tundra', '툰드라', '비용 2'],
   ['tundraForest', '툰드라 숲', '비용 2 · 전투력 +3'],
+  ['tundraMountain', '툰드라 산', '이동 불가'],
   ['forest', '숲', '비용 2 · 전투력 +3'],
   ['hill', '언덕', '비용 2 · 전투력 +3'],
   ['mountain', '산', '이동 불가'],

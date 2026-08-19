@@ -16,6 +16,7 @@ const TERRAIN_FILL: Record<Terrain, string> = {
   desert: '#d8aa49',
   tundra: '#91a8b7',
   tundraForest: '#416c66',
+  tundraMountain: '#707f8e',
 }
 
 const MINIMAP_MAX_WIDTH = 200

@@ -52,6 +52,7 @@ const TERRAIN_COST: Record<Terrain, number | null> = {
   desert: 2,
   tundra: 2,
   tundraForest: 2,
+  tundraMountain: null,
 }
 
 function hashSeed(value: string): number {
@@ -160,6 +161,7 @@ function terrainFromNoise(
   const adjustedMoisture = clampNoise(moisture + profile.moistureOffset)
 
   if (temperature < 0.43) {
+    if (adjustedElevation > 0.62) return 'tundraMountain'
     return adjustedMoisture > 0.52 ? 'tundraForest' : 'tundra'
   }
   if (adjustedElevation < 0.34) return 'water'
@@ -675,6 +677,7 @@ function buildCandidate(
     for (const tile of localTiles) {
       if (tile.terrain === 'water') tile.terrain = 'plain'
       if (tile.terrain === 'mountain') tile.terrain = 'hill'
+      if (tile.terrain === 'tundraMountain') tile.terrain = 'tundra'
       if (tile.terrain === 'desert') tile.terrain = 'plain'
     }
   }

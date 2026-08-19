@@ -57,6 +57,7 @@ describe('procedural map generation', () => {
         desert: 0,
         tundra: 0,
         tundraForest: 0,
+        tundraMountain: 0,
       }
       for (const seed of seeds) {
         const state = generateGameState(seed, {
@@ -78,8 +79,10 @@ describe('procedural map generation', () => {
     expect(plains.plain + plains.desert).toBeGreaterThan(
       balanced.plain + balanced.desert,
     )
-    expect(mountainous.hill + mountainous.mountain).toBeGreaterThan(
-      balanced.hill + balanced.mountain,
+    expect(
+      mountainous.hill + mountainous.mountain + mountainous.tundraMountain,
+    ).toBeGreaterThan(
+      balanced.hill + balanced.mountain + balanced.tundraMountain,
     )
     expect(forested.forest + forested.tundraForest).toBeGreaterThan(
       balanced.forest + balanced.tundraForest,
@@ -147,6 +150,16 @@ describe('procedural map generation', () => {
     expect(tundraForests.length).toBeGreaterThan(0)
   })
 
+  it('uses snowy mountains for high-elevation tundra', () => {
+    const tundraMountains = Array.from({ length: 16 }, (_, index) =>
+      generateGameState(`tundra-mountain-${index}`).tiles.filter(
+        (tile) => tile.terrain === 'tundraMountain',
+      ),
+    ).flat()
+
+    expect(tundraMountains.length).toBeGreaterThan(0)
+  })
+
   it('places tundra along at most one cold edge of the regional map', () => {
     const states = ['regional-alpha', 'regional-bravo', 'regional-charlie'].map(
       (seed) => generateGameState(seed),
@@ -155,7 +168,10 @@ describe('procedural map generation', () => {
 
     for (const state of states) {
       const tundraTiles = state.tiles.filter(
-        (tile) => tile.terrain === 'tundra' || tile.terrain === 'tundraForest',
+        (tile) =>
+          tile.terrain === 'tundra' ||
+          tile.terrain === 'tundraForest' ||
+          tile.terrain === 'tundraMountain',
       )
       const isTopEdge = tundraTiles.every((tile) => tile.position.r < 0)
       const isBottomEdge = tundraTiles.every((tile) => tile.position.r > 0)
@@ -170,7 +186,10 @@ describe('procedural map generation', () => {
   it('can generate worlds both with and without tundra', () => {
     const tundraCounts = Array.from({ length: 24 }, (_, index) =>
       generateGameState(`optional-tundra-${index}`).tiles.filter(
-        (tile) => tile.terrain === 'tundra' || tile.terrain === 'tundraForest',
+        (tile) =>
+          tile.terrain === 'tundra' ||
+          tile.terrain === 'tundraForest' ||
+          tile.terrain === 'tundraMountain',
       ).length,
     )
 
@@ -179,7 +198,7 @@ describe('procedural map generation', () => {
   })
 
   it('does not place ordinary terrain beyond the tundra boundary', () => {
-    const coldTerrains: Terrain[] = ['tundra', 'tundraForest']
+    const coldTerrains: Terrain[] = ['tundra', 'tundraForest', 'tundraMountain']
 
     for (let index = 0; index < 12; index += 1) {
       const state = generateGameState(`solid-tundra-edge-${index}`)
@@ -222,7 +241,7 @@ describe('procedural map generation', () => {
   })
 
   it('keeps every tundra row from spanning the full map width', () => {
-    const coldTerrains: Terrain[] = ['tundra', 'tundraForest']
+    const coldTerrains: Terrain[] = ['tundra', 'tundraForest', 'tundraMountain']
 
     for (let index = 0; index < 12; index += 1) {
       const state = generateGameState(`ragged-tundra-edge-${index}`)
@@ -240,7 +259,7 @@ describe('procedural map generation', () => {
   })
 
   it('keeps hot desert and cold tundra out of the same climate row', () => {
-    const coldTerrains: Terrain[] = ['tundra', 'tundraForest']
+    const coldTerrains: Terrain[] = ['tundra', 'tundraForest', 'tundraMountain']
 
     for (const seed of ['climate-alpha', 'climate-bravo', 'climate-charlie']) {
       const state = generateGameState(seed)

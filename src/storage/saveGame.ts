@@ -64,6 +64,7 @@ const SITE_OWNERS = new Set<SiteOwnerId>([
 const TERRAINS = new Set<Terrain>([
   'plain', 'mountain', 'water', 'hill', 'forest', 'desert', 'tundra',
   'tundraForest',
+  'tundraMountain',
 ])
 const UNIT_TYPES = new Set<UnitType>(['infantry', 'cavalry', 'archer', 'spearman'])
 const SITE_TYPES = new Set<SiteType>(['stronghold', 'village', 'farm', 'mine', 'city'])
