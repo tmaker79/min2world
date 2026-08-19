@@ -4,6 +4,7 @@ import { hasTerrainImage, TerrainIcon } from './TerrainIcon'
 const TERRAIN_ITEMS = [
   ['plain', '평지', '비용 1'],
   ['desert', '사막', '비용 2'],
+  ['desertHill', '사막 언덕', '비용 2 · 전투력 +3'],
   ['tundra', '툰드라', '비용 2'],
   ['tundraForest', '툰드라 숲', '비용 2 · 전투력 +3'],
   ['tundraMountain', '툰드라 산', '이동 불가'],

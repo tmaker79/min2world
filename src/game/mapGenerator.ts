@@ -50,6 +50,7 @@ const TERRAIN_COST: Record<Terrain, number | null> = {
   hill: 2,
   forest: 2,
   desert: 2,
+  desertHill: 2,
   tundra: 2,
   tundraForest: 2,
   tundraMountain: null,
@@ -166,7 +167,11 @@ function terrainFromNoise(
   }
   if (adjustedElevation < 0.34) return 'water'
   if (adjustedElevation > 0.68) return 'mountain'
-  if (adjustedElevation > 0.59) return 'hill'
+  if (adjustedElevation > 0.59) {
+    return adjustedMoisture < 0.4 && temperature > 0.58
+      ? 'desertHill'
+      : 'hill'
+  }
   if (adjustedMoisture > 0.61) return 'forest'
   if (adjustedMoisture < 0.4 && temperature > 0.58) return 'desert'
   return 'plain'

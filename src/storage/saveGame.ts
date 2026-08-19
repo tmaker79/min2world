@@ -62,7 +62,7 @@ const SITE_OWNERS = new Set<SiteOwnerId>([
   'neutral',
 ])
 const TERRAINS = new Set<Terrain>([
-  'plain', 'mountain', 'water', 'hill', 'forest', 'desert', 'tundra',
+  'plain', 'mountain', 'water', 'hill', 'forest', 'desert', 'desertHill', 'tundra',
   'tundraForest',
   'tundraMountain',
 ])

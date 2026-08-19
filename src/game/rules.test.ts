@@ -130,11 +130,18 @@ describe('hex combat rules', () => {
       'forest',
     )
     const forest = resolveCombat(forestState, attacker, defender)
+    const desertHillState = withTerrain(
+      rulesState([attacker, defender]),
+      attacker.position,
+      'desertHill',
+    )
+    const desertHill = resolveCombat(desertHillState, attacker, defender)
 
     expect(plain.defenderHp).toBe(70)
     expect(plain.attackerHp).toBe(70)
     expect(forest.defenderHp).toBe(66)
     expect(forest.attackerHp).toBe(73)
+    expect(desertHill).toEqual(forest)
   })
 
   it('never lets defenders return damage against archer attacks and uses ranged power', () => {

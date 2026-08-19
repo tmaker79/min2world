@@ -1183,6 +1183,10 @@
   background: #e0b454;
 }
 
+.map-tile--desertHill {
+  background: linear-gradient(145deg, #e0b454, #b88135);
+}
+
 .map-tile--tundra {
   background: #9eb4c1;
 }
@@ -1294,6 +1298,7 @@
 .terrain-mark--forest,
 .terrain-mark--water,
 .terrain-mark--desert,
+.terrain-mark--desertHill,
 .terrain-mark--tundra,
 .terrain-mark--tundraForest,
 .terrain-mark--tundraMountain,
@@ -1308,6 +1313,7 @@
 .terrain-mark--forest,
 .terrain-mark--water,
 .terrain-mark--desert,
+.terrain-mark--desertHill,
 .terrain-mark--tundra,
 .terrain-mark--tundraForest,
 .terrain-mark--tundraMountain,
@@ -1320,6 +1326,7 @@
 .terrain-mark [data-terrain-icon='mountain'],
 .terrain-mark [data-terrain-icon='water'],
 .terrain-mark [data-terrain-icon='desert'],
+.terrain-mark [data-terrain-icon='desertHill'],
 .terrain-mark [data-terrain-icon='tundra'],
 .terrain-mark [data-terrain-icon='tundraForest'],
 .terrain-mark [data-terrain-icon='tundraMountain'],
@@ -1824,6 +1831,10 @@
   background: #d8aa49;
 }
 
+.terrain-portrait--desertHill {
+  background: #b88135;
+}
+
 .terrain-portrait--tundra {
   background: #91a8b7;
 }
@@ -2087,6 +2098,10 @@
   background: #d8aa49;
 }
 
+.legend-swatch--desertHill {
+  background: #b88135;
+}
+
 .legend-swatch--tundra {
   background: #91a8b7;
 }
@@ -2106,6 +2121,7 @@
 .legend-swatch--mountain,
 .legend-swatch--water,
 .legend-swatch--desert,
+.legend-swatch--desertHill,
 .legend-swatch--tundra,
 .legend-swatch--tundraForest,
 .legend-swatch--tundraMountain,
@@ -2132,6 +2148,7 @@
 .legend-swatch [data-terrain-icon='mountain'],
 .legend-swatch [data-terrain-icon='water'],
 .legend-swatch [data-terrain-icon='desert'],
+.legend-swatch [data-terrain-icon='desertHill'],
 .legend-swatch [data-terrain-icon='tundra'],
 .legend-swatch [data-terrain-icon='tundraForest'],
 .legend-swatch [data-terrain-icon='tundraMountain'],

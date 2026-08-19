@@ -5,6 +5,7 @@ export type Terrain =
   | 'hill'
   | 'forest'
   | 'desert'
+  | 'desertHill'
   | 'tundra'
   | 'tundraForest'
   | 'tundraMountain'
@@ -12,7 +13,7 @@ export type Terrain =
 export type MapType = 'balanced' | 'plains' | 'mountainous' | 'forested'
 
 export const GAME_SCHEMA_VERSION = 8
-export const MAP_GENERATION_VERSION = 13
+export const MAP_GENERATION_VERSION = 14
 export const SUPPORTED_MAP_GENERATION_VERSIONS: readonly number[] = [
   5,
   6,
@@ -22,6 +23,7 @@ export const SUPPORTED_MAP_GENERATION_VERSIONS: readonly number[] = [
   10,
   11,
   12,
+  13,
   MAP_GENERATION_VERSION,
 ]
 export const FOREST_TERRAIN_VARIANT_COUNT = 1

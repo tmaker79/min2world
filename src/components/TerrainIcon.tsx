@@ -3,6 +3,7 @@ import { FOREST_TERRAIN_VARIANT_COUNT } from '../game/types'
 import desertTileCactus from '../assets/terrain/desert-tile-cactus.png'
 import desertTileDunes from '../assets/terrain/desert-tile-dunes.png'
 import desertTileScrub from '../assets/terrain/desert-tile-scrub.png'
+import desertHillTile from '../assets/terrain/desert-hill-tile.png'
 import forestTileFull from '../assets/terrain/forest-tile-full.png'
 import hillTile from '../assets/terrain/hill-tile.png'
 import hillTileFew from '../assets/terrain/hill-tile-few.png'
@@ -38,6 +39,7 @@ const TERRAIN_VARIANTS: Partial<Record<Terrain, readonly string[]>> = {
   mountain: [mountainTileFull, mountainTilePeak],
   water: [waterTile],
   desert: [desertTileCactus, desertTileDunes, desertTileScrub],
+  desertHill: [desertHillTile],
   tundra: [tundraTileWindswept],
   tundraForest: [tundraForestTile],
   tundraMountain: [tundraMountainTile, tundraMountainTileSummit],

@@ -18,6 +18,15 @@ describe('TerrainIcon', () => {
     )
   })
 
+  it('renders the desert hill asset', () => {
+    const { container } = render(<TerrainIcon terrain="desertHill" />)
+
+    expect(container.querySelector('img')).toHaveAttribute(
+      'data-terrain-icon',
+      'desertHill',
+    )
+  })
+
   it('renders the windswept tundra tile', () => {
     const { container } = render(
       <TerrainIcon terrain="tundra" variantIndex={0} />,

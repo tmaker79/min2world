@@ -14,6 +14,7 @@ const TERRAIN_FILL: Record<Terrain, string> = {
   mountain: '#4f5358',
   water: '#365172',
   desert: '#d8aa49',
+  desertHill: '#b88135',
   tundra: '#91a8b7',
   tundraForest: '#416c66',
   tundraMountain: '#707f8e',

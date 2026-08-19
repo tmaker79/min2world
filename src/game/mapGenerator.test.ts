@@ -55,6 +55,7 @@ describe('procedural map generation', () => {
         mountain: 0,
         forest: 0,
         desert: 0,
+        desertHill: 0,
         tundra: 0,
         tundraForest: 0,
         tundraMountain: 0,
@@ -80,9 +81,15 @@ describe('procedural map generation', () => {
       balanced.plain + balanced.desert,
     )
     expect(
-      mountainous.hill + mountainous.mountain + mountainous.tundraMountain,
+      mountainous.hill +
+        mountainous.desertHill +
+        mountainous.mountain +
+        mountainous.tundraMountain,
     ).toBeGreaterThan(
-      balanced.hill + balanced.mountain + balanced.tundraMountain,
+      balanced.hill +
+        balanced.desertHill +
+        balanced.mountain +
+        balanced.tundraMountain,
     )
     expect(forested.forest + forested.tundraForest).toBeGreaterThan(
       balanced.forest + balanced.tundraForest,
@@ -126,6 +133,16 @@ describe('procedural map generation', () => {
     )
 
     expect(deserts.length).toBeGreaterThan(0)
+  })
+
+  it('uses desert hills for elevated hot and dry terrain', () => {
+    const desertHills = Array.from({ length: 16 }, (_, index) =>
+      generateGameState(`desert-hill-${index}`).tiles.filter(
+        (tile) => tile.terrain === 'desertHill',
+      ),
+    ).flat()
+
+    expect(desertHills.length).toBeGreaterThan(0)
   })
 
   it('generates passable tundra in cold regions', () => {
