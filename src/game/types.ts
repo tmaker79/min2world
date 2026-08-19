@@ -5,6 +5,8 @@ export type Terrain =
   | 'hill'
   | 'forest'
   | 'desert'
+  | 'tundra'
+  | 'tundraForest'
 
 export type MapType = 'balanced' | 'plains' | 'mountainous' | 'forested'
 
@@ -14,7 +16,7 @@ export const SUPPORTED_MAP_GENERATION_VERSIONS: readonly number[] = [
   5,
   MAP_GENERATION_VERSION,
 ]
-export const FOREST_TERRAIN_VARIANT_COUNT = 2
+export const FOREST_TERRAIN_VARIANT_COUNT = 1
 
 export type Position = {
   q: number

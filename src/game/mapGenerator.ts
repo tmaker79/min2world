@@ -50,6 +50,8 @@ const TERRAIN_COST: Record<Terrain, number | null> = {
   hill: 2,
   forest: 2,
   desert: 2,
+  tundra: 2,
+  tundraForest: 2,
 }
 
 function hashSeed(value: string): number {
@@ -160,6 +162,9 @@ function terrainFromNoise(
   if (adjustedElevation < 0.34) return 'water'
   if (adjustedElevation > 0.68) return 'mountain'
   if (adjustedElevation > 0.59) return 'hill'
+  if (temperature < 0.43) {
+    return adjustedMoisture > 0.52 ? 'tundraForest' : 'tundra'
+  }
   if (adjustedMoisture > 0.61) return 'forest'
   if (adjustedMoisture < 0.4 && temperature > 0.58) return 'desert'
   return 'plain'
@@ -176,10 +181,10 @@ function temperatureAt(
     boardSize.rows <= 1
       ? 0
       : Math.abs((row / (boardSize.rows - 1)) * 2 - 1)
-  const elevationCooling = Math.max(0, elevation - 0.5) * 0.4
+  const elevationCooling = Math.max(0, elevation - 0.5) * 0.3
 
   return clampNoise(
-    0.85 - normalizedLatitude * 0.55 + (climateNoise - 0.5) * 0.3 - elevationCooling,
+    0.59 - normalizedLatitude * 0.1 + (climateNoise - 0.5) * 0.8 - elevationCooling,
   )
 }
 
@@ -637,6 +642,8 @@ function buildCandidate(
       if (tile.terrain === 'water') tile.terrain = 'plain'
       if (tile.terrain === 'mountain') tile.terrain = 'hill'
       if (tile.terrain === 'desert') tile.terrain = 'plain'
+      if (tile.terrain === 'tundra') tile.terrain = 'plain'
+      if (tile.terrain === 'tundraForest') tile.terrain = 'forest'
     }
   }
 

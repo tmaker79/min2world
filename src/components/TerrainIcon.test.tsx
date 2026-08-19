@@ -17,4 +17,28 @@ describe('TerrainIcon', () => {
       String(variantIndex),
     )
   })
+
+  it.each([0, 1])('renders tundra variant %s', (variantIndex) => {
+    const { container } = render(
+      <TerrainIcon terrain="tundra" variantIndex={variantIndex} />,
+    )
+
+    expect(container.querySelector('img')).toHaveAttribute(
+      'data-terrain-icon',
+      'tundra',
+    )
+    expect(container.querySelector('img')).toHaveAttribute(
+      'data-terrain-variant',
+      String(variantIndex),
+    )
+  })
+
+  it('renders the conifer asset for tundra forest', () => {
+    const { container } = render(<TerrainIcon terrain="tundraForest" />)
+
+    expect(container.querySelector('img')).toHaveAttribute(
+      'data-terrain-icon',
+      'tundraForest',
+    )
+  })
 })

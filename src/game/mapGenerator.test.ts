@@ -55,6 +55,8 @@ describe('procedural map generation', () => {
         mountain: 0,
         forest: 0,
         desert: 0,
+        tundra: 0,
+        tundraForest: 0,
       }
       for (const seed of seeds) {
         const state = generateGameState(seed, {
@@ -79,7 +81,9 @@ describe('procedural map generation', () => {
     expect(mountainous.hill + mountainous.mountain).toBeGreaterThan(
       balanced.hill + balanced.mountain,
     )
-    expect(forested.forest).toBeGreaterThan(balanced.forest)
+    expect(forested.forest + forested.tundraForest).toBeGreaterThan(
+      balanced.forest + balanced.tundraForest,
+    )
   })
 
   it.each(
@@ -119,6 +123,48 @@ describe('procedural map generation', () => {
     )
 
     expect(deserts.length).toBeGreaterThan(0)
+  })
+
+  it('generates passable tundra in cold regions', () => {
+    const states = ['tundra-alpha', 'tundra-bravo', 'tundra-charlie'].map(
+      (seed) => generateGameState(seed),
+    )
+    const tundra = states.flatMap((state) =>
+      state.tiles.filter((tile) => tile.terrain === 'tundra'),
+    )
+
+    expect(tundra.length).toBeGreaterThan(0)
+  })
+
+  it('uses conifer forest for cold and moist regions', () => {
+    const states = ['taiga-alpha', 'taiga-bravo', 'taiga-charlie'].map(
+      (seed) => generateGameState(seed),
+    )
+    const tundraForests = states.flatMap((state) =>
+      state.tiles.filter((tile) => tile.terrain === 'tundraForest'),
+    )
+
+    expect(tundraForests.length).toBeGreaterThan(0)
+  })
+
+  it('uses latitude as a climate tendency instead of forcing tundra at map edges', () => {
+    const states = ['regional-alpha', 'regional-bravo', 'regional-charlie'].map(
+      (seed) => generateGameState(seed),
+    )
+    const edgeRow = Math.floor(BOARD_SIZE_PRESETS.standard.rows / 2)
+    const edgeTiles = states.flatMap((state) =>
+      state.tiles.filter((tile) => Math.abs(tile.position.r) >= edgeRow - 1),
+    )
+    const interiorTundra = states.flatMap((state) =>
+      state.tiles.filter(
+        (tile) => Math.abs(tile.position.r) <= 2 && tile.terrain === 'tundra',
+      ),
+    )
+
+    expect(edgeTiles.filter((tile) => tile.terrain !== 'tundra').length).toBeGreaterThan(
+      edgeTiles.filter((tile) => tile.terrain === 'tundra').length,
+    )
+    expect(interiorTundra.length).toBeGreaterThan(0)
   })
 
   it.each(['alpha', 'bravo', 'hex-world', '균형 지도', '00000000'])(

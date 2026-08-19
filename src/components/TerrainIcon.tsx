@@ -3,7 +3,6 @@ import { FOREST_TERRAIN_VARIANT_COUNT } from '../game/types'
 import desertTileCactus from '../assets/terrain/desert-tile-cactus.png'
 import desertTileDunes from '../assets/terrain/desert-tile-dunes.png'
 import desertTileScrub from '../assets/terrain/desert-tile-scrub.png'
-import forestTile from '../assets/terrain/forest-tile.png'
 import forestTileFull from '../assets/terrain/forest-tile-full.png'
 import hillTile from '../assets/terrain/hill-tile.png'
 import hillTileFew from '../assets/terrain/hill-tile-few.png'
@@ -17,6 +16,9 @@ import plainTileGrass3 from '../assets/terrain/plain-tile-grass-3.png'
 import plainTileGrass4 from '../assets/terrain/plain-tile-grass-4.png'
 import plainTileGround from '../assets/terrain/plain-tile-ground.png'
 import plainTileTrees from '../assets/terrain/plain-tile-trees.png'
+import tundraTileFrostScrub from '../assets/terrain/tundra-tile-frost-scrub.png'
+import tundraForestTile from '../assets/terrain/tundra-forest-tile.png'
+import tundraTileWindswept from '../assets/terrain/tundra-tile-windswept.png'
 import waterTile from '../assets/terrain/water-tile.png'
 
 const TERRAIN_VARIANTS: Partial<Record<Terrain, readonly string[]>> = {
@@ -30,11 +32,13 @@ const TERRAIN_VARIANTS: Partial<Record<Terrain, readonly string[]>> = {
     plainTileBush,
     plainTileTrees,
   ],
-  forest: [forestTile, forestTileFull],
+  forest: [forestTileFull],
   hill: [hillTileFew, hillTile],
   mountain: [mountainTileFull, mountainTilePeak],
   water: [waterTile],
   desert: [desertTileCactus, desertTileDunes, desertTileScrub],
+  tundra: [tundraTileFrostScrub, tundraTileWindswept],
+  tundraForest: [tundraForestTile],
 }
 
 if (TERRAIN_VARIANTS.forest?.length !== FOREST_TERRAIN_VARIANT_COUNT) {

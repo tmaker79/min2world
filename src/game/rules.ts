@@ -75,6 +75,8 @@ export const TERRAIN_MOVEMENT_COST: Record<Terrain, number | null> = {
   hill: 2,
   forest: 2,
   desert: 2,
+  tundra: 2,
+  tundraForest: 2,
 }
 
 export const TERRAIN_COMBAT_BONUS: Record<Terrain, number> = {
@@ -84,6 +86,8 @@ export const TERRAIN_COMBAT_BONUS: Record<Terrain, number> = {
   hill: 3,
   forest: 3,
   desert: 0,
+  tundra: 0,
+  tundraForest: 3,
 }
 
 export const TERRAIN_LABELS: Record<Terrain, string> = {
@@ -93,6 +97,8 @@ export const TERRAIN_LABELS: Record<Terrain, string> = {
   hill: '언덕',
   forest: '숲',
   desert: '사막',
+  tundra: '툰드라',
+  tundraForest: '툰드라 숲',
 }
 
 export function getTileAt(state: GameState, position: Position) {
