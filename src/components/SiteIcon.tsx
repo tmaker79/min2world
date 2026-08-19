@@ -1,6 +1,7 @@
-import type { SiteType } from '../game/types'
+import type { SiteOwnerId, SiteType } from '../game/types'
 import farmIcon from '../assets/sites/farm.png'
 import mineIcon from '../assets/sites/mine.png'
+import easternStrongholdIcon from '../assets/sites/stronghold-eastern.png'
 import strongholdIcon from '../assets/sites/stronghold.png'
 import villageIcon from '../assets/sites/village.png'
 
@@ -15,17 +16,26 @@ const SITE_ICONS: Record<SiteType, string> = {
 
 type SiteIconProps = {
   kind: SiteType
+  ownerId?: SiteOwnerId
   className?: string
 }
 
-export function SiteIcon({ kind, className }: SiteIconProps) {
+function isBlueFaction(ownerId: SiteOwnerId | undefined): boolean {
+  return ownerId === 'f1' || ownerId === 'player'
+}
+
+export function SiteIcon({ kind, ownerId, className }: SiteIconProps) {
+  const usesEasternStronghold = kind === 'stronghold' && isBlueFaction(ownerId)
+  const icon = usesEasternStronghold ? easternStrongholdIcon : SITE_ICONS[kind]
+
   return (
     <img
-      src={SITE_ICONS[kind]}
+      src={icon}
       alt=""
       className={className}
       aria-hidden="true"
       data-site-icon={kind}
+      data-site-icon-variant={usesEasternStronghold ? 'eastern' : undefined}
     />
   )
 }

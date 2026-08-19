@@ -387,7 +387,7 @@ function SiteMarker({
         data-owner={site.ownerId}
         data-site-selected={selected ? 'true' : undefined}
       >
-        <SiteIcon kind={site.kind} />
+        <SiteIcon kind={site.kind} ownerId={site.ownerId} />
         {site.ownerId !== 'neutral' && (
           <span className={`site-banner site-banner--${site.ownerId}`} />
         )}

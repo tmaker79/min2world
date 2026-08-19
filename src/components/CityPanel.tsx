@@ -23,7 +23,7 @@ export function CityPanel({
       <section className="city-card" aria-label="성 정보">
         <div className="city-card__summary">
           <span className="city-card__icon" aria-hidden="true">
-            <SiteIcon kind={site.kind} />
+            <SiteIcon kind={site.kind} ownerId={site.ownerId} />
           </span>
           <div>
             <strong>{site.name}</strong>
