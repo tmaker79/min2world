@@ -705,7 +705,6 @@ function GameApp({ initialState }: { initialState: GameState }) {
                       ? { ...activeCombat, phase: combatPhase }
                       : undefined
                   }
-                  showSiteAssetPreview={import.meta.env.DEV}
                   disabled={
                     state.phase !== 'playing' ||
                     state.activeFactionId !== state.humanFactionId ||
