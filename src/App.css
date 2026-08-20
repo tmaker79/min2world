@@ -1400,6 +1400,21 @@
   height: 66px;
 }
 
+.site-asset-preview [data-site-icon='outpost'] {
+  width: 52px;
+  height: 50px;
+}
+
+.site-asset-preview [data-site-icon='keep'] {
+  width: 60px;
+  height: 58px;
+}
+
+.site-asset-preview [data-site-icon='stronghold'] {
+  width: 68px;
+  height: 66px;
+}
+
 .site-asset-preview__footprint-tile {
   position: absolute;
   z-index: 0;

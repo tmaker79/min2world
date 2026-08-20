@@ -15,9 +15,12 @@ import farmLevel1Icon from '../assets/sites/farm.png'
 import mineLevel2Icon from '../assets/sites/mine-level-2.png'
 import mineLevel3Icon from '../assets/sites/mine-level-3.png'
 import mineLevel1Icon from '../assets/sites/mine.png'
+import outpostIcon from '../assets/sites/outpost.png'
+import keepIcon from '../assets/sites/keep.png'
 import smithyLevel2Icon from '../assets/sites/smithy-level-2.png'
 import smithyLevel3Icon from '../assets/sites/smithy-level-3.png'
 import smithyLevel1Icon from '../assets/sites/smithy.png'
+import strongholdIcon from '../assets/sites/stronghold.png'
 import {
   getHexDistance,
   getHexPixelPosition,
@@ -62,8 +65,16 @@ const PRODUCTION_SITE_ASSET_PREVIEW_ICONS = {
   'smithy-2': smithyLevel2Icon,
   'smithy-3': smithyLevel3Icon,
 } as const
-type ProductionSiteAssetPreviewKind =
-  keyof typeof PRODUCTION_SITE_ASSET_PREVIEW_ICONS
+const MILITARY_SITE_ASSET_PREVIEW_ICONS = {
+  outpost: outpostIcon,
+  keep: keepIcon,
+  stronghold: strongholdIcon,
+} as const
+const SITE_ASSET_PREVIEW_ICONS = {
+  ...PRODUCTION_SITE_ASSET_PREVIEW_ICONS,
+  ...MILITARY_SITE_ASSET_PREVIEW_ICONS,
+} as const
+type SiteAssetPreviewKind = keyof typeof SITE_ASSET_PREVIEW_ICONS
 
 export type CombatAnimationPhase = 'attack' | 'hit'
 
@@ -436,7 +447,7 @@ function SiteAssetPreviewMarker({
   minimumX,
   minimumY,
 }: {
-  kind: ProductionSiteAssetPreviewKind
+  kind: SiteAssetPreviewKind
   position: Position
   minimumX: number
   minimumY: number
@@ -452,7 +463,7 @@ function SiteAssetPreviewMarker({
         data-site-asset-preview-footprint="1"
       >
         <img
-          src={PRODUCTION_SITE_ASSET_PREVIEW_ICONS[kind]}
+          src={SITE_ASSET_PREVIEW_ICONS[kind]}
           alt=""
           data-site-icon={kind}
           data-site-icon-variant="western"
@@ -742,13 +753,11 @@ function GameMapComponent({
         }
         return left.position.q - right.position.q
       })
-      .slice(0, Object.keys(PRODUCTION_SITE_ASSET_PREVIEW_ICONS).length)
+      .slice(0, Object.keys(SITE_ASSET_PREVIEW_ICONS).length)
       .map((tile) => tile.position)
 
     return (
-      Object.keys(
-        PRODUCTION_SITE_ASSET_PREVIEW_ICONS,
-      ) as ProductionSiteAssetPreviewKind[]
+      Object.keys(SITE_ASSET_PREVIEW_ICONS) as SiteAssetPreviewKind[]
     ).flatMap((kind, index) => {
       const position = positions[index]
       return position ? [{ kind, position }] : []
@@ -779,7 +788,7 @@ function GameMapComponent({
       ...state.sites.map((site) => site.position),
       combatAnimation?.attackerPosition,
       combatAnimation?.defenderPosition,
-      ...siteAssetPreviews.flatMap((preview) => preview.positions),
+      ...siteAssetPreviews.map((preview) => preview.position),
     ]
     for (const position of persistentPositions) {
       if (!position) continue

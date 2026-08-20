@@ -76,7 +76,7 @@ describe('GameMap large-map rendering', () => {
     const previewMarkers = [
       ...container.querySelectorAll('[data-site-asset-preview]'),
     ]
-    expect(previewMarkers).toHaveLength(9)
+    expect(previewMarkers).toHaveLength(12)
     expect(
       previewMarkers.map((marker) =>
         marker.getAttribute('data-site-asset-preview'),
@@ -91,6 +91,9 @@ describe('GameMap large-map rendering', () => {
       'smithy-1',
       'smithy-2',
       'smithy-3',
+      'outpost',
+      'keep',
+      'stronghold',
     ])
     for (const marker of previewMarkers) {
       expect(marker).toHaveAttribute('data-site-asset-preview-footprint', '1')
