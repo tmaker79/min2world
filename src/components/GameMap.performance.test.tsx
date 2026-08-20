@@ -73,66 +73,24 @@ describe('GameMap large-map rendering', () => {
     expect(renderedTiles.length).toBeLessThan(2_000)
     expect(screenSize(container, 'width')).toBeGreaterThan(5_000)
     expect(screenSize(container, 'height')).toBeGreaterThan(4_000)
-    expect(container.querySelectorAll('[data-site-asset-preview]')).toHaveLength(12)
-    expect(
-      container.querySelectorAll('[data-site-asset-footprint-cell]'),
-    ).toHaveLength(14)
-    expect(
-      container.querySelectorAll('[data-site-asset-footprint-cell="f1"]'),
-    ).toHaveLength(7)
-    expect(
-      container.querySelectorAll('[data-site-asset-footprint-cell="f2"]'),
-    ).toHaveLength(7)
-    expect(
-      container.querySelectorAll('[data-site-asset-footprint-kind="city"]'),
-    ).toHaveLength(6)
-    for (const cityMarker of container.querySelectorAll(
-      '[data-site-asset-preview="city"]',
-    )) {
-      const cellTops = [
-        ...cityMarker.querySelectorAll<HTMLElement>(
-          '[data-site-asset-footprint-kind="city"]',
-        ),
-      ].map((cell) => Number.parseFloat(cell.style.top))
-      const upperRow = Math.min(...cellTops)
-      const lowerRow = Math.max(...cellTops)
-      expect(cellTops.filter((top) => top === upperRow)).toHaveLength(1)
-      expect(cellTops.filter((top) => top === lowerRow)).toHaveLength(2)
-    }
     const previewMarkers = [
       ...container.querySelectorAll('[data-site-asset-preview]'),
     ]
-    const expectedKinds = ['castle', 'city', 'village', 'farm', 'mine', 'smithy']
-    const blueMarkers = previewMarkers.filter(
-      (marker) => marker.getAttribute('data-site-asset-preview-owner') === 'f1',
-    )
-    const redMarkers = previewMarkers.filter(
-      (marker) => marker.getAttribute('data-site-asset-preview-owner') === 'f2',
-    )
+    expect(previewMarkers).toHaveLength(3)
     expect(
-      blueMarkers.map((marker) => marker.getAttribute('data-site-asset-preview')),
-    ).toEqual(expectedKinds)
-    expect(
-      redMarkers.map((marker) => marker.getAttribute('data-site-asset-preview')),
-    ).toEqual(expectedKinds)
+      previewMarkers.map((marker) =>
+        marker.getAttribute('data-site-asset-preview'),
+      ),
+    ).toEqual(['outpost', 'keep', 'stronghold'])
     for (const marker of previewMarkers) {
-      const kind = marker.getAttribute('data-site-asset-preview')
-      expect(marker).toHaveAttribute(
-        'data-site-asset-preview-footprint',
-        kind === 'castle' ? '4' : kind === 'city' ? '3' : '1',
-      )
+      expect(marker).toHaveAttribute('data-site-asset-preview-footprint', '1')
       expect(marker.querySelector('[data-site-icon]')).toHaveAttribute(
         'data-site-icon',
         marker.getAttribute('data-site-asset-preview'),
       )
       expect(marker.querySelector('[data-site-icon]')).toHaveAttribute(
         'data-site-icon-variant',
-        kind === 'farm' ||
-          kind === 'mine' ||
-          kind === 'smithy' ||
-          marker.getAttribute('data-site-asset-preview-owner') === 'f2'
-          ? 'western'
-          : 'eastern',
+        'western',
       )
     }
     expect(container.querySelector('.site-asset-preview__label')).toBeNull()

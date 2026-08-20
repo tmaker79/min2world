@@ -9,9 +9,9 @@ import {
   useState,
 } from 'react'
 import { createPortal } from 'react-dom'
-import easternCastleIcon from '../assets/sites/castle-eastern.png'
-import westernCastleIcon from '../assets/sites/castle.png'
-import westernSmithyIcon from '../assets/sites/smithy.png'
+import keepIcon from '../assets/sites/keep.png'
+import outpostIcon from '../assets/sites/outpost.png'
+import strongholdIcon from '../assets/sites/stronghold.png'
 import {
   getHexDistance,
   getHexPixelPosition,
@@ -32,8 +32,6 @@ import type {
   GameState,
   Position,
   Site,
-  SiteOwnerId,
-  SiteType,
   Tile,
   Unit,
 } from '../game/types'
@@ -47,24 +45,13 @@ const MAP_TOOLTIP_TOP_SAFE_PX = 120
 const VIEWPORT_OVERSCAN_PX = Math.max(HEX_WIDTH, HEX_HEIGHT) * 2
 /** Matches `.game-map` content-box padding (8*2) + border (1*2). */
 const MAP_FRAME_PX = 18
-const SITE_ASSET_PREVIEW_KINDS = [
-  'castle',
-  'city',
-  'village',
-  'farm',
-  'mine',
-  'smithy',
-] as const satisfies readonly (SiteType | 'castle' | 'smithy')[]
-const HEX_DIRECTIONS = [
-  { q: 1, r: 0 },
-  { q: 1, r: -1 },
-  { q: 0, r: -1 },
-  { q: -1, r: 0 },
-  { q: -1, r: 1 },
-  { q: 0, r: 1 },
-] as const
-const CASTLE_FOOTPRINT_DIRECTION_STARTS = [0, 2, 3, 5] as const
-const CITY_FOOTPRINT_DIRECTION_STARTS = [0, 2] as const
+const MILITARY_SITE_ASSET_PREVIEW_ICONS = {
+  outpost: outpostIcon,
+  keep: keepIcon,
+  stronghold: strongholdIcon,
+} as const
+type MilitarySiteAssetPreviewKind =
+  keyof typeof MILITARY_SITE_ASSET_PREVIEW_ICONS
 
 export type CombatAnimationPhase = 'attack' | 'hit'
 
@@ -177,64 +164,6 @@ function getOverlayStyle(
 ): CSSProperties {
   const pixel = getHexPixelPosition(position)
   return { left: pixel.x - minimumX, top: pixel.y - minimumY }
-}
-
-function findSiteAssetFootprint(
-  positions: Position[],
-  origin: Position,
-  reservedKeys: Set<string>,
-  size: 3 | 4,
-): Position[] {
-  const availableByKey = new Map(
-    positions
-      .filter((position) => !reservedKeys.has(positionKey(position)))
-      .map((position) => [positionKey(position), position]),
-  )
-  const nearestFirst = [...availableByKey.values()].sort((left, right) => {
-    const distanceDifference =
-      getHexDistance(left, origin) - getHexDistance(right, origin)
-    if (distanceDifference !== 0) return distanceDifference
-    if (left.r !== right.r) return left.r - right.r
-    return left.q - right.q
-  })
-
-  const directionStarts =
-    size === 3
-      ? CITY_FOOTPRINT_DIRECTION_STARTS
-      : CASTLE_FOOTPRINT_DIRECTION_STARTS
-
-  for (const anchor of nearestFirst) {
-    for (const index of directionStarts) {
-      const firstDirection = HEX_DIRECTIONS[index]
-      const secondDirection = HEX_DIRECTIONS[(index + 1) % HEX_DIRECTIONS.length]
-      const firstNeighbor = availableByKey.get(
-        positionKey({
-          q: anchor.q + firstDirection.q,
-          r: anchor.r + firstDirection.r,
-        }),
-      )
-      const secondNeighbor = availableByKey.get(
-        positionKey({
-          q: anchor.q + secondDirection.q,
-          r: anchor.r + secondDirection.r,
-        }),
-      )
-      const oppositeCorner = availableByKey.get(
-        positionKey({
-          q: anchor.q + firstDirection.q + secondDirection.q,
-          r: anchor.r + firstDirection.r + secondDirection.r,
-        }),
-      )
-      if (firstNeighbor && secondNeighbor) {
-        if (size === 3) return [anchor, firstNeighbor, secondNeighbor]
-        if (oppositeCorner) {
-          return [anchor, firstNeighbor, oppositeCorner, secondNeighbor]
-        }
-      }
-    }
-  }
-
-  return []
 }
 
 function movementCostLabel(terrain: Tile['terrain']) {
@@ -491,65 +420,15 @@ function SiteMarker({
 
 function SiteAssetPreviewMarker({
   kind,
-  ownerId,
-  positions,
+  position,
   minimumX,
   minimumY,
 }: {
-  kind: SiteType | 'castle' | 'smithy'
-  ownerId: SiteOwnerId
-  positions: Position[]
+  kind: MilitarySiteAssetPreviewKind
+  position: Position
   minimumX: number
   minimumY: number
 }) {
-  const isWestern = ownerId === 'f2' || ownerId === 'enemy'
-
-  if (kind === 'castle' || kind === 'city') {
-    const pixels = positions.map(getHexPixelPosition)
-    const left = Math.min(...pixels.map((pixel) => pixel.x))
-    const top = Math.min(...pixels.map((pixel) => pixel.y))
-    const right = Math.max(...pixels.map((pixel) => pixel.x)) + HEX_WIDTH
-    const bottom = Math.max(...pixels.map((pixel) => pixel.y)) + HEX_HEIGHT
-
-    return (
-      <span
-        className={`site-asset-preview site-asset-preview--multi site-asset-preview--${kind}`}
-        style={{
-          left: left - minimumX,
-          top: top - minimumY,
-          width: right - left,
-          height: bottom - top,
-        }}
-        data-site-asset-preview={kind}
-        data-site-asset-preview-owner={ownerId}
-        data-site-asset-preview-footprint={positions.length}
-      >
-        {pixels.map((pixel, index) => (
-          <span
-            key={positionKey(positions[index])}
-            className="site-asset-preview__footprint-tile"
-            style={{ left: pixel.x - left, top: pixel.y - top }}
-            data-site-asset-footprint-cell={ownerId}
-            data-site-asset-footprint-kind={kind}
-          />
-        ))}
-        {kind === 'castle' ? (
-          <img
-            src={isWestern ? westernCastleIcon : easternCastleIcon}
-            alt=""
-            data-site-icon="castle"
-            data-site-icon-variant={isWestern ? 'western' : 'eastern'}
-          />
-        ) : (
-          <SiteIcon kind="city" ownerId={ownerId} />
-        )}
-      </span>
-    )
-  }
-
-  const position = positions[0]
-  if (!position) return null
-
   return (
     <span
       className="map-overlay-cell"
@@ -558,19 +437,14 @@ function SiteAssetPreviewMarker({
       <span
         className="site-asset-preview"
         data-site-asset-preview={kind}
-        data-site-asset-preview-owner={ownerId}
-        data-site-asset-preview-footprint={positions.length}
+        data-site-asset-preview-footprint="1"
       >
-        {kind === 'smithy' ? (
-          <img
-            src={westernSmithyIcon}
-            alt=""
-            data-site-icon="smithy"
-            data-site-icon-variant="western"
-          />
-        ) : (
-          <SiteIcon kind={kind} ownerId={ownerId} />
-        )}
+        <img
+          src={MILITARY_SITE_ASSET_PREVIEW_ICONS[kind]}
+          alt=""
+          data-site-icon={kind}
+          data-site-icon-variant="western"
+        />
       </span>
     </span>
   )
@@ -840,84 +714,32 @@ function GameMapComponent({
     const availableTiles = state.tiles
       .filter((tile) => !occupiedKeys.has(positionKey(tile.position)))
       .filter((tile) => TERRAIN_MOVEMENT_COST[tile.terrain] !== null)
-    const availablePositions = availableTiles.map((tile) => tile.position)
-    const previewCapitals = [
-      {
-        capital: state.sites.find(
-          (site) => site.capitalFor === 'f1' || site.capitalFor === 'player',
-        ),
-        ownerId: 'f1' as const,
-      },
-      {
-        capital: state.sites.find(
-          (site) => site.capitalFor === 'f2' || site.capitalFor === 'enemy',
-        ),
-        ownerId: 'f2' as const,
-      },
-    ].filter(
-      (entry): entry is { capital: Site; ownerId: 'f1' | 'f2' } =>
-        Boolean(entry.capital),
+    const capital = state.sites.find(
+      (site) => site.capitalFor === 'f1' || site.capitalFor === 'player',
     )
-    const reservedKeys = new Set(occupiedKeys)
+    if (!capital) return []
 
-    return previewCapitals.flatMap(({ capital, ownerId }) => {
-      // Each existing capital already represents stronghold, so previews add
-      // the other site artworks once around each capital. Castle spans a
-      // four-hex diamond and City spans a three-hex triangle.
-      const castlePositions = findSiteAssetFootprint(
-        availablePositions,
-        capital.position,
-        reservedKeys,
-        4,
-      )
-      castlePositions.forEach((position) =>
-        reservedKeys.add(positionKey(position)),
-      )
-
-      const cityPositions = findSiteAssetFootprint(
-        availablePositions,
-        capital.position,
-        reservedKeys,
-        3,
-      )
-      cityPositions.forEach((position) => reservedKeys.add(positionKey(position)))
-
-      const singlePositions = availableTiles
-        .filter((tile) => !reservedKeys.has(positionKey(tile.position)))
-        .sort((left, right) => {
-          const distanceDifference =
-            getHexDistance(left.position, capital.position) -
-            getHexDistance(right.position, capital.position)
-          if (distanceDifference !== 0) return distanceDifference
-          if (left.position.r !== right.position.r) {
-            return left.position.r - right.position.r
-          }
-          return left.position.q - right.position.q
-        })
-        .slice(0, SITE_ASSET_PREVIEW_KINDS.length - 2)
-        .map((tile) => tile.position)
-
-      singlePositions.forEach((position) =>
-        reservedKeys.add(positionKey(position)),
-      )
-
-      const previews: {
-        kind: SiteType | 'castle' | 'smithy'
-        ownerId: 'f1' | 'f2'
-        positions: Position[]
-      }[] = castlePositions.length
-        ? [{ kind: 'castle', ownerId, positions: castlePositions }]
-        : []
-
-      if (cityPositions.length) {
-        previews.push({ kind: 'city', ownerId, positions: cityPositions })
-      }
-
-      SITE_ASSET_PREVIEW_KINDS.slice(2).forEach((kind, index) => {
-        const position = singlePositions[index]
-        if (position) previews.push({ kind, ownerId, positions: [position] })
+    const positions = availableTiles
+      .sort((left, right) => {
+        const distanceDifference =
+          getHexDistance(left.position, capital.position) -
+          getHexDistance(right.position, capital.position)
+        if (distanceDifference !== 0) return distanceDifference
+        if (left.position.r !== right.position.r) {
+          return left.position.r - right.position.r
+        }
+        return left.position.q - right.position.q
       })
-      return previews
+      .slice(0, 3)
+      .map((tile) => tile.position)
+
+    return (
+      Object.keys(
+        MILITARY_SITE_ASSET_PREVIEW_ICONS,
+      ) as MilitarySiteAssetPreviewKind[]
+    ).flatMap((kind, index) => {
+      const position = positions[index]
+      return position ? [{ kind, position }] : []
     })
   }, [showSiteAssetPreview, state.sites, state.tiles, state.units])
   const visibleTiles = useMemo(() => {
@@ -1081,10 +903,9 @@ function GameMapComponent({
         ))}
         {siteAssetPreviews.map((preview) => (
           <SiteAssetPreviewMarker
-            key={`${preview.ownerId}-${preview.kind}`}
+            key={preview.kind}
             kind={preview.kind}
-            ownerId={preview.ownerId}
-            positions={preview.positions}
+            position={preview.position}
             minimumX={minimumX}
             minimumY={minimumY}
           />
