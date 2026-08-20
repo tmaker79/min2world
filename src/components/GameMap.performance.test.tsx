@@ -76,12 +76,22 @@ describe('GameMap large-map rendering', () => {
     const previewMarkers = [
       ...container.querySelectorAll('[data-site-asset-preview]'),
     ]
-    expect(previewMarkers).toHaveLength(3)
+    expect(previewMarkers).toHaveLength(9)
     expect(
       previewMarkers.map((marker) =>
         marker.getAttribute('data-site-asset-preview'),
       ),
-    ).toEqual(['outpost', 'keep', 'stronghold'])
+    ).toEqual([
+      'farm-1',
+      'farm-2',
+      'farm-3',
+      'mine-1',
+      'mine-2',
+      'mine-3',
+      'smithy-1',
+      'smithy-2',
+      'smithy-3',
+    ])
     for (const marker of previewMarkers) {
       expect(marker).toHaveAttribute('data-site-asset-preview-footprint', '1')
       expect(marker.querySelector('[data-site-icon]')).toHaveAttribute(

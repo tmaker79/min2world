@@ -9,9 +9,15 @@ import {
   useState,
 } from 'react'
 import { createPortal } from 'react-dom'
-import keepIcon from '../assets/sites/keep.png'
-import outpostIcon from '../assets/sites/outpost.png'
-import strongholdIcon from '../assets/sites/stronghold.png'
+import farmLevel2Icon from '../assets/sites/farm-level-2.png'
+import farmLevel3Icon from '../assets/sites/farm-level-3.png'
+import farmLevel1Icon from '../assets/sites/farm.png'
+import mineLevel2Icon from '../assets/sites/mine-level-2.png'
+import mineLevel3Icon from '../assets/sites/mine-level-3.png'
+import mineLevel1Icon from '../assets/sites/mine.png'
+import smithyLevel2Icon from '../assets/sites/smithy-level-2.png'
+import smithyLevel3Icon from '../assets/sites/smithy-level-3.png'
+import smithyLevel1Icon from '../assets/sites/smithy.png'
 import {
   getHexDistance,
   getHexPixelPosition,
@@ -45,13 +51,19 @@ const MAP_TOOLTIP_TOP_SAFE_PX = 120
 const VIEWPORT_OVERSCAN_PX = Math.max(HEX_WIDTH, HEX_HEIGHT) * 2
 /** Matches `.game-map` content-box padding (8*2) + border (1*2). */
 const MAP_FRAME_PX = 18
-const MILITARY_SITE_ASSET_PREVIEW_ICONS = {
-  outpost: outpostIcon,
-  keep: keepIcon,
-  stronghold: strongholdIcon,
+const PRODUCTION_SITE_ASSET_PREVIEW_ICONS = {
+  'farm-1': farmLevel1Icon,
+  'farm-2': farmLevel2Icon,
+  'farm-3': farmLevel3Icon,
+  'mine-1': mineLevel1Icon,
+  'mine-2': mineLevel2Icon,
+  'mine-3': mineLevel3Icon,
+  'smithy-1': smithyLevel1Icon,
+  'smithy-2': smithyLevel2Icon,
+  'smithy-3': smithyLevel3Icon,
 } as const
-type MilitarySiteAssetPreviewKind =
-  keyof typeof MILITARY_SITE_ASSET_PREVIEW_ICONS
+type ProductionSiteAssetPreviewKind =
+  keyof typeof PRODUCTION_SITE_ASSET_PREVIEW_ICONS
 
 export type CombatAnimationPhase = 'attack' | 'hit'
 
@@ -424,7 +436,7 @@ function SiteAssetPreviewMarker({
   minimumX,
   minimumY,
 }: {
-  kind: MilitarySiteAssetPreviewKind
+  kind: ProductionSiteAssetPreviewKind
   position: Position
   minimumX: number
   minimumY: number
@@ -440,7 +452,7 @@ function SiteAssetPreviewMarker({
         data-site-asset-preview-footprint="1"
       >
         <img
-          src={MILITARY_SITE_ASSET_PREVIEW_ICONS[kind]}
+          src={PRODUCTION_SITE_ASSET_PREVIEW_ICONS[kind]}
           alt=""
           data-site-icon={kind}
           data-site-icon-variant="western"
@@ -730,13 +742,13 @@ function GameMapComponent({
         }
         return left.position.q - right.position.q
       })
-      .slice(0, 3)
+      .slice(0, Object.keys(PRODUCTION_SITE_ASSET_PREVIEW_ICONS).length)
       .map((tile) => tile.position)
 
     return (
       Object.keys(
-        MILITARY_SITE_ASSET_PREVIEW_ICONS,
-      ) as MilitarySiteAssetPreviewKind[]
+        PRODUCTION_SITE_ASSET_PREVIEW_ICONS,
+      ) as ProductionSiteAssetPreviewKind[]
     ).flatMap((kind, index) => {
       const position = positions[index]
       return position ? [{ kind, position }] : []

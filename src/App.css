@@ -1372,18 +1372,32 @@
 }
 
 .site-asset-preview {
-  display: grid;
+  position: relative;
+  display: block;
   width: 54px;
   height: 52px;
-  place-items: center;
   pointer-events: none;
 }
 
 .site-asset-preview [data-site-icon] {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
   width: 52px;
   height: 50px;
   object-fit: contain;
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
+  transform: translateX(-50%);
+}
+
+.site-asset-preview [data-site-icon$='-2'] {
+  width: 60px;
+  height: 58px;
+}
+
+.site-asset-preview [data-site-icon$='-3'] {
+  width: 68px;
+  height: 66px;
 }
 
 .site-asset-preview__footprint-tile {
