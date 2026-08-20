@@ -162,16 +162,18 @@ describe('procedural map generation', () => {
     expect(oases.length / (oases.length + deserts.length)).toBeLessThan(0.06)
 
     for (const state of states) {
-      const oasisKeys = new Set(
-        state.tiles
-          .filter((tile) => tile.terrain === 'oasis')
-          .map((tile) => positionKey(tile.position)),
+      const tilesByPosition = new Map(
+        state.tiles.map((tile) => [positionKey(tile.position), tile]),
       )
       for (const tile of state.tiles.filter((tile) => tile.terrain === 'oasis')) {
+        const neighbors = getHexNeighbors(tile.position, state.boardSize)
+
+        expect(neighbors).toHaveLength(6)
         expect(
-          getHexNeighbors(tile.position, state.boardSize).every(
-            (neighbor) => !oasisKeys.has(positionKey(neighbor)),
-          ),
+          neighbors.every((neighbor) => {
+            const terrain = tilesByPosition.get(positionKey(neighbor))?.terrain
+            return terrain === 'desert' || terrain === 'desertHill'
+          }),
         ).toBe(true)
       }
     }

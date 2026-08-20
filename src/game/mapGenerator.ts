@@ -181,6 +181,51 @@ function terrainFromNoise(
   return 'plain'
 }
 
+function retainInteriorOases(
+  tiles: Tile[],
+  featureNoise: ReadonlyMap<string, number>,
+  boardSize: BoardSize,
+): void {
+  const tilesByPosition = new Map(
+    tiles.map((tile) => [positionKey(tile.position), tile]),
+  )
+  const oasisCandidates = tiles
+    .filter((tile) => tile.terrain === 'oasis')
+    .sort(
+      (left, right) =>
+        (featureNoise.get(positionKey(right.position)) ?? 0) -
+        (featureNoise.get(positionKey(left.position)) ?? 0),
+    )
+  const candidateKeys = new Set(
+    oasisCandidates.map((tile) => positionKey(tile.position)),
+  )
+  const retainedOases = new Set<string>()
+
+  for (const tile of oasisCandidates) {
+    const neighbors = getHexNeighbors(tile.position, boardSize)
+    const isInsideDesert =
+      neighbors.length === 6 &&
+      neighbors.every((neighbor) => {
+        const neighborKey = positionKey(neighbor)
+        const terrain = tilesByPosition.get(neighborKey)?.terrain
+        return (
+          terrain === 'desert' ||
+          terrain === 'desertHill' ||
+          candidateKeys.has(neighborKey)
+        )
+      })
+    const touchesOasis = neighbors.some((neighbor) =>
+      retainedOases.has(positionKey(neighbor)),
+    )
+
+    if (!isInsideDesert || touchesOasis) {
+      tile.terrain = 'desert'
+    } else {
+      retainedOases.add(positionKey(tile.position))
+    }
+  }
+}
+
 function temperatureAt(
   position: Position,
   boardSize: BoardSize,
@@ -421,6 +466,21 @@ export function validateGeneratedMap(state: GameState): string[] {
     )
   ) {
     issues.push('farmTerrain')
+  }
+  if (
+    state.tiles.some((tile) => {
+      if (tile.terrain !== 'oasis') return false
+      const neighbors = getHexNeighbors(tile.position, state.boardSize)
+      return (
+        neighbors.length !== 6 ||
+        neighbors.some((neighbor) => {
+          const terrain = tilesByPosition.get(positionKey(neighbor))?.terrain
+          return terrain !== 'desert' && terrain !== 'desertHill'
+        })
+      )
+    })
+  ) {
+    issues.push('oasisPlacement')
   }
 
   const capitals = Object.fromEntries(
@@ -683,24 +743,6 @@ function buildCandidate(
         ),
   }))
 
-  const retainedOases = new Set<string>()
-  for (const tile of tiles
-    .filter((candidate) => candidate.terrain === 'oasis')
-    .sort(
-      (left, right) =>
-        (featureNoise.get(positionKey(right.position)) ?? 0) -
-        (featureNoise.get(positionKey(left.position)) ?? 0),
-    )) {
-    const touchesOasis = getHexNeighbors(tile.position, boardSize).some(
-      (neighbor) => retainedOases.has(positionKey(neighbor)),
-    )
-    if (touchesOasis) {
-      tile.terrain = 'desert'
-    } else {
-      retainedOases.add(positionKey(tile.position))
-    }
-  }
-
   for (const factionId of getFactionIds(factionCount)) {
     const localTiles = tiles.filter(
       (tile) => getHexDistance(tile.position, capitals[factionId]) <= 2,
@@ -709,9 +751,13 @@ function buildCandidate(
       if (tile.terrain === 'water') tile.terrain = 'plain'
       if (tile.terrain === 'mountain') tile.terrain = 'hill'
       if (tile.terrain === 'tundraMountain') tile.terrain = 'tundra'
-      if (tile.terrain === 'desert') tile.terrain = 'plain'
+      if (tile.terrain === 'desert' || tile.terrain === 'oasis') {
+        tile.terrain = 'plain'
+      }
     }
   }
+
+  retainInteriorOases(tiles, featureNoise, boardSize)
 
   assignForestTerrainVariants(tiles, seed, boardSize)
 
