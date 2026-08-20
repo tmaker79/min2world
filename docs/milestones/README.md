@@ -13,8 +13,8 @@
 | [07](07-main-ui.md) | 메인 UI 재구성 | 완료 |
 | [08](08-variable-map-and-hud.md) | 가변 지도·다세력·HUD 조작 | 완료 |
 | [09](09-terrain-expansion.md) | 지형 확장 (사막, 툰드라) | 완료 |
-| [10](10-site-development.md) | 거점 개발 | 다음 목표 |
-| [11](11-city-administration.md) | 성 내정 (건물, 대기열) | 예정 |
+| [10](10-site-development.md) | 역할별 거점 발전 | 다음 목표 |
+| [11](11-city-administration.md) | 거점 내정 (건물, 대기열) | 예정 |
 | [12](12-upkeep.md) | 유지비 | 예정 |
 | [13](13-ai-refinement.md) | AI 고도화 | 예정 |
 | [14](14-settlement-construction.md) | 거점 건설 (개척자·건설자) | 예정 |

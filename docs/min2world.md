@@ -73,6 +73,18 @@
 - 서버 계정 및 클라우드 저장
 - 모바일 전용 UI
 
+### 예정된 거점 발전 구조
+
+현재 구현된 `stronghold`, `village`, `farm`, `mine`, 예약된 `city` 타입과 아래 발전 설계를 구분한다. 다음 거점 개발에서는 숫자 레벨만 공통으로 올리는 대신 역할별 이름과 이미지가 바뀌는 구조를 사용한다.
+
+| 분류 | 발전 단계 | 점유 범위 |
+| --- | --- | --- |
+| 군사·방어 | `Outpost` → `Keep` → `Stronghold` | 모두 1타일 |
+| 정착 | `Village` → `City` → `Castle` | Village 1타일, City 3타일, Castle 4타일 |
+| 생산 특화 | `Farm`, `Mine`, `Blacksmith` | 종류를 유지하며 자체 개발 |
+
+Castle은 Stronghold의 상위 단계가 아니라 정착 계열의 최종 형태다. Village를 City로 발전시키면 기존 타일에 인접한 빈 2타일을 더해 위 1칸·아래 2칸의 삼각형 3타일을 사용한다. City를 Castle로 발전시키면 기존 City footprint에 빈 1타일을 더해 가로형 마름모 4타일을 완성한다. 수도 여부는 거점 종류와 별개로 `capitalFor`가 결정한다.
+
 새로운 아이디어는 백로그에 기록하고, 다음 마일스톤을 추가한 뒤에 구현한다.
 
 ### 첫 MVP(완료)
@@ -398,8 +410,8 @@ localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지
 | 단계 | 목표 | 상태 |
 | --- | --- | --- |
 | [09](milestones/09-terrain-expansion.md) | 사막·툰드라와 후속 지형 확장 | 완료 |
-| [10](milestones/10-site-development.md) | 기존 거점 레벨업 | 다음 목표 |
-| [11](milestones/11-city-administration.md) | 성 건물·대기열 | 예정 |
+| [10](milestones/10-site-development.md) | 역할별 거점 발전 | 다음 목표 |
+| [11](milestones/11-city-administration.md) | 거점 건물·대기열 | 예정 |
 | [12](milestones/12-upkeep.md) | 유지비(소프트 제약) | 예정 |
 | [13](milestones/13-ai-refinement.md) | 경제를 보는 AI | 예정 |
 | [14](milestones/14-settlement-construction.md) | 개척자·건설자의 신규 거점 건설 | 예정 |
@@ -414,9 +426,9 @@ localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지
 
 ## 12. 현재 개발 목표
 
-다음 구현 목표는 [Milestone 10: 거점 개발](milestones/10-site-development.md)이다.
+다음 구현 목표는 [Milestone 10: 거점 발전](milestones/10-site-development.md)이다.
 
-Milestone 10에서는 성·마을·농장·광산을 모두 1~3레벨로 개발한다. 성은 수입과 생산 병종을 확장하고, 나머지 경제 거점은 종류별 비용에 따라 수입을 높인다.
+Milestone 10에서는 군사·방어 계열 `Outpost → Keep → Stronghold`, 정착 계열 `Village → City → Castle`, 생산 특화 시설 `Farm`·`Mine`·`Blacksmith`를 도입한다. 군사·방어 및 정착 계열은 종류가 다음 단계로 바뀌고, 생산 특화 시설은 같은 종류 안에서 자체 개발한다. 정착지는 Village 1타일, City 3타일, Castle 4타일로 확장된다.
 
 가변 지도·다세력·HUD까지 반영한 현재 기준 시나리오는 다음과 같다.
 
