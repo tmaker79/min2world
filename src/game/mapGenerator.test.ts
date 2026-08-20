@@ -424,4 +424,16 @@ describe('procedural map generation', () => {
       }
     }
   })
+
+  it('uses both temperate forest variants across generated maps', () => {
+    const variants = new Set(
+      Array.from({ length: 8 }, (_, index) =>
+        generateGameState(`forest-variant-${index}`).tiles
+          .filter((tile) => tile.terrain === 'forest')
+          .map((tile) => tile.terrainVariant),
+      ).flat(),
+    )
+
+    expect(variants).toEqual(new Set([0, 1]))
+  })
 })

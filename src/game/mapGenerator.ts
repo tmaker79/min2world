@@ -36,6 +36,7 @@ const STARTING_RESOURCES = 15
 const MAX_GENERATION_ATTEMPTS = 128
 const STANDARD_CAPITAL_DISTANCE = 18
 const STANDARD_CAPITAL_DISTANCE_REFERENCE_COLUMNS = 42
+const OASIS_FEATURE_THRESHOLD = 0.95
 const SITE_PAIR_TYPES: readonly SiteType[] = ['village', 'farm', 'mine']
 const STARTING_UNIT_TYPES: readonly UnitType[] = [
   'infantry',
@@ -176,7 +177,7 @@ function terrainFromNoise(
   }
   if (adjustedMoisture > 0.61) return 'forest'
   if (adjustedMoisture < 0.4 && temperature > 0.58) {
-    return featureNoise > 0.97 ? 'oasis' : 'desert'
+    return featureNoise > OASIS_FEATURE_THRESHOLD ? 'oasis' : 'desert'
   }
   return 'plain'
 }

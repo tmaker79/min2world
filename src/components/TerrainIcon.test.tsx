@@ -36,6 +36,21 @@ describe('TerrainIcon', () => {
     )
   })
 
+  it.each([0, 1])('renders temperate forest variant %s', (variantIndex) => {
+    const { container } = render(
+      <TerrainIcon terrain="forest" variantIndex={variantIndex} />,
+    )
+
+    expect(container.querySelector('img')).toHaveAttribute(
+      'data-terrain-icon',
+      'forest',
+    )
+    expect(container.querySelector('img')).toHaveAttribute(
+      'data-terrain-variant',
+      String(variantIndex),
+    )
+  })
+
   it('renders the windswept tundra tile', () => {
     const { container } = render(
       <TerrainIcon terrain="tundra" variantIndex={0} />,
