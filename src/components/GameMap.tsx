@@ -9,7 +9,14 @@ import {
   useState,
 } from 'react'
 import { createPortal } from 'react-dom'
-import { getHexPixelPosition, HEX_HEIGHT, HEX_WIDTH } from '../game/hex'
+import easternCastleIcon from '../assets/sites/castle-eastern.png'
+import westernCastleIcon from '../assets/sites/castle.png'
+import {
+  getHexDistance,
+  getHexPixelPosition,
+  HEX_HEIGHT,
+  HEX_WIDTH,
+} from '../game/hex'
 import {
   getSiteAt,
   getUnitAt,
@@ -20,7 +27,15 @@ import {
   TERRAIN_MOVEMENT_COST,
   UNIT_TYPE_LABELS,
 } from '../game/rules'
-import type { GameState, Position, Site, Tile, Unit } from '../game/types'
+import type {
+  GameState,
+  Position,
+  Site,
+  SiteOwnerId,
+  SiteType,
+  Tile,
+  Unit,
+} from '../game/types'
 import { useMapViewport } from '../hooks/useMapViewport'
 import { SiteIcon } from './SiteIcon'
 import { hasTerrainImage, TerrainIcon } from './TerrainIcon'
@@ -31,6 +46,23 @@ const MAP_TOOLTIP_TOP_SAFE_PX = 120
 const VIEWPORT_OVERSCAN_PX = Math.max(HEX_WIDTH, HEX_HEIGHT) * 2
 /** Matches `.game-map` content-box padding (8*2) + border (1*2). */
 const MAP_FRAME_PX = 18
+const SITE_ASSET_PREVIEW_KINDS = [
+  'castle',
+  'city',
+  'village',
+  'farm',
+  'mine',
+] as const satisfies readonly (SiteType | 'castle')[]
+const HEX_DIRECTIONS = [
+  { q: 1, r: 0 },
+  { q: 1, r: -1 },
+  { q: 0, r: -1 },
+  { q: -1, r: 0 },
+  { q: -1, r: 1 },
+  { q: 0, r: 1 },
+] as const
+const CASTLE_FOOTPRINT_DIRECTION_STARTS = [0, 2, 3, 5] as const
+const CITY_FOOTPRINT_DIRECTION_STARTS = [0, 2] as const
 
 export type CombatAnimationPhase = 'attack' | 'hit'
 
@@ -60,6 +92,7 @@ type GameMapProps = {
   zoneOfControlKeys: Set<string>
   selectedSiteId?: string
   combatAnimation?: CombatAnimation
+  showSiteAssetPreview?: boolean
   disabled: boolean
   suppressClickRef?: { current: boolean }
   onTileClick: (tile: Tile) => void
@@ -142,6 +175,64 @@ function getOverlayStyle(
 ): CSSProperties {
   const pixel = getHexPixelPosition(position)
   return { left: pixel.x - minimumX, top: pixel.y - minimumY }
+}
+
+function findSiteAssetFootprint(
+  positions: Position[],
+  origin: Position,
+  reservedKeys: Set<string>,
+  size: 3 | 4,
+): Position[] {
+  const availableByKey = new Map(
+    positions
+      .filter((position) => !reservedKeys.has(positionKey(position)))
+      .map((position) => [positionKey(position), position]),
+  )
+  const nearestFirst = [...availableByKey.values()].sort((left, right) => {
+    const distanceDifference =
+      getHexDistance(left, origin) - getHexDistance(right, origin)
+    if (distanceDifference !== 0) return distanceDifference
+    if (left.r !== right.r) return left.r - right.r
+    return left.q - right.q
+  })
+
+  const directionStarts =
+    size === 3
+      ? CITY_FOOTPRINT_DIRECTION_STARTS
+      : CASTLE_FOOTPRINT_DIRECTION_STARTS
+
+  for (const anchor of nearestFirst) {
+    for (const index of directionStarts) {
+      const firstDirection = HEX_DIRECTIONS[index]
+      const secondDirection = HEX_DIRECTIONS[(index + 1) % HEX_DIRECTIONS.length]
+      const firstNeighbor = availableByKey.get(
+        positionKey({
+          q: anchor.q + firstDirection.q,
+          r: anchor.r + firstDirection.r,
+        }),
+      )
+      const secondNeighbor = availableByKey.get(
+        positionKey({
+          q: anchor.q + secondDirection.q,
+          r: anchor.r + secondDirection.r,
+        }),
+      )
+      const oppositeCorner = availableByKey.get(
+        positionKey({
+          q: anchor.q + firstDirection.q + secondDirection.q,
+          r: anchor.r + firstDirection.r + secondDirection.r,
+        }),
+      )
+      if (firstNeighbor && secondNeighbor) {
+        if (size === 3) return [anchor, firstNeighbor, secondNeighbor]
+        if (oppositeCorner) {
+          return [anchor, firstNeighbor, oppositeCorner, secondNeighbor]
+        }
+      }
+    }
+  }
+
+  return []
 }
 
 function movementCostLabel(terrain: Tile['terrain']) {
@@ -396,6 +487,84 @@ function SiteMarker({
   )
 }
 
+function SiteAssetPreviewMarker({
+  kind,
+  ownerId,
+  positions,
+  minimumX,
+  minimumY,
+}: {
+  kind: SiteType | 'castle'
+  ownerId: SiteOwnerId
+  positions: Position[]
+  minimumX: number
+  minimumY: number
+}) {
+  const isWestern = ownerId === 'f2' || ownerId === 'enemy'
+
+  if (kind === 'castle' || kind === 'city') {
+    const pixels = positions.map(getHexPixelPosition)
+    const left = Math.min(...pixels.map((pixel) => pixel.x))
+    const top = Math.min(...pixels.map((pixel) => pixel.y))
+    const right = Math.max(...pixels.map((pixel) => pixel.x)) + HEX_WIDTH
+    const bottom = Math.max(...pixels.map((pixel) => pixel.y)) + HEX_HEIGHT
+
+    return (
+      <span
+        className={`site-asset-preview site-asset-preview--multi site-asset-preview--${kind}`}
+        style={{
+          left: left - minimumX,
+          top: top - minimumY,
+          width: right - left,
+          height: bottom - top,
+        }}
+        data-site-asset-preview={kind}
+        data-site-asset-preview-owner={ownerId}
+        data-site-asset-preview-footprint={positions.length}
+      >
+        {pixels.map((pixel, index) => (
+          <span
+            key={positionKey(positions[index])}
+            className="site-asset-preview__footprint-tile"
+            style={{ left: pixel.x - left, top: pixel.y - top }}
+            data-site-asset-footprint-cell={ownerId}
+            data-site-asset-footprint-kind={kind}
+          />
+        ))}
+        {kind === 'castle' ? (
+          <img
+            src={isWestern ? westernCastleIcon : easternCastleIcon}
+            alt=""
+            data-site-icon="castle"
+            data-site-icon-variant={isWestern ? 'western' : 'eastern'}
+          />
+        ) : (
+          <SiteIcon kind="city" ownerId={ownerId} />
+        )}
+      </span>
+    )
+  }
+
+  const position = positions[0]
+  if (!position) return null
+
+  return (
+    <span
+      className="map-overlay-cell"
+      style={getOverlayStyle(position, minimumX, minimumY)}
+    >
+      <span
+        className="site-asset-preview"
+        data-site-asset-preview={kind}
+        data-site-asset-preview-owner={ownerId}
+        data-site-asset-preview-footprint={positions.length}
+      >
+        <SiteIcon kind={kind} ownerId={ownerId} />
+      </span>
+    </span>
+  )
+}
+
 function UnitMarker({
   unit,
   selected,
@@ -487,6 +656,7 @@ function GameMapComponent({
   zoneOfControlKeys,
   selectedSiteId,
   combatAnimation,
+  showSiteAssetPreview = false,
   disabled,
   suppressClickRef,
   onTileClick,
@@ -649,6 +819,96 @@ function GameMapComponent({
   const { minimumX, minimumY, maximumX, maximumY } = layout
   const logicalWidth = maximumX - minimumX + HEX_WIDTH
   const logicalHeight = maximumY - minimumY + HEX_HEIGHT
+  const siteAssetPreviews = useMemo(() => {
+    if (!showSiteAssetPreview) return []
+
+    const occupiedKeys = new Set([
+      ...state.sites.map((site) => positionKey(site.position)),
+      ...state.units.map((unit) => positionKey(unit.position)),
+    ])
+    const availableTiles = state.tiles
+      .filter((tile) => !occupiedKeys.has(positionKey(tile.position)))
+      .filter((tile) => TERRAIN_MOVEMENT_COST[tile.terrain] !== null)
+    const availablePositions = availableTiles.map((tile) => tile.position)
+    const previewCapitals = [
+      {
+        capital: state.sites.find(
+          (site) => site.capitalFor === 'f1' || site.capitalFor === 'player',
+        ),
+        ownerId: 'f1' as const,
+      },
+      {
+        capital: state.sites.find(
+          (site) => site.capitalFor === 'f2' || site.capitalFor === 'enemy',
+        ),
+        ownerId: 'f2' as const,
+      },
+    ].filter(
+      (entry): entry is { capital: Site; ownerId: 'f1' | 'f2' } =>
+        Boolean(entry.capital),
+    )
+    const reservedKeys = new Set(occupiedKeys)
+
+    return previewCapitals.flatMap(({ capital, ownerId }) => {
+      // Each existing capital already represents stronghold, so previews add
+      // the other site artworks once around each capital. Castle spans a
+      // four-hex diamond and City spans a three-hex triangle.
+      const castlePositions = findSiteAssetFootprint(
+        availablePositions,
+        capital.position,
+        reservedKeys,
+        4,
+      )
+      castlePositions.forEach((position) =>
+        reservedKeys.add(positionKey(position)),
+      )
+
+      const cityPositions = findSiteAssetFootprint(
+        availablePositions,
+        capital.position,
+        reservedKeys,
+        3,
+      )
+      cityPositions.forEach((position) => reservedKeys.add(positionKey(position)))
+
+      const singlePositions = availableTiles
+        .filter((tile) => !reservedKeys.has(positionKey(tile.position)))
+        .sort((left, right) => {
+          const distanceDifference =
+            getHexDistance(left.position, capital.position) -
+            getHexDistance(right.position, capital.position)
+          if (distanceDifference !== 0) return distanceDifference
+          if (left.position.r !== right.position.r) {
+            return left.position.r - right.position.r
+          }
+          return left.position.q - right.position.q
+        })
+        .slice(0, SITE_ASSET_PREVIEW_KINDS.length - 2)
+        .map((tile) => tile.position)
+
+      singlePositions.forEach((position) =>
+        reservedKeys.add(positionKey(position)),
+      )
+
+      const previews: {
+        kind: SiteType | 'castle'
+        ownerId: 'f1' | 'f2'
+        positions: Position[]
+      }[] = castlePositions.length
+        ? [{ kind: 'castle', ownerId, positions: castlePositions }]
+        : []
+
+      if (cityPositions.length) {
+        previews.push({ kind: 'city', ownerId, positions: cityPositions })
+      }
+
+      SITE_ASSET_PREVIEW_KINDS.slice(2).forEach((kind, index) => {
+        const position = singlePositions[index]
+        if (position) previews.push({ kind, ownerId, positions: [position] })
+      })
+      return previews
+    })
+  }, [showSiteAssetPreview, state.sites, state.tiles, state.units])
   const visibleTiles = useMemo(() => {
     const left = viewport.left / zoom - VIEWPORT_OVERSCAN_PX
     const top = viewport.top / zoom - VIEWPORT_OVERSCAN_PX
@@ -674,6 +934,7 @@ function GameMapComponent({
       ...state.sites.map((site) => site.position),
       combatAnimation?.attackerPosition,
       combatAnimation?.defenderPosition,
+      ...siteAssetPreviews.flatMap((preview) => preview.positions),
     ]
     for (const position of persistentPositions) {
       if (!position) continue
@@ -698,6 +959,7 @@ function GameMapComponent({
     attackableKeys,
     deployableKeys,
     reachableKeys,
+    siteAssetPreviews,
     state.sites,
     state.units,
     viewport,
@@ -804,6 +1066,16 @@ function GameMapComponent({
             site={site}
             selected={site.id === selectedSiteId}
             style={getOverlayStyle(site.position, minimumX, minimumY)}
+          />
+        ))}
+        {siteAssetPreviews.map((preview) => (
+          <SiteAssetPreviewMarker
+            key={`${preview.ownerId}-${preview.kind}`}
+            kind={preview.kind}
+            ownerId={preview.ownerId}
+            positions={preview.positions}
+            minimumX={minimumX}
+            minimumY={minimumY}
           />
         ))}
       </div>
