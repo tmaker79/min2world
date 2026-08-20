@@ -73,7 +73,7 @@ describe('GameMap large-map rendering', () => {
     expect(renderedTiles.length).toBeLessThan(2_000)
     expect(screenSize(container, 'width')).toBeGreaterThan(5_000)
     expect(screenSize(container, 'height')).toBeGreaterThan(4_000)
-    expect(container.querySelectorAll('[data-site-asset-preview]')).toHaveLength(10)
+    expect(container.querySelectorAll('[data-site-asset-preview]')).toHaveLength(12)
     expect(
       container.querySelectorAll('[data-site-asset-footprint-cell]'),
     ).toHaveLength(14)
@@ -102,7 +102,7 @@ describe('GameMap large-map rendering', () => {
     const previewMarkers = [
       ...container.querySelectorAll('[data-site-asset-preview]'),
     ]
-    const expectedKinds = ['castle', 'city', 'village', 'farm', 'mine']
+    const expectedKinds = ['castle', 'city', 'village', 'farm', 'mine', 'smithy']
     const blueMarkers = previewMarkers.filter(
       (marker) => marker.getAttribute('data-site-asset-preview-owner') === 'f1',
     )
@@ -127,7 +127,10 @@ describe('GameMap large-map rendering', () => {
       )
       expect(marker.querySelector('[data-site-icon]')).toHaveAttribute(
         'data-site-icon-variant',
-        marker.getAttribute('data-site-asset-preview-owner') === 'f2'
+        kind === 'farm' ||
+          kind === 'mine' ||
+          kind === 'smithy' ||
+          marker.getAttribute('data-site-asset-preview-owner') === 'f2'
           ? 'western'
           : 'eastern',
       )

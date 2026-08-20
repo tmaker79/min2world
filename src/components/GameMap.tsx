@@ -11,6 +11,7 @@ import {
 import { createPortal } from 'react-dom'
 import easternCastleIcon from '../assets/sites/castle-eastern.png'
 import westernCastleIcon from '../assets/sites/castle.png'
+import westernSmithyIcon from '../assets/sites/smithy.png'
 import {
   getHexDistance,
   getHexPixelPosition,
@@ -52,7 +53,8 @@ const SITE_ASSET_PREVIEW_KINDS = [
   'village',
   'farm',
   'mine',
-] as const satisfies readonly (SiteType | 'castle')[]
+  'smithy',
+] as const satisfies readonly (SiteType | 'castle' | 'smithy')[]
 const HEX_DIRECTIONS = [
   { q: 1, r: 0 },
   { q: 1, r: -1 },
@@ -494,7 +496,7 @@ function SiteAssetPreviewMarker({
   minimumX,
   minimumY,
 }: {
-  kind: SiteType | 'castle'
+  kind: SiteType | 'castle' | 'smithy'
   ownerId: SiteOwnerId
   positions: Position[]
   minimumX: number
@@ -559,7 +561,16 @@ function SiteAssetPreviewMarker({
         data-site-asset-preview-owner={ownerId}
         data-site-asset-preview-footprint={positions.length}
       >
-        <SiteIcon kind={kind} ownerId={ownerId} />
+        {kind === 'smithy' ? (
+          <img
+            src={westernSmithyIcon}
+            alt=""
+            data-site-icon="smithy"
+            data-site-icon-variant="western"
+          />
+        ) : (
+          <SiteIcon kind={kind} ownerId={ownerId} />
+        )}
       </span>
     </span>
   )
@@ -891,7 +902,7 @@ function GameMapComponent({
       )
 
       const previews: {
-        kind: SiteType | 'castle'
+        kind: SiteType | 'castle' | 'smithy'
         ownerId: 'f1' | 'f2'
         positions: Position[]
       }[] = castlePositions.length

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { SiteIcon } from './SiteIcon'
 
 describe('SiteIcon', () => {
-  it.each(['stronghold', 'village', 'farm', 'mine', 'city'] as const)(
+  it.each(['stronghold', 'village', 'city'] as const)(
     'uses the eastern asset for non-red %s sites',
     (kind) => {
       const { container } = render(<SiteIcon kind={kind} ownerId="f1" />)
@@ -11,6 +11,22 @@ describe('SiteIcon', () => {
       expect(container.querySelector('img')).toHaveAttribute(
         'data-site-icon-variant',
         'eastern',
+      )
+    },
+  )
+
+  it.each(['farm', 'mine'] as const)(
+    'always uses the western asset for %s sites',
+    (kind) => {
+      const { container } = render(<SiteIcon kind={kind} ownerId="f1" />)
+
+      expect(container.querySelector('img')).toHaveAttribute(
+        'data-site-icon-variant',
+        'western',
+      )
+      expect(container.querySelector('img')).toHaveAttribute(
+        'src',
+        expect.stringContaining(`/assets/sites/${kind}.png`),
       )
     },
   )
