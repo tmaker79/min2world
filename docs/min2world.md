@@ -10,7 +10,7 @@
 2. 게임을 만들면서 React와 TypeScript를 실전 수준으로 익힌다.
 3. 컴포넌트 설계, 상태 관리, 비즈니스 로직 분리, 테스트 경험을 `wizard-web` 개발에 활용한다.
 
-대형 4X 게임을 그대로 재현하는 것이 목표는 아니다. 첫 번째 성공 기준은 제한된 규칙을 가진 게임 한 판을 시작부터 승리 또는 패배까지 플레이할 수 있는 것이다. 이 기준은 Milestone 01–05에서 충족했고, Milestone 06에서 육각 무작위 지도로 확장했으며, Milestone 07–08에서 메인 UI·가변 지도·다세력·조작을 다듬었다.
+대형 4X 게임을 그대로 재현하는 것이 목표는 아니다. 첫 번째 성공 기준은 제한된 규칙을 가진 게임 한 판을 시작부터 승리 또는 패배까지 플레이할 수 있는 것이다. 이 기준은 Milestone 01–05에서 충족했고, Milestone 06에서 육각 무작위 지도로 확장했으며, Milestone 07–08에서 메인 UI·가변 지도·다세력·조작을 다듬었다. Milestone 09에서는 온도 축과 사막·툰드라 기후대를 추가하고 후속 작업으로 세부 지형과 래스터 표현을 확장했다.
 
 현재 구현과 조작 안내는 [루트 README](../README.md), 단계별 기록은 [개발 마일스톤](milestones/README.md)을 따른다. 완료된 마일스톤 문서는 덮어쓰지 않는다.
 
@@ -26,7 +26,7 @@
 
 ### 핵심 게임 흐름
 
-1. 시작 화면에서 맵 크기·세력 수·내 세력·seed를 고른다.
+1. 시작 화면에서 맵 크기·지도 종류·내 세력·seed를 고른다. 세력 수는 현재 2개로 고정한다.
 2. 플레이어 유닛을 선택한다.
 3. 이동 가능 칸을 우클릭해 이동하거나, 사거리 안의 적을 좌클릭해 공격한다.
 4. 거점을 점령하고, 상대 수도를 모두 점령하면 승리한다.
@@ -39,18 +39,19 @@
 ### 현재 구현
 
 - axial 좌표의 뾰족형 육각 지도
-- 시작 화면에서 지도 크기와 내 세력을 선택한다.
+- 시작 화면에서 지도 크기·지도 종류·내 세력을 선택한다.
 - 2인용 15×11, 초소형 21×15, 소형 29×21, 중형 41×29를 지도 크기 드롭다운에서 선택할 수 있다. 세력 수는 현재 2로 고정하며 별도 설정을 표시하지 않는다. 가변 지도와 최대 4세력 생성 로직은 내부에 유지한다.
 - seed와 지도 종류로 재현되는 지형·거점·시작 유닛 배치
 - 지도 종류 선택: 균형, 평원, 산악, 삼림
-- 평지, 언덕, 숲, 산, 물의 지형 5종
+- 평지, 언덕, 숲, 산, 물, 사막, 사막 언덕, 오아시스, 툰드라, 툰드라 숲, 툰드라 산의 지형 11종
+- 일반 숲의 활엽수·침엽수 군락 변형과 지형별 래스터 타일
 - 성, 마을, 농장, 광산의 거점 4종
 - 세력별 수도(성) 1개와 시작 유닛 3개(보병 2, 기병 1)
 - 보병, 기병, 궁병, 창병
 - 최대 체력 100, 근접/원거리 전투력과 병종 상성
 - 궁병 공격은 반격 없음, 반격은 근접 전투력 사용
 - 육각 6방향 이동, 통제 구역, 사거리 공격
-- 지형 이동 비용과 언덕·숲 전투력 보정(+3)
+- 지형 이동 비용과 언덕·숲·사막 언덕·툰드라 숲 전투력 보정(+3)
 - 거점 점령, 다세력 수도 점령 승패
 - 턴 종료 시 소유 거점 수입과 유닛 생산
 - 규칙 기반 AI 턴(활성 세력 순회)
@@ -139,7 +140,18 @@ type Position = {
   r: number
 }
 
-type Terrain = 'plain' | 'mountain' | 'water' | 'hill' | 'forest'
+type Terrain =
+  | 'plain'
+  | 'mountain'
+  | 'water'
+  | 'hill'
+  | 'forest'
+  | 'desert'
+  | 'desertHill'
+  | 'oasis'
+  | 'tundra'
+  | 'tundraForest'
+  | 'tundraMountain'
 type MapType = 'balanced' | 'plains' | 'mountainous' | 'forested'
 type FactionId = 'f1' | 'f2' | 'f3' | 'f4' | 'player' | 'enemy' // player/enemy는 스키마 6 마이그레이션용
 type FactionCount = 2 | 3 | 4
@@ -183,7 +195,7 @@ type GameState = {
   schemaVersion: number // 8
   mapSeed: string
   mapType: MapType
-  mapGenerationVersion: number // 5
+  mapGenerationVersion: number // 20
   boardSize: BoardSize
   factionCount: FactionCount
   humanFactionId: FactionId
@@ -224,6 +236,7 @@ type GameAction =
       boardSize?: BoardSize
       factionCount?: FactionCount
       humanFactionId?: FactionId
+      mapType?: MapType
     }
 ```
 
@@ -274,7 +287,7 @@ src/
 
 ## 7. 개발 단계와 완료 조건
 
-01–08은 완료됐다. 각 단계의 상세 기록은 마일스톤 문서를 따른다.
+01–09는 완료됐다. 각 단계의 상세 기록은 마일스톤 문서를 따른다.
 
 ### 0단계: 프로젝트 기반
 
@@ -297,6 +310,16 @@ src/
 - 우클릭 이동, 성/부대 정보창, 지형·유닛 툴팁
 - 스키마 7
 
+### Milestone 09: 지형 확장
+
+상세 기록: [Milestone 09](milestones/09-terrain-expansion.md)
+
+- 온도 축과 사막·툰드라 기후대
+- 사막 언덕·오아시스·툰드라 숲·툰드라 산 후속 확장
+- 지형 래스터 타일, 미니맵 색, 범례, 툴팁
+- 일반 숲의 활엽수·침엽수 군락 변형
+- 스키마 8, 현재 맵 생성 버전 20
+
 ## 8. 테스트 전략
 
 전략 게임은 화면보다 규칙 회귀가 큰 위험이므로 게임 규칙을 우선 테스트한다.
@@ -312,6 +335,8 @@ src/
 - 상대 수도를 점령하면 즉시 승패가 결정된다.
 - 턴 종료 시 소유 거점 수입만큼 자원이 정확히 증가한다.
 - 같은 seed와 지도 종류는 같은 지도와 시작 배치를 만든다.
+- 오아시스는 사막 계열 6칸 내부에만 생성되고 서로 인접하지 않는다.
+- 연결된 일반 숲은 같은 활엽수·침엽수 변형을 사용한다.
 - 시작 화면에서 선택 가능한 2인용 맵이 2세력으로 생성된다.
 - 내부 확장 프리셋·세력 수 조합도 유효한 지도를 생성한다.
 - 승리 또는 패배 후 추가 행동으로 상태가 변경되지 않는다.
@@ -339,6 +364,7 @@ localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지
 - 스키마 6은 `player`/`enemy`를 `f1`/`f2`로 바꾼 뒤 연쇄 마이그레이션한다.
 - 스키마 7은 기존 `city`(마을)를 `village`로, `village`(농장)를 `farm`으로 바꿔 불러온다.
 - 스키마 8 저장에 `mapType`이 없으면 기존 생성 방식인 `balanced`로 불러온다.
+- 맵 생성 버전 5부터 현재 버전 20까지 저장된 타일을 재생성하지 않고 지원한다.
 - JSON을 읽은 뒤 필요한 필드와 값의 범위를 검증한다.
 - 스키마 4·5를 포함한 지원하지 않는 버전은 불러오지 않고 사용자에게 알린다.
 - 파생 상태와 일시적인 UI 상태는 저장하지 않는다.
@@ -369,16 +395,16 @@ localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지
 
 상세 명세는 [개발 마일스톤](milestones/README.md)의 각 문서를 따른다.
 
-| 단계 | 목표 |
-| --- | --- |
-| [09](milestones/09-terrain-expansion.md) | 사막·툰드라 |
-| [10](milestones/10-site-development.md) | 기존 거점 레벨업 |
-| [11](milestones/11-city-administration.md) | 성 건물·대기열 |
-| [12](milestones/12-upkeep.md) | 유지비(소프트 제약) |
-| [13](milestones/13-ai-refinement.md) | 경제를 보는 AI |
-| [14](milestones/14-settlement-construction.md) | 개척자·건설자의 신규 거점 건설 |
-| [15](milestones/15-supply-and-morale.md) | 보급·사기(라이트) |
-| [16](milestones/16-site-expansion.md) | 농장 본체와 인접 농지 확장 |
+| 단계 | 목표 | 상태 |
+| --- | --- | --- |
+| [09](milestones/09-terrain-expansion.md) | 사막·툰드라와 후속 지형 확장 | 완료 |
+| [10](milestones/10-site-development.md) | 기존 거점 레벨업 | 다음 목표 |
+| [11](milestones/11-city-administration.md) | 성 건물·대기열 | 예정 |
+| [12](milestones/12-upkeep.md) | 유지비(소프트 제약) | 예정 |
+| [13](milestones/13-ai-refinement.md) | 경제를 보는 AI | 예정 |
+| [14](milestones/14-settlement-construction.md) | 개척자·건설자의 신규 거점 건설 | 예정 |
+| [15](milestones/15-supply-and-morale.md) | 보급·사기(라이트) | 예정 |
+| [16](milestones/16-site-expansion.md) | 농장 본체와 인접 농지 확장 | 예정 |
 
 ### 로드맵 밖 후보
 
@@ -388,10 +414,10 @@ localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지
 
 ## 12. 현재 개발 목표
 
-다음 구현 목표는 [Milestone 09: 지형 확장](milestones/09-terrain-expansion.md)이다.
+다음 구현 목표는 [Milestone 10: 거점 개발](milestones/10-site-development.md)이다.
 
 가변 지도·다세력·HUD까지 반영한 현재 기준 시나리오는 다음과 같다.
 
-> 시작 화면에서 맵과 세력을 고르고, seed로 만든 육각 지도에서 유닛을 좌클릭으로 선택·공격하고 이동 칸은 우클릭으로 이동한다. 성에서 부대를 생산하고, 상대 수도를 모두 점령하면 한 판이 끝난다. 같은 seed는 같은 지도를 재현한다.
+> 시작 화면에서 맵 크기·지도 종류·내 세력을 고르고, seed로 만든 육각 지도에서 유닛을 좌클릭으로 선택·공격하고 이동 칸은 우클릭으로 이동한다. 성에서 부대를 생산하고, 상대 수도를 모두 점령하면 한 판이 끝난다. 같은 seed와 지도 종류는 같은 지도를 재현한다.
 
 새 기능을 넣을 때는 해당 마일스톤 명세를 기준으로 하고, 이 시나리오의 규칙·UI 테스트가 계속 통과하는지 확인한다.
