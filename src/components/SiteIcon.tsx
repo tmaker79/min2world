@@ -1,4 +1,5 @@
 import type { SiteOwnerId, SiteType } from '../game/types'
+import easternCityIcon from '../assets/sites/city-eastern.png'
 import easternFarmIcon from '../assets/sites/farm-eastern.png'
 import easternMineIcon from '../assets/sites/mine-eastern.png'
 import easternStrongholdIcon from '../assets/sites/stronghold-eastern.png'
@@ -9,8 +10,7 @@ const SITE_ICONS: Record<SiteType, string> = {
   village: easternVillageIcon,
   farm: easternFarmIcon,
   mine: easternMineIcon,
-  // Temporary placeholder for the reserved city type.
-  city: easternVillageIcon,
+  city: easternCityIcon,
 }
 
 type SiteIconProps = {

@@ -14,4 +14,13 @@ describe('SiteIcon', () => {
       )
     },
   )
+
+  it('uses the dedicated eastern city asset for city sites', () => {
+    const { container } = render(<SiteIcon kind="city" />)
+
+    expect(container.querySelector('img')).toHaveAttribute(
+      'src',
+      expect.stringContaining('city-eastern.png'),
+    )
+  })
 })
