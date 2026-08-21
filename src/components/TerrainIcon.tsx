@@ -1,5 +1,6 @@
 import type { Position, Terrain } from '../game/types'
 import { FOREST_TERRAIN_VARIANT_COUNT } from '../game/types'
+import bridgeTile from '../assets/terrain/bridge-tile.png'
 import desertTileCactus from '../assets/terrain/desert-tile-cactus.png'
 import desertTileDunes from '../assets/terrain/desert-tile-dunes.png'
 import desertTileScrub from '../assets/terrain/desert-tile-scrub.png'
@@ -26,6 +27,7 @@ import tundraTileWindswept from '../assets/terrain/tundra-tile-windswept.png'
 import waterTile from '../assets/terrain/water-tile.png'
 
 const TERRAIN_VARIANTS: Partial<Record<Terrain, readonly string[]>> = {
+  bridge: [bridgeTile],
   plain: [
     plainTileGround,
     plainTileGrass1,

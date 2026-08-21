@@ -3,6 +3,7 @@ import { hasTerrainImage, TerrainIcon } from './TerrainIcon'
 
 const TERRAIN_ITEMS = [
   ['plain', '평지', '비용 1'],
+  ['bridge', '다리', '비용 1'],
   ['desert', '사막', '비용 2'],
   ['desertHill', '사막 언덕', '비용 2 · 전투력 +3'],
   ['oasis', '오아시스', '비용 1'],

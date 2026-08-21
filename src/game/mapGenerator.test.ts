@@ -63,6 +63,7 @@ describe('procedural map generation', () => {
     const countTerrain = (mapType: MapType) => {
       const counts: Record<Terrain, number> = {
         plain: 0,
+        bridge: 0,
         water: 0,
         hill: 0,
         mountain: 0,
@@ -156,7 +157,7 @@ describe('procedural map generation', () => {
       ),
     ).toEqual(
       Array.from({ length: BOARD_SIZE_PRESETS.tiny.rows }, (_, row) =>
-        crossingRows.has(row) ? 'plain' : 'water',
+        crossingRows.has(row) ? 'bridge' : 'water',
       ),
     )
     expect(
@@ -242,7 +243,7 @@ describe('procedural map generation', () => {
       }),
     ).not.toEqual(
       Array.from({ length: state.boardSize.rows }, (_, row) =>
-        row === 3 || row === 7 ? 'plain' : 'water',
+        row === 3 || row === 7 ? 'bridge' : 'water',
       ),
     )
   })

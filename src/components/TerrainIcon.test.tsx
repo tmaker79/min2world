@@ -3,6 +3,15 @@ import { describe, expect, it } from 'vitest'
 import { TerrainIcon } from './TerrainIcon'
 
 describe('TerrainIcon', () => {
+  it('renders the bridge tile asset', () => {
+    const { container } = render(<TerrainIcon terrain="bridge" />)
+
+    expect(container.querySelector('img')).toHaveAttribute(
+      'data-terrain-icon',
+      'bridge',
+    )
+  })
+
   it.each([0, 1, 2])('renders desert variant %s', (variantIndex) => {
     const { container } = render(
       <TerrainIcon terrain="desert" variantIndex={variantIndex} />,

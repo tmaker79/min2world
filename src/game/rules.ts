@@ -181,6 +181,7 @@ export function getUnitProductionCost(
 
 export const TERRAIN_MOVEMENT_COST: Record<Terrain, number | null> = {
   plain: 1,
+  bridge: 1,
   mountain: null,
   water: null,
   hill: 2,
@@ -195,6 +196,7 @@ export const TERRAIN_MOVEMENT_COST: Record<Terrain, number | null> = {
 
 export const TERRAIN_COMBAT_BONUS: Record<Terrain, number> = {
   plain: 0,
+  bridge: 0,
   mountain: 0,
   water: 0,
   hill: 3,
@@ -209,6 +211,7 @@ export const TERRAIN_COMBAT_BONUS: Record<Terrain, number> = {
 
 export const TERRAIN_LABELS: Record<Terrain, string> = {
   plain: '평지',
+  bridge: '다리',
   mountain: '산',
   water: '물',
   hill: '언덕',

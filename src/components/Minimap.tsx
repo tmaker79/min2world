@@ -10,6 +10,7 @@ import type { GameState, Terrain } from '../game/types'
 
 const TERRAIN_FILL: Record<Terrain, string> = {
   plain: '#8db56e',
+  bridge: '#9a7045',
   forest: '#365b45',
   hill: '#6a7a48',
   mountain: '#4f5358',

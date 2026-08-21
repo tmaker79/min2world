@@ -1331,6 +1331,7 @@
 .terrain-mark--hill,
 .terrain-mark--forest,
 .terrain-mark--water,
+.terrain-mark--bridge,
 .terrain-mark--desert,
 .terrain-mark--desertHill,
 .terrain-mark--oasis,
@@ -1347,6 +1348,7 @@
 .terrain-mark--hill,
 .terrain-mark--forest,
 .terrain-mark--water,
+.terrain-mark--bridge,
 .terrain-mark--desert,
 .terrain-mark--desertHill,
 .terrain-mark--oasis,
@@ -1361,6 +1363,7 @@
 .terrain-mark [data-terrain-icon='hill'],
 .terrain-mark [data-terrain-icon='mountain'],
 .terrain-mark [data-terrain-icon='water'],
+.terrain-mark [data-terrain-icon='bridge'],
 .terrain-mark [data-terrain-icon='desert'],
 .terrain-mark [data-terrain-icon='desertHill'],
 .terrain-mark [data-terrain-icon='oasis'],
@@ -2022,6 +2025,10 @@
   background: #365172;
 }
 
+.terrain-portrait--bridge {
+  background: #365172;
+}
+
 .terrain-portrait--mountain {
   background: #4f5358;
 }
@@ -2442,6 +2449,7 @@
 .legend-swatch [data-terrain-icon='hill'],
 .legend-swatch [data-terrain-icon='mountain'],
 .legend-swatch [data-terrain-icon='water'],
+.legend-swatch [data-terrain-icon='bridge'],
 .legend-swatch [data-terrain-icon='desert'],
 .legend-swatch [data-terrain-icon='desertHill'],
 .legend-swatch [data-terrain-icon='oasis'],

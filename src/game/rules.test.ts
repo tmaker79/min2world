@@ -105,6 +105,13 @@ describe('hex movement rules', () => {
     expect(getMovementCost(state, infantry, { q: 1, r: 0 })).toBe(1)
   })
 
+  it('treats a bridge as passable terrain with movement cost 1', () => {
+    const infantry = unit('p1', 'player', 'infantry', { q: 0, r: 0 })
+    const state = withTerrain(rulesState([infantry]), { q: 1, r: 0 }, 'bridge')
+
+    expect(getMovementCost(state, infantry, { q: 1, r: 0 })).toBe(1)
+  })
+
   it('uses all six adjacent cells for enemy zone of control', () => {
     const enemy = unit('e1', 'enemy', 'infantry', { q: 0, r: 0 })
     expect(

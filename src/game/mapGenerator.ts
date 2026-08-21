@@ -65,6 +65,7 @@ const TINY_RIVER_CROSSING_ROWS = [3, 7] as const
 
 const TERRAIN_COST: Record<Terrain, number | null> = {
   plain: 1,
+  bridge: 1,
   mountain: null,
   water: null,
   hill: 2,
@@ -361,7 +362,10 @@ function carveTinyRiver(tiles: Tile[], boardSize: BoardSize): Set<string> {
 
   for (const tile of tiles) {
     const key = positionKey(tile.position)
-    if (crossingKeys.has(key) || approachKeys.has(key)) {
+    if (crossingKeys.has(key)) {
+      tile.terrain = 'bridge'
+      delete tile.terrainVariant
+    } else if (approachKeys.has(key)) {
       tile.terrain = 'plain'
       delete tile.terrainVariant
     } else if (toDisplayPosition(tile.position, boardSize).column === TINY_RIVER_COLUMN) {
@@ -705,7 +709,7 @@ export function validateGeneratedMap(state: GameState): string[] {
     const hasInvalidRiverTerrain = layout.river.some((position) => {
       const key = positionKey(position)
       const terrain = tilesByPosition.get(key)?.terrain
-      return crossingKeys.has(key) ? terrain !== 'plain' : terrain !== 'water'
+      return crossingKeys.has(key) ? terrain !== 'bridge' : terrain !== 'water'
     })
     const hasInvalidApproach = layout.approaches.some(
       (position) => tilesByPosition.get(positionKey(position))?.terrain !== 'plain',

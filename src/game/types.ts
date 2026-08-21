@@ -1,5 +1,6 @@
 export type Terrain =
   | 'plain'
+  | 'bridge'
   | 'mountain'
   | 'water'
   | 'hill'
