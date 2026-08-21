@@ -50,8 +50,13 @@ function rulesState(units: Unit[] = []): GameState {
   const state = createInitialGameState('rules-test')
   return {
     ...state,
-    tiles: state.tiles.map((tile) => ({ ...tile, terrain: 'plain' as Terrain })),
+    tiles: state.tiles.map((tile) => ({
+      ...tile,
+      terrain: 'plain' as Terrain,
+      siteId: undefined,
+    })),
     units,
+    sites: [],
   }
 }
 

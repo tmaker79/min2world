@@ -87,6 +87,7 @@ describe('saved games', () => {
     expect(loaded.ok).toBe(true)
     if (loaded.ok) {
       expect(loaded.value.gameState).toEqual(JSON.parse(JSON.stringify(state)))
+      expect(loaded.value.gameState.mapGenerationVersion).toBe(23)
       expect(loaded.value.gameState.tiles).toHaveLength(HEX_TILE_COUNT)
       expect(loaded.value.gameState.sites).toHaveLength(12)
       expect(loaded.value.gameState.mapSeed).toBe('save-roundtrip')
@@ -116,7 +117,7 @@ describe('saved games', () => {
     if (loaded.ok) expect(loaded.value.gameState.mapType).toBe('balanced')
   })
 
-  it.each([5, 20])(
+  it.each([5, 20, 22])(
     'loads and re-saves map generation version %s games',
     (mapGenerationVersion) => {
     const storage = new MemoryStorage()
@@ -133,7 +134,7 @@ describe('saved games', () => {
       )
       expect(saveGame(loaded.value.gameState, storage).ok).toBe(true)
     }
-    expect(MAP_GENERATION_VERSION).toBe(22)
+    expect(MAP_GENERATION_VERSION).toBe(23)
     },
   )
 

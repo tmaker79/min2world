@@ -60,6 +60,8 @@ const STARTING_UNIT_TYPES: readonly UnitType[] = [
   'infantry',
   'cavalry',
 ]
+const TINY_RIVER_COLUMN = 7
+const TINY_RIVER_CROSSING_ROWS = [3, 7] as const
 
 const TERRAIN_COST: Record<Terrain, number | null> = {
   plain: 1,
@@ -293,6 +295,84 @@ function opposite(position: Position, boardSize: BoardSize): Position {
   return getOppositeBoardPosition(position, boardSize)
 }
 
+function fromDisplayPosition(
+  row: number,
+  column: number,
+  boardSize: BoardSize,
+): Position {
+  const r = row - Math.floor(boardSize.rows / 2)
+  return {
+    q: column - Math.floor(boardSize.columns / 2) - Math.floor(r / 2),
+    r,
+  }
+}
+
+function toDisplayPosition(
+  position: Position,
+  boardSize: BoardSize,
+): { row: number; column: number } {
+  return {
+    row: position.r + Math.floor(boardSize.rows / 2),
+    column:
+      position.q +
+      Math.floor(boardSize.columns / 2) +
+      Math.floor(position.r / 2),
+  }
+}
+
+function isTinyTwoPlayerBoard(
+  boardSize: BoardSize,
+  factionCount: FactionCount,
+): boolean {
+  return (
+    factionCount === 2 &&
+    boardSize.columns === BOARD_SIZE_PRESETS.tiny.columns &&
+    boardSize.rows === BOARD_SIZE_PRESETS.tiny.rows
+  )
+}
+
+function getTinyRiverLayout(boardSize: BoardSize): {
+  river: Position[]
+  crossings: Position[]
+  approaches: Position[]
+  reservedKeys: Set<string>
+} {
+  const crossings = TINY_RIVER_CROSSING_ROWS.map((row) =>
+    fromDisplayPosition(row, TINY_RIVER_COLUMN, boardSize),
+  )
+  const approaches = TINY_RIVER_CROSSING_ROWS.flatMap((row) => [
+    fromDisplayPosition(row, TINY_RIVER_COLUMN - 1, boardSize),
+    fromDisplayPosition(row, TINY_RIVER_COLUMN + 1, boardSize),
+  ])
+  return {
+    river: Array.from({ length: boardSize.rows }, (_, row) =>
+      fromDisplayPosition(row, TINY_RIVER_COLUMN, boardSize),
+    ),
+    crossings,
+    approaches,
+    reservedKeys: new Set([...crossings, ...approaches].map(positionKey)),
+  }
+}
+
+function carveTinyRiver(tiles: Tile[], boardSize: BoardSize): Set<string> {
+  const layout = getTinyRiverLayout(boardSize)
+  const crossingKeys = new Set(layout.crossings.map(positionKey))
+  const approachKeys = new Set(layout.approaches.map(positionKey))
+
+  for (const tile of tiles) {
+    const key = positionKey(tile.position)
+    if (crossingKeys.has(key) || approachKeys.has(key)) {
+      tile.terrain = 'plain'
+      delete tile.terrainVariant
+    } else if (toDisplayPosition(tile.position, boardSize).column === TINY_RIVER_COLUMN) {
+      tile.terrain = 'water'
+      delete tile.terrainVariant
+    }
+  }
+
+  return new Set([...layout.river, ...layout.approaches].map(positionKey))
+}
+
 function getFactionIds(factionCount: FactionCount): FactionId[] {
   return (['f1', 'f2', 'f3', 'f4'] as const).slice(0, factionCount)
 }
@@ -311,11 +391,27 @@ function chooseCapitals(
   random: () => number,
   boardSize: BoardSize,
   factionCount: FactionCount,
+  reservedKeys: ReadonlySet<string>,
 ): Record<FactionId, Position> | undefined {
   const distance = getCapitalDistance(boardSize)
-  const candidates = getAllHexPositions(boardSize).filter(
-    (position) => getHexDistance(position, { q: 0, r: 0 }) === distance,
-  )
+  const candidates = getAllHexPositions(boardSize).filter((position) => {
+    if (getHexDistance(position, { q: 0, r: 0 }) !== distance) return false
+    if (reservedKeys.size === 0) return true
+
+    const capitalPositions =
+      factionCount === 2 ? [position, opposite(position, boardSize)] : [position]
+    return capitalPositions.every((capitalPosition) => {
+      if (reservedKeys.has(positionKey(capitalPosition))) return false
+      const footprint = findCastleFootprint(capitalPosition, boardSize)
+      return (
+        footprint !== undefined &&
+        footprint.every(
+          (footprintPosition) =>
+            !reservedKeys.has(positionKey(footprintPosition)),
+        )
+      )
+    })
+  })
   const factionIds = getFactionIds(factionCount)
 
   if (factionCount === 2) {
@@ -383,6 +479,7 @@ function chooseNeutralSites(
   random: () => number,
   boardSize: BoardSize,
   factionCount: FactionCount,
+  reservedKeys: ReadonlySet<string>,
 ): Site[] | undefined {
   const factionIds = getFactionIds(factionCount)
   const connected = getConnectedKeys(tiles, capitals[factionIds[0]], boardSize)
@@ -399,6 +496,7 @@ function chooseNeutralSites(
       .filter((position) => {
         return (
           connected.has(positionKey(position)) &&
+          !reservedKeys.has(positionKey(position)) &&
           getHexDistance(position, { q: 0, r: 0 }) >= 2
         )
       }),
@@ -598,6 +696,45 @@ export function validateGeneratedMap(state: GameState): string[] {
     issues.push('oasisPlacement')
   }
 
+  if (isTinyTwoPlayerBoard(state.boardSize, state.factionCount)) {
+    const layout = getTinyRiverLayout(state.boardSize)
+    const crossingKeys = new Set(layout.crossings.map(positionKey))
+    const occupiedUnitKeys = new Set(
+      state.units.map((unit) => positionKey(unit.position)),
+    )
+    const hasInvalidRiverTerrain = layout.river.some((position) => {
+      const key = positionKey(position)
+      const terrain = tilesByPosition.get(key)?.terrain
+      return crossingKeys.has(key) ? terrain !== 'plain' : terrain !== 'water'
+    })
+    const hasInvalidApproach = layout.approaches.some(
+      (position) => tilesByPosition.get(positionKey(position))?.terrain !== 'plain',
+    )
+    const hasReservedOccupant =
+      occupiedSiteEntries.some(({ key }) => layout.reservedKeys.has(key)) ||
+      [...layout.reservedKeys].some((key) => occupiedUnitKeys.has(key))
+    const passageConnected = layout.crossings.every((crossing, index) => {
+      const connectedFromCrossing = getConnectedKeys(
+        state.tiles,
+        crossing,
+        state.boardSize,
+      )
+      return (
+        connectedFromCrossing.has(positionKey(layout.approaches[index * 2])) &&
+        connectedFromCrossing.has(positionKey(layout.approaches[index * 2 + 1]))
+      )
+    })
+
+    if (
+      hasInvalidRiverTerrain ||
+      hasInvalidApproach ||
+      hasReservedOccupant ||
+      !passageConnected
+    ) {
+      issues.push('riverLayout')
+    }
+  }
+
   const capitals = Object.fromEntries(
     state.sites
       .filter((site) => site.capitalFor)
@@ -701,6 +838,7 @@ function createUnits(
   tiles: Tile[],
   boardSize: BoardSize,
   factionCount: FactionCount,
+  reservedKeys: ReadonlySet<string>,
 ): Unit[] {
   const passable = getPassableKeys(tiles)
   const names: Partial<Record<FactionId, readonly string[]>> = {
@@ -722,7 +860,11 @@ function createUnits(
       }
     }
     const positions = [...positionsByKey.values()]
-      .filter((position) => passable.has(positionKey(position)))
+      .filter(
+        (position) =>
+          passable.has(positionKey(position)) &&
+          !reservedKeys.has(positionKey(position)),
+      )
       .sort(
         (left, right) =>
           getHexDistance(left, capitals[factionId]) -
@@ -861,7 +1003,19 @@ function buildCandidate(
   const temperateTemperature = 0.55 + random() * 0.14
   const edgeTemperatures = createColdEdgeTemperatures(boardSize, random)
   const climateOffset = (random() - 0.5) * 0.04
-  const capitals = chooseCapitals(random, boardSize, factionCount)
+  const useTinyRiver = isTinyTwoPlayerBoard(boardSize, factionCount)
+  const tinyRiverLayout = useTinyRiver ? getTinyRiverLayout(boardSize) : undefined
+  const placementExcludedKeys = tinyRiverLayout
+    ? new Set(
+        [...tinyRiverLayout.river, ...tinyRiverLayout.approaches].map(positionKey),
+      )
+    : new Set<string>()
+  const capitals = chooseCapitals(
+    random,
+    boardSize,
+    factionCount,
+    placementExcludedKeys,
+  )
   if (!capitals) return undefined
   const castleFootprints = Object.fromEntries(
     getFactionIds(factionCount).map((factionId) => [
@@ -900,12 +1054,16 @@ function buildCandidate(
           mapType,
         ),
   }))
+  const protectedTerrainKeys = useTinyRiver
+    ? carveTinyRiver(tiles, boardSize)
+    : new Set<string>()
 
   for (const factionId of getFactionIds(factionCount)) {
     const localTiles = tiles.filter(
       (tile) => getHexDistance(tile.position, capitals[factionId]) <= 2,
     )
     for (const tile of localTiles) {
+      if (protectedTerrainKeys.has(positionKey(tile.position))) continue
       if (tile.terrain === 'water') tile.terrain = 'plain'
       if (tile.terrain === 'mountain') tile.terrain = 'hill'
       if (tile.terrain === 'tundraMountain') tile.terrain = 'tundra'
@@ -926,6 +1084,7 @@ function buildCandidate(
     random,
     boardSize,
     factionCount,
+    placementExcludedKeys,
   )
   if (!neutralSites) return undefined
   const sites = createSites(
@@ -972,6 +1131,7 @@ function buildCandidate(
       tiles,
       boardSize,
       factionCount,
+      placementExcludedKeys,
     ),
     sites,
   }

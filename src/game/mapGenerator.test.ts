@@ -12,10 +12,22 @@ import {
   GAME_SCHEMA_VERSION,
   MAP_GENERATION_VERSION,
 } from './types'
-import type { MapType, Terrain } from './types'
+import type { BoardSize, MapType, Terrain } from './types'
 import { HEX_TILE_COUNT } from './hex'
 
 const MAP_TYPES: MapType[] = ['balanced', 'plains', 'mountainous', 'forested']
+
+function getDisplayPositionKey(
+  row: number,
+  column: number,
+  boardSize: BoardSize = BOARD_SIZE_PRESETS.tiny,
+): string {
+  const r = row - Math.floor(boardSize.rows / 2)
+  return positionKey({
+    q: column - Math.floor(boardSize.columns / 2) - Math.floor(r / 2),
+    r,
+  })
+}
 
 describe('procedural map generation', () => {
   it('reproduces an identical state from the same seed', () => {
@@ -112,6 +124,127 @@ describe('procedural map generation', () => {
 
     expect(state.mapType).toBe(mapType)
     expect(validateGeneratedMap(state)).toEqual([])
+  })
+
+  it.each(
+    MAP_TYPES.flatMap((mapType) =>
+      ['river-alpha', 'river-bravo', 'river-charlie'].map(
+        (seed) => [mapType, seed] as const,
+      ),
+    ),
+  )('carves the tiny central river for %s map seed %s', (mapType, seed) => {
+    const state = generateGameState(seed, {
+      boardSize: BOARD_SIZE_PRESETS.tiny,
+      factionCount: 2,
+      humanFactionId: 'f1',
+      mapType,
+    })
+    const tilesByKey = new Map(
+      state.tiles.map((tile) => [positionKey(tile.position), tile]),
+    )
+    const crossingRows = new Set([3, 7])
+    const crossingKeys = [3, 7].map((row) => getDisplayPositionKey(row, 7))
+    const reservedKeys = new Set(
+      [3, 7].flatMap((row) =>
+        [6, 7, 8].map((column) => getDisplayPositionKey(row, column)),
+      ),
+    )
+
+    expect(
+      Array.from({ length: BOARD_SIZE_PRESETS.tiny.rows }, (_, row) =>
+        tilesByKey.get(getDisplayPositionKey(row, 7))?.terrain,
+      ),
+    ).toEqual(
+      Array.from({ length: BOARD_SIZE_PRESETS.tiny.rows }, (_, row) =>
+        crossingRows.has(row) ? 'plain' : 'water',
+      ),
+    )
+    expect(
+      [3, 7].flatMap((row) =>
+        [6, 8].map(
+          (column) => tilesByKey.get(getDisplayPositionKey(row, column))?.terrain,
+        ),
+      ),
+    ).toEqual(['plain', 'plain', 'plain', 'plain'])
+    expect(
+      crossingKeys.filter(
+        (key) => tilesByKey.get(key)?.terrain !== 'water',
+      ),
+    ).toHaveLength(2)
+    expect(
+      [...reservedKeys].every((key) => tilesByKey.get(key)?.siteId === undefined),
+    ).toBe(true)
+    expect(
+      state.units.every((unit) => !reservedKeys.has(positionKey(unit.position))),
+    ).toBe(true)
+  })
+
+  it('reproduces the tiny river map and placements from the same seed', () => {
+    const options = {
+      boardSize: BOARD_SIZE_PRESETS.tiny,
+      factionCount: 2 as const,
+      humanFactionId: 'f1' as const,
+      mapType: 'mountainous' as const,
+    }
+
+    expect(generateGameState('tiny-river-repeat', options)).toEqual(
+      generateGameState('tiny-river-repeat', options),
+    )
+  })
+
+  it.each([
+    ['crossing terrain', (state: ReturnType<typeof generateGameState>) => {
+      state.tiles.find(
+        (tile) => positionKey(tile.position) === getDisplayPositionKey(3, 7),
+      )!.terrain = 'water'
+    }],
+    ['river terrain', (state: ReturnType<typeof generateGameState>) => {
+      state.tiles.find(
+        (tile) => positionKey(tile.position) === getDisplayPositionKey(0, 7),
+      )!.terrain = 'plain'
+    }],
+    ['reserved unit', (state: ReturnType<typeof generateGameState>) => {
+      const tile = state.tiles.find(
+        (candidate) =>
+          positionKey(candidate.position) === getDisplayPositionKey(7, 8),
+      )!
+      state.units[0].position = { ...tile.position }
+    }],
+  ])('reports tiny river layout violations: %s', (_, mutate) => {
+    const state = generateGameState('invalid-river-layout', {
+      boardSize: BOARD_SIZE_PRESETS.tiny,
+      factionCount: 2,
+      humanFactionId: 'f1',
+    })
+    mutate(state)
+
+    expect(validateGeneratedMap(state)).toContain('riverLayout')
+  })
+
+  it('does not require the tiny river layout on other board sizes', () => {
+    const state = generateGameState('non-tiny-river', {
+      boardSize: BOARD_SIZE_PRESETS.small,
+      factionCount: 2,
+      humanFactionId: 'f1',
+      mapType: 'plains',
+    })
+
+    expect(validateGeneratedMap(state)).not.toContain('riverLayout')
+    expect(
+      Array.from({ length: state.boardSize.rows }, (_, row) => {
+        const key = getDisplayPositionKey(
+          row,
+          Math.floor(state.boardSize.columns / 2),
+          state.boardSize,
+        )
+        return state.tiles.find((tile) => positionKey(tile.position) === key)
+          ?.terrain
+      }),
+    ).not.toEqual(
+      Array.from({ length: state.boardSize.rows }, (_, row) =>
+        row === 3 || row === 7 ? 'plain' : 'water',
+      ),
+    )
   })
 
   it('creates different terrain and sites for a different seed', () => {
