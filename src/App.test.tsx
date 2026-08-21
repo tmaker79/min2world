@@ -550,6 +550,13 @@ describe('Milestone 07 UI', () => {
     await user.click(screen.getByRole('button', { name: '발전 확인' }))
     expect(screen.getByLabelText('거점 정보')).toHaveTextContent('도시')
     expect(container.querySelector('[data-development-footprint="true"]')).toBeNull()
+    const cityMarker = container.querySelector<HTMLElement>('.site-marker--city')!
+    expect(cityMarker).toHaveClass('site-marker--multi')
+    expect(cityMarker.querySelector('[data-site-icon="city"]')).toBeInTheDocument()
+    expect(cityMarker.parentElement).toHaveStyle({
+      width: '116px',
+      height: '115.5px',
+    })
 
     await user.click(screen.getByRole('tab', { name: '발전' }))
     expect(container.querySelector('[data-development-footprint="true"]')).toBeInTheDocument()

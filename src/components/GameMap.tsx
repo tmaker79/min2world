@@ -207,13 +207,15 @@ function getSiteOverlayStyle(
   minimumY: number,
 ): CSSProperties {
   const pixels = getSiteOccupiedPositions(site).map(getHexPixelPosition)
+  const left = Math.min(...pixels.map((pixel) => pixel.x))
+  const top = Math.min(...pixels.map((pixel) => pixel.y))
+  const right = Math.max(...pixels.map((pixel) => pixel.x)) + HEX_WIDTH
+  const bottom = Math.max(...pixels.map((pixel) => pixel.y)) + HEX_HEIGHT
   return {
-    left:
-      pixels.reduce((total, pixel) => total + pixel.x, 0) / pixels.length -
-      minimumX,
-    top:
-      pixels.reduce((total, pixel) => total + pixel.y, 0) / pixels.length -
-      minimumY,
+    left: left - minimumX,
+    top: top - minimumY,
+    width: right - left,
+    height: bottom - top,
   }
 }
 
@@ -473,7 +475,11 @@ function SiteMarker({
   return (
     <span className="map-overlay-cell" style={style}>
       <span
-        className={`site-marker site-marker--${site.kind} site-marker--${site.ownerId}${
+        className={`site-marker${
+          site.kind === 'city' || site.kind === 'castle'
+            ? ' site-marker--multi'
+            : ''
+        } site-marker--${site.kind} site-marker--${site.ownerId}${
           selected ? ' site-marker--selected' : ''
         }`}
         data-owner={site.ownerId}

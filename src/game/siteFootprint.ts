@@ -1,57 +1,45 @@
-import { getHexDistance, isPositionOnBoard, positionKey } from './hex'
+import { isPositionOnBoard, positionKey } from './hex'
 import type { BoardSize, Position, Site, Tile } from './types'
 
 export const CASTLE_FOOTPRINT_OFFSETS: readonly (readonly Position[])[] = [
   [
     { q: 0, r: 0 },
-    { q: 0, r: 1 },
     { q: 1, r: 0 },
-    { q: 1, r: 1 },
+    { q: 2, r: -1 },
+    { q: 1, r: -1 },
   ],
   [
     { q: 0, r: 0 },
     { q: 0, r: -1 },
-    { q: 1, r: -1 },
-    { q: 1, r: 0 },
-  ],
-  [
-    { q: 0, r: 0 },
-    { q: -1, r: 0 },
-    { q: -1, r: 1 },
-    { q: 0, r: 1 },
-  ],
-  [
-    { q: 0, r: 0 },
     { q: -1, r: -1 },
     { q: -1, r: 0 },
-    { q: 0, r: -1 },
+  ],
+  [
+    { q: 0, r: 0 },
+    { q: -1, r: 0 },
+    { q: -2, r: 1 },
+    { q: -1, r: 1 },
+  ],
+  [
+    { q: 0, r: 0 },
+    { q: 0, r: 1 },
+    { q: 1, r: 1 },
+    { q: 1, r: 0 },
   ],
 ]
 
-const CITY_FOOTPRINT_OFFSETS: readonly (readonly Position[])[] = (() => {
-  const candidates = new Map<string, Position[]>()
-  for (const castleOffsets of CASTLE_FOOTPRINT_OFFSETS) {
-    const nonAnchor = castleOffsets.filter(
-      (offset) => offset.q !== 0 || offset.r !== 0,
-    )
-    for (let left = 0; left < nonAnchor.length; left += 1) {
-      for (let right = left + 1; right < nonAnchor.length; right += 1) {
-        const offsets = [{ q: 0, r: 0 }, nonAnchor[left], nonAnchor[right]]
-        if (
-          offsets.every((offset, index) =>
-            offsets
-              .slice(index + 1)
-              .every((other) => getHexDistance(offset, other) === 1),
-          )
-        ) {
-          const key = offsets.map(positionKey).sort().join('|')
-          candidates.set(key, offsets)
-        }
-      }
-    }
-  }
-  return [...candidates.values()]
-})()
+const CITY_FOOTPRINT_OFFSETS: readonly (readonly Position[])[] = [
+  [
+    { q: 0, r: 0 },
+    { q: 1, r: 0 },
+    { q: 1, r: -1 },
+  ],
+  [
+    { q: 0, r: 0 },
+    { q: 0, r: -1 },
+    { q: -1, r: 0 },
+  ],
+]
 
 function applyOffsets(anchor: Position, offsets: readonly Position[]): Position[] {
   return offsets.map((offset) => ({

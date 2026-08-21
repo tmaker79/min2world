@@ -56,8 +56,17 @@ describe('site development', () => {
   it('returns every available city footprint and rejects blocked new cells', () => {
     const state = developmentState()
     const candidates = getSiteDevelopmentFootprints(state, 'site-1')
-    expect(candidates).toHaveLength(6)
+    expect(candidates).toHaveLength(2)
     expect(candidates.every((candidate) => candidate.length === 3)).toBe(true)
+    expect(
+      candidates.every((candidate) => {
+        const rows = new Map<number, number>()
+        for (const position of candidate) {
+          rows.set(position.r, (rows.get(position.r) ?? 0) + 1)
+        }
+        return [...rows.values()].sort().join(',') === '1,2'
+      }),
+    ).toBe(true)
 
     const blockedPosition = candidates[0].find(
       (position) => position.q !== 0 || position.r !== 0,
