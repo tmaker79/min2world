@@ -201,6 +201,47 @@ describe('Milestone 07 UI', () => {
     expect(screen.queryByLabelText('부대 정보')).not.toBeInTheDocument()
   })
 
+  it('suppresses all tooltips while choosing an attack target', () => {
+    vi.useFakeTimers()
+    const initial = createInitialGameState('ui-attack-target-tooltip')
+    const attacker: Unit = {
+      ...initial.units.find((unit) => unit.factionId === 'player')!,
+      id: 'tooltip-archer',
+      type: 'archer',
+      position: { q: 0, r: 0 },
+      hasActed: false,
+    }
+    const defender: Unit = {
+      ...initial.units.find((unit) => unit.factionId === 'enemy')!,
+      id: 'tooltip-target',
+      position: { q: 1, r: 0 },
+    }
+    const state = {
+      ...initial,
+      selectedUnitId: attacker.id,
+      units: [attacker, defender],
+    }
+    const { container } = renderApp(state)
+    const terrainTile = container.querySelector<HTMLButtonElement>(
+      `[data-coordinate="${positionKey({ q: 0, r: 1 })}"]`,
+    )!
+    const targetTile = container.querySelector<HTMLButtonElement>(
+      `[data-coordinate="${positionKey(defender.position)}"]`,
+    )!
+
+    fireEvent.mouseEnter(terrainTile)
+    act(() => vi.advanceTimersByTime(1000))
+    expect(document.querySelector('[data-terrain-tooltip]')).toBeNull()
+
+    fireEvent.mouseLeave(terrainTile)
+    fireEvent.mouseEnter(targetTile)
+    act(() => vi.advanceTimersByTime(1000))
+    expect(
+      document.querySelector(`[data-unit-tooltip="${defender.id}"]`),
+    ).toBeNull()
+    vi.useRealTimers()
+  })
+
   it('selects a unit with keyboard Enter and exposes reachable hexes', async () => {
     const user = userEvent.setup()
     const state = createInitialGameState('ui-keyboard')
@@ -651,7 +692,11 @@ describe('Milestone 07 UI', () => {
     expect(target).toHaveAttribute('data-attackable-site', 'true')
 
     fireEvent.click(target)
+    expect(container.querySelector('[data-testid="arrow-volley"]')).toBeInTheDocument()
+    expect(container.querySelector(`[data-unit-id="${winner.id}"]`))
+      .not.toHaveClass('unit-token--striking')
     act(() => vi.advanceTimersByTime(20))
+    expect(container.querySelector('[data-testid="arrow-volley"]')).toBeNull()
     expect(capitalMarker).toHaveClass('site-marker--hit')
     expect(container.querySelector('.damage-popup')).toHaveTextContent('-1')
     expect(
@@ -694,12 +739,54 @@ describe('Milestone 07 UI', () => {
     fireEvent.click(container.querySelector<HTMLButtonElement>(
       `.map-tile[data-coordinate="${positionKey(capital.position)}"]`,
     )!)
-    act(() => vi.advanceTimersByTime(70))
+    expect(container.querySelector('[data-testid="arrow-volley"]')).toBeInTheDocument()
+    expect(container.querySelector(`[data-unit-id="${attacker.id}"]`))
+      .not.toHaveClass('unit-token--striking')
+    act(() => vi.advanceTimersByTime(20))
+    expect(container.querySelector('[data-testid="arrow-volley"]')).toBeNull()
+    expect(container.querySelector(`[data-unit-id="${defender.id}"]`))
+      .toHaveClass('unit-token--hit')
+    expect(container.querySelector('.damage-popup')).toBeInTheDocument()
+    act(() => vi.advanceTimersByTime(50))
 
     expect(container.querySelector(`[data-unit-id="${defender.id}"]`))
       .not.toHaveAttribute('data-health', '100/100')
     expect(container.querySelector(`[data-site-id="${capital.id}"]`))
       .toHaveAttribute('data-health', '120/120')
+    vi.useRealTimers()
+  })
+
+  it('keeps the melee strike animation and does not render arrows for non-archers', () => {
+    vi.useFakeTimers()
+    const initial = createInitialGameState('ui-melee-strike')
+    const defender = initial.units.find(
+      (unit) => unit.factionId !== initial.humanFactionId,
+    )!
+    const attacker: Unit = {
+      id: 'melee-attacker',
+      name: 'melee attacker',
+      factionId: initial.humanFactionId,
+      type: 'infantry',
+      position: getHexNeighbors(defender.position, initial.boardSize)[0],
+      hp: 100,
+      maxHp: 100,
+      movementRemaining: 2,
+      hasActed: false,
+    }
+    const state = {
+      ...initial,
+      selectedUnitId: attacker.id,
+      units: [attacker, defender],
+    }
+    const { container } = renderApp(state)
+
+    fireEvent.click(container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(defender.position)}"]`,
+    )!)
+
+    expect(container.querySelector('[data-testid="arrow-volley"]')).toBeNull()
+    expect(container.querySelector(`[data-unit-id="${attacker.id}"]`))
+      .toHaveClass('unit-token--striking')
     vi.useRealTimers()
   })
 })

@@ -48,6 +48,7 @@ import type {
 } from '../game/types'
 import { getSiteOccupiedPositions } from '../game/siteFootprint'
 import { useMapViewport } from '../hooks/useMapViewport'
+import { ArrowVolley } from './ArrowVolley'
 import { SiteIcon } from './SiteIcon'
 import { hasTerrainImage, TerrainIcon } from './TerrainIcon'
 import { UnitIcon } from './UnitIcon'
@@ -596,13 +597,16 @@ function UnitMarker({
   const isAttacker = unit.id === combatAnimation?.attackerId
   const isSiteAttacker = unit.id === siteAttackAnimation?.attackerId
   const isDefender = unit.id === combatAnimation?.defenderId
+  const usesArrowVolley = unit.type === 'archer'
   const meleeExchange = Boolean(
     combatAnimation && combatAnimation.damageToAttacker > 0,
   )
   const isStriking =
     (combatAnimation?.phase === 'attack' &&
-      (isAttacker || (isDefender && meleeExchange))) ||
-    (siteAttackAnimation?.phase === 'attack' && isSiteAttacker)
+      ((isAttacker && !usesArrowVolley) || (isDefender && meleeExchange))) ||
+    (siteAttackAnimation?.phase === 'attack' &&
+      isSiteAttacker &&
+      !usesArrowVolley)
   const isHit =
     combatAnimation?.phase === 'hit' &&
     ((isDefender && combatAnimation.damageToDefender > 0) ||
@@ -688,10 +692,27 @@ function GameMapComponent({
   const hoveredTerrainKeyRef = useRef<string | undefined>(undefined)
   const hoverElementRef = useRef<HTMLElement | null>(null)
   const unitTokenRefs = useRef(new Map<string, HTMLSpanElement>())
+  const suppressTooltips =
+    attackableKeys.size > 0 || attackableSiteKeys.size > 0
 
   useEffect(() => {
     return () => window.clearTimeout(hoverTimerRef.current)
   }, [])
+
+  useEffect(() => {
+    if (!suppressTooltips) return
+
+    window.clearTimeout(hoverTimerRef.current)
+    hoveredUnitIdRef.current = undefined
+    hoveredTerrainKeyRef.current = undefined
+    const frame = window.requestAnimationFrame(() => {
+      setHoveredUnitId(undefined)
+      setHoveredTerrainKey(undefined)
+      hoverElementRef.current = null
+      setTooltipAnchor(undefined)
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [suppressTooltips])
 
   useLayoutEffect(() => {
     if (!hoveredUnitId && !hoveredTerrainKey) {
@@ -747,6 +768,16 @@ function GameMapComponent({
       return
     }
 
+    if (suppressTooltips) {
+      hoveredUnitIdRef.current = undefined
+      hoveredTerrainKeyRef.current = undefined
+      hoverElementRef.current = null
+      setHoveredUnitId(undefined)
+      setHoveredTerrainKey(undefined)
+      setTooltipAnchor(undefined)
+      return
+    }
+
     const applyHover = () => {
       hoverElementRef.current = target.element
       if (target.kind === 'unit') {
@@ -779,7 +810,7 @@ function GameMapComponent({
       applyHover,
       MAP_TOOLTIP_SHOW_DELAY_MS,
     )
-  }, [])
+  }, [suppressTooltips])
 
   const layout = useMemo(() => {
     const positionedTiles = state.tiles.map((tile) => ({
@@ -956,6 +987,20 @@ function GameMapComponent({
             Boolean(effect.unit) && effect.damage > 0,
         )
       : []
+  const combatVolleyAttacker =
+    combatAnimation?.phase === 'attack'
+      ? state.units.find(
+          (unit) =>
+            unit.id === combatAnimation.attackerId && unit.type === 'archer',
+        )
+      : undefined
+  const siteVolleyAttacker =
+    siteAttackAnimation?.phase === 'attack'
+      ? state.units.find(
+          (unit) =>
+            unit.id === siteAttackAnimation.attackerId && unit.type === 'archer',
+        )
+      : undefined
   const hoveredUnit = hoveredUnitId
     ? state.units.find((unit) => unit.id === hoveredUnitId)
     : undefined
@@ -1086,6 +1131,22 @@ function GameMapComponent({
       </div>
 
       <div className="map-layer map-layer--effects" aria-hidden="true">
+        {combatVolleyAttacker && combatAnimation && (
+          <ArrowVolley
+            attacker={combatAnimation.attackerPosition}
+            target={combatAnimation.defenderPosition}
+            minimumX={minimumX}
+            minimumY={minimumY}
+          />
+        )}
+        {siteVolleyAttacker && siteAttackAnimation && (
+          <ArrowVolley
+            attacker={siteAttackAnimation.attackerPosition}
+            target={siteAttackAnimation.sitePosition}
+            minimumX={minimumX}
+            minimumY={minimumY}
+          />
+        )}
         {hitEffects.map(({ unit, damage }) => (
           <span
             key={unit.id}
@@ -1110,7 +1171,7 @@ function GameMapComponent({
           )}
       </div>
 
-      {hoveredUnit && hoveredUnitTile && tooltipAnchor && (
+      {!suppressTooltips && hoveredUnit && hoveredUnitTile && tooltipAnchor && (
         <UnitTooltip
           unit={hoveredUnit}
           tile={hoveredUnitTile}
@@ -1118,14 +1179,17 @@ function GameMapComponent({
           anchor={tooltipAnchor}
         />
       )}
-      {!hoveredUnit && hoveredTerrain && tooltipAnchor && (
+      {!suppressTooltips &&
+        !hoveredUnit &&
+        hoveredTerrain &&
+        tooltipAnchor && (
         <TerrainTooltip
           tile={hoveredTerrain}
           site={hoveredTerrainSite}
           placement={hoveredTooltipPlacement}
           anchor={tooltipAnchor}
         />
-      )}
+        )}
 
       {combatAnimation && (
         <span className="sr-only" role="status" aria-live="polite">

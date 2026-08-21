@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import type { Dispatch } from 'react'
 import { chooseAiAction } from '../game/ai'
-import { gameReducer } from '../game/reducer'
+import { getHexDistance } from '../game/hex'
 import {
   getSiteMaxHp,
   SITE_TYPE_LABELS,
   UNIT_TYPE_LABELS,
 } from '../game/rules'
 import { getSiteDevelopmentTarget } from '../game/siteDevelopment'
+import { getSiteOccupiedPositions } from '../game/siteFootprint'
 import type { GameAction, GameState } from '../game/types'
 
 type UseAiTurnOptions = {
@@ -15,6 +16,11 @@ type UseAiTurnOptions = {
   combatActive: boolean
   dispatch: Dispatch<GameAction>
   startCombat: (attackerId: string, defenderId: string) => void
+  startSiteAttack: (
+    attackerId: string,
+    siteId: string,
+    sitePosition: GameState['sites'][number]['position'],
+  ) => boolean
 }
 
 export function getAiActionAnnouncement(
@@ -103,25 +109,15 @@ export function useAiTurn({
   combatActive,
   dispatch,
   startCombat,
+  startSiteAttack,
 }: UseAiTurnOptions) {
   const [announcement, setAnnouncement] = useState('')
-  const [siteCombatWaiting, setSiteCombatWaiting] = useState(false)
-
-  useEffect(() => {
-    if (!siteCombatWaiting) {
-      return
-    }
-
-    const timer = window.setTimeout(() => setSiteCombatWaiting(false), 450)
-    return () => window.clearTimeout(timer)
-  }, [siteCombatWaiting])
 
   useEffect(() => {
     if (
       state.phase !== 'playing' ||
       state.activeFactionId === state.humanFactionId ||
-      combatActive ||
-      siteCombatWaiting
+      combatActive
     ) {
       return
     }
@@ -143,13 +139,32 @@ export function useAiTurn({
         }
 
         if (action.type === 'siteAttacked') {
-          const nextState = gameReducer(state, action)
-          setAnnouncement(getAiActionAnnouncement(state, action, nextState))
-          dispatch(action)
-          if (nextState === state) {
+          const attacker = state.units.find(
+            (unit) => unit.id === action.attackerId,
+          )
+          const site = state.sites.find(
+            (candidate) => candidate.id === action.siteId,
+          )
+          if (!attacker || !site) {
+            dispatch({ type: 'unitWaited', unitId: action.attackerId })
+            return
+          }
+          const targetPosition = [...getSiteOccupiedPositions(site)].sort(
+            (left, right) =>
+              getHexDistance(attacker.position, left) -
+                getHexDistance(attacker.position, right) ||
+              left.r - right.r ||
+              left.q - right.q,
+          )[0]
+          setAnnouncement(getAiActionAnnouncement(state, action))
+          const started = startSiteAttack(
+            action.attackerId,
+            action.siteId,
+            targetPosition,
+          )
+          if (started === false) {
             dispatch({ type: 'unitWaited', unitId: action.attackerId })
           }
-          setSiteCombatWaiting(true)
           return
         }
 
@@ -160,7 +175,7 @@ export function useAiTurn({
     )
 
     return () => window.clearTimeout(timer)
-  }, [combatActive, dispatch, siteCombatWaiting, startCombat, state])
+  }, [combatActive, dispatch, startCombat, startSiteAttack, state])
 
   return announcement
 }

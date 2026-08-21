@@ -90,11 +90,12 @@ describe('useAiTurn announcements', () => {
     )
   })
 
-  it('selects, pauses, attacks a site, then waits 450ms before continuing', () => {
+  it('starts AI site combat through the App callback without dispatching damage early', () => {
     vi.useFakeTimers()
     const initial = siegeState()
     const dispatched = vi.fn<(action: GameAction) => void>()
     const startCombat = vi.fn()
+    const startSiteAttack = vi.fn(() => true)
     const { result } = renderHook(() => {
       const [state, reduce] = useReducer(gameReducer, initial)
       const dispatch = useCallback((action: GameAction) => {
@@ -106,6 +107,7 @@ describe('useAiTurn announcements', () => {
         combatActive: false,
         dispatch,
         startCombat,
+        startSiteAttack,
       })
       return { state, announcement }
     })
@@ -118,18 +120,13 @@ describe('useAiTurn announcements', () => {
     act(() => vi.advanceTimersByTime(50))
     expect(dispatched.mock.calls.map(([action]) => action.type)).toEqual([
       'unitSelected',
-      'siteAttacked',
     ])
-    expect(result.current.announcement).toMatch(/피해/)
+    expect(startSiteAttack).toHaveBeenCalledWith(
+      initial.units[0].id,
+      initial.sites[0].id,
+      initial.sites[0].position,
+    )
+    expect(result.current.announcement).toBe('AI 거점 공격')
     expect(startCombat).not.toHaveBeenCalled()
-
-    act(() => vi.advanceTimersByTime(449))
-    expect(dispatched).toHaveBeenCalledTimes(2)
-    act(() => vi.advanceTimersByTime(1))
-    expect(dispatched).toHaveBeenCalledTimes(2)
-    act(() => vi.advanceTimersByTime(49))
-    expect(dispatched).toHaveBeenCalledTimes(2)
-    act(() => vi.advanceTimersByTime(1))
-    expect(dispatched.mock.calls[2][0]).toEqual({ type: 'turnEnded' })
   })
 })

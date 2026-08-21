@@ -293,7 +293,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     ) => {
       const attacker = state.units.find((unit) => unit.id === attackerId)
       const site = state.sites.find((candidate) => candidate.id === siteId)
-      if (!attacker || !site) return
+      if (!attacker || !site) return false
 
       const beforeHp = site.hp ?? getSiteMaxHp(site) ?? 0
       const result = resolveSiteCombat(state, attacker, site)
@@ -312,6 +312,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
         damage,
         captured,
       })
+      return true
     },
     [state],
   )
@@ -321,6 +322,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     combatActive: Boolean(activeCombat || activeSiteAttack),
     dispatch,
     startCombat,
+    startSiteAttack,
   })
 
   const canSave =
@@ -420,9 +422,15 @@ function GameApp({ initialState }: { initialState: GameState }) {
     const reducedMotion = window.matchMedia?.(
       '(prefers-reduced-motion: reduce)',
     ).matches
+    const usesArrowVolley = state.units.some(
+      (unit) =>
+        unit.id === activeCombat.attackerId && unit.type === 'archer',
+    )
     const timings = reducedMotion
       ? { hit: 20, complete: 70 }
-      : { hit: 220, complete: 560 }
+      : usesArrowVolley
+        ? { hit: 900, complete: 1300 }
+        : { hit: 220, complete: 560 }
     const timers: number[] = []
 
     timers.push(
@@ -441,7 +449,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     )
 
     return () => timers.forEach(window.clearTimeout)
-  }, [activeCombat])
+  }, [activeCombat, state.units])
 
   useEffect(() => {
     if (!activeSiteAttack) return
@@ -452,9 +460,15 @@ function GameApp({ initialState }: { initialState: GameState }) {
     const reducedMotion = window.matchMedia?.(
       '(prefers-reduced-motion: reduce)',
     ).matches
+    const usesArrowVolley = state.units.some(
+      (unit) =>
+        unit.id === activeSiteAttack.attackerId && unit.type === 'archer',
+    )
     const timings = reducedMotion
       ? { hit: 20, complete: 70 }
-      : { hit: 220, complete: 560 }
+      : usesArrowVolley
+        ? { hit: 900, complete: 1300 }
+        : { hit: 220, complete: 560 }
     const timers = [
       window.setTimeout(() => {
         setCombatPhase('hit')
@@ -477,7 +491,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     ]
 
     return () => timers.forEach(window.clearTimeout)
-  }, [activeSiteAttack, state.sites])
+  }, [activeSiteAttack, state.sites, state.units])
 
   useEffect(() => {
     if (

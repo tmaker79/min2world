@@ -1758,6 +1758,70 @@
   animation: damage-rise 380ms ease-out forwards;
 }
 
+.arrow-volley {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.arrow-volley__arrow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 14px;
+  height: 5px;
+  opacity: 0;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.95));
+  transform-origin: 0 50%;
+  animation: arrow-volley-flight 420ms cubic-bezier(0.24, 0.72, 0.4, 1)
+    var(--arrow-delay) both;
+}
+
+.arrow-volley__shaft {
+  position: absolute;
+  top: 2px;
+  left: 0;
+  width: 10px;
+  height: 1.5px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #fff1aa 0%, #b26a23 48%, #5f2d12 100%);
+  box-shadow: 0 0 2px rgba(255, 226, 135, 0.85);
+}
+
+.arrow-volley__shaft::before,
+.arrow-volley__shaft::after {
+  position: absolute;
+  left: 0;
+  width: 4px;
+  height: 1.5px;
+  background: #d94f3f;
+  content: "";
+  transform-origin: right center;
+}
+
+.arrow-volley__shaft::before {
+  top: -2px;
+  transform: rotate(25deg);
+}
+
+.arrow-volley__shaft::after {
+  top: 2px;
+  transform: rotate(-25deg);
+}
+
+.arrow-volley__head {
+  position: absolute;
+  top: 0;
+  left: 9px;
+  width: 0;
+  height: 0;
+  border-top: 2.5px solid transparent;
+  border-bottom: 2.5px solid transparent;
+  border-left: 5px solid #e8edf0;
+  filter: drop-shadow(0 0 1px #101820);
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -1896,14 +1960,66 @@
   }
 }
 
+@keyframes arrow-volley-flight {
+  0% {
+    opacity: 0;
+    transform:
+      translate(var(--arrow-start-x), var(--arrow-start-y))
+      rotate(var(--arrow-start-angle))
+      scale(0.85);
+  }
+
+  12% {
+    opacity: 1;
+  }
+
+  28% {
+    opacity: 1;
+    transform:
+      translate(var(--arrow-rise-x), var(--arrow-rise-y))
+      rotate(var(--arrow-rise-angle))
+      scale(0.94);
+  }
+
+  52% {
+    opacity: 1;
+    transform:
+      translate(var(--arrow-mid-x), var(--arrow-mid-y))
+      rotate(var(--arrow-mid-angle))
+      scale(1);
+  }
+
+  76% {
+    opacity: 1;
+    transform:
+      translate(var(--arrow-descent-x), var(--arrow-descent-y))
+      rotate(var(--arrow-end-angle))
+      scale(1);
+  }
+
+  92% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform:
+      translate(var(--arrow-end-x), var(--arrow-end-y))
+      rotate(var(--arrow-end-angle))
+      scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .unit-token--striking,
   .unit-token--hit,
   .unit-token--defeated,
   .site-marker--hit,
   .site-marker--selected,
-  .damage-popup {
+  .damage-popup,
+  .arrow-volley__arrow {
     animation-duration: 1ms;
+    animation-delay: 0ms;
   }
 
   .start-screen__actions button,
