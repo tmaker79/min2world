@@ -13,6 +13,7 @@ import {
   findCastleFootprint,
   getSiteOccupiedPositions,
   isValidCastleFootprint,
+  isValidCityFootprint,
 } from './siteFootprint'
 import {
   FOREST_TERRAIN_VARIANT_COUNT,
@@ -42,7 +43,13 @@ const MAX_GENERATION_ATTEMPTS = 128
 const STANDARD_CAPITAL_DISTANCE = 18
 const STANDARD_CAPITAL_DISTANCE_REFERENCE_COLUMNS = 42
 const OASIS_FEATURE_THRESHOLD = 0.95
-const SITE_PAIR_TYPES: readonly SiteType[] = ['village', 'farm', 'mine']
+const NEUTRAL_SITE_TYPES: readonly SiteType[] = [
+  'outpost',
+  'village',
+  'farm',
+  'mine',
+  'blacksmith',
+]
 const STARTING_UNIT_TYPES: readonly UnitType[] = [
   'infantry',
   'infantry',
@@ -393,8 +400,8 @@ function chooseNeutralSites(
     random,
   )
 
-  for (let index = 0; index < factionCount * SITE_PAIR_TYPES.length; index += 1) {
-    const kind = SITE_PAIR_TYPES[index % SITE_PAIR_TYPES.length]
+  for (let index = 0; index < factionCount * NEUTRAL_SITE_TYPES.length; index += 1) {
+    const kind = NEUTRAL_SITE_TYPES[index % NEUTRAL_SITE_TYPES.length]
     const position = candidates.find((candidate) => {
       const tile = tilesByPosition.get(positionKey(candidate))
       return (
@@ -410,10 +417,13 @@ function chooseNeutralSites(
 
   return sites.map(({ kind, position }, index) => ({
     id: `site-${kind}-${index + 1}`,
-    name: `${kind === 'village' ? '중립 마을' : kind === 'farm' ? '중립 농장' : '중립 광산'} ${Math.floor(index / SITE_PAIR_TYPES.length) + 1}`,
+    name: `${kind === 'outpost' ? '중립 전초기지' : kind === 'village' ? '중립 마을' : kind === 'farm' ? '중립 농장' : kind === 'mine' ? '중립 광산' : '중립 대장간'} ${Math.floor(index / NEUTRAL_SITE_TYPES.length) + 1}`,
     kind,
     position: { ...position },
     ownerId: 'neutral',
+    ...(kind === 'farm' || kind === 'mine' || kind === 'blacksmith'
+      ? { level: 1 as const }
+      : {}),
   }))
 }
 
@@ -456,7 +466,7 @@ export function validateGeneratedMap(state: GameState): string[] {
   const issues: string[] = []
   const factionIds = state.factionOrder
   if (state.tiles.length !== getAllHexPositions(state.boardSize).length) issues.push('tileCount')
-  if (state.sites.length !== state.factionCount * (SITE_PAIR_TYPES.length + 1)) {
+  if (state.sites.length !== state.factionCount * (NEUTRAL_SITE_TYPES.length + 1)) {
     issues.push('siteCount')
   }
 
@@ -492,6 +502,40 @@ export function validateGeneratedMap(state: GameState): string[] {
     )
   ) {
     issues.push('castleFootprint')
+  }
+  if (
+    state.sites.some(
+      (site) =>
+        site.kind === 'city' &&
+        (!site.footprint ||
+          !isValidCityFootprint(
+            site.position,
+            site.footprint,
+            state.boardSize,
+          )),
+    )
+  ) {
+    issues.push('cityFootprint')
+  }
+  const specialKinds: readonly SiteType[] = ['farm', 'mine', 'blacksmith']
+  if (
+    state.sites.some((site) =>
+      specialKinds.includes(site.kind)
+        ? site.level !== 1
+        : site.level !== undefined,
+    )
+  ) {
+    issues.push('siteLevels')
+  }
+  if (
+    NEUTRAL_SITE_TYPES.some(
+      (kind) =>
+        state.sites.filter(
+          (site) => site.ownerId === 'neutral' && site.kind === kind,
+        ).length !== state.factionCount,
+    )
+  ) {
+    issues.push('neutralDistribution')
   }
   const siteIdByPosition = new Map(
     occupiedSiteEntries.map(({ key, site }) => [key, site.id]),

@@ -191,8 +191,8 @@ describe('procedural map generation', () => {
   })
 
   it('uses conifer forest for cold and moist regions', () => {
-    const states = ['taiga-alpha', 'taiga-bravo', 'taiga-charlie'].map(
-      (seed) => generateGameState(seed),
+    const states = Array.from({ length: 12 }, (_, index) =>
+      generateGameState(`taiga-${index}`),
     )
     const tundraForests = states.flatMap((state) =>
       state.tiles.filter((tile) => tile.terrain === 'tundraForest'),
@@ -339,7 +339,7 @@ describe('procedural map generation', () => {
       expect(state.tiles.map((tile) => tile.terrain)).not.toContain('road')
       expect(state.tiles.map((tile) => tile.terrain)).not.toContain('grassland')
       expect(state.tiles.map((tile) => tile.terrain)).not.toContain('steppe')
-      expect(state.sites).toHaveLength(8)
+      expect(state.sites).toHaveLength(12)
       expect(state.units).toHaveLength(6)
       const tilesByPosition = new Map(
         state.tiles.map((tile) => [positionKey(tile.position), tile]),
@@ -356,10 +356,22 @@ describe('procedural map generation', () => {
           ),
         ).toBe(true)
       }
+      expect(state.sites.filter((site) => site.kind === 'outpost')).toHaveLength(2)
       expect(state.sites.filter((site) => site.kind === 'village')).toHaveLength(2)
       expect(state.sites.filter((site) => site.kind === 'farm')).toHaveLength(2)
       expect(state.sites.filter((site) => site.kind === 'mine')).toHaveLength(2)
+      expect(state.sites.filter((site) => site.kind === 'blacksmith')).toHaveLength(2)
       expect(state.sites.filter((site) => site.kind === 'city')).toHaveLength(0)
+      expect(
+        state.sites
+          .filter(
+            (site) =>
+              site.kind === 'farm' ||
+              site.kind === 'mine' ||
+              site.kind === 'blacksmith',
+          )
+          .every((site) => site.level === 1),
+      ).toBe(true)
       expect(
         state.sites
           .filter((site) => site.kind === 'farm')
@@ -395,7 +407,15 @@ describe('procedural map generation', () => {
     expect(validateGeneratedMap(state)).toEqual([])
     expect(state.tiles).toHaveLength(boardSize.columns * boardSize.rows)
     expect(state.factionOrder).toHaveLength(factionCount)
+    expect(state.sites).toHaveLength(factionCount * 6)
     expect(state.sites.filter((site) => site.capitalFor)).toHaveLength(factionCount)
+    for (const kind of ['outpost', 'village', 'farm', 'mine', 'blacksmith'] as const) {
+      expect(
+        state.sites.filter(
+          (site) => site.ownerId === 'neutral' && site.kind === kind,
+        ),
+      ).toHaveLength(factionCount)
+    }
     expect(state.units).toHaveLength(factionCount * 3)
   })
 

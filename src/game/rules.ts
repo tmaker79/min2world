@@ -53,22 +53,93 @@ export const UNIT_TYPE_LABELS: Record<UnitType, string> = {
 }
 
 export const SITE_STATS: Record<SiteType, SiteStats> = {
+  outpost: { income: 2, canProduce: true },
+  keep: { income: 3, canProduce: true },
   stronghold: { income: 5, canProduce: true },
-  castle: { income: 5, canProduce: true },
-  village: { income: 4, canProduce: false },
+  village: { income: 3, canProduce: false },
+  city: { income: 5, canProduce: false },
+  castle: { income: 7, canProduce: true },
   farm: { income: 2, canProduce: false },
   mine: { income: 3, canProduce: false },
-  // Reserved until cities are implemented.
-  city: { income: 0, canProduce: false },
+  blacksmith: { income: 2, canProduce: false },
 }
 
 export const SITE_TYPE_LABELS: Record<SiteType, string> = {
-  stronghold: '성',
+  outpost: '전초기지',
+  keep: '요새',
+  stronghold: '성채',
   castle: '성',
   village: '마을',
   farm: '농장',
   mine: '광산',
   city: '도시',
+  blacksmith: '대장간',
+}
+
+const PRODUCIBLE_UNIT_TYPES: Record<SiteType, readonly UnitType[]> = {
+  outpost: ['infantry'],
+  keep: ['infantry', 'spearman', 'archer'],
+  stronghold: UNIT_TYPES,
+  village: [],
+  city: [],
+  castle: UNIT_TYPES,
+  farm: [],
+  mine: [],
+  blacksmith: [],
+}
+
+export function getSiteLevel(site: Site): 1 | 2 | 3 {
+  return site.level ?? 1
+}
+
+export function getSiteIncome(site: Site): number {
+  const level = getSiteLevel(site)
+  if (site.kind === 'farm' || site.kind === 'blacksmith') return level + 1
+  if (site.kind === 'mine') return level + 2
+  return SITE_STATS[site.kind].income
+}
+
+export function getProducibleUnitTypes(site: Site): readonly UnitType[] {
+  return PRODUCIBLE_UNIT_TYPES[site.kind]
+}
+
+export function canSiteProduceUnit(site: Site, unitType: UnitType): boolean {
+  return getProducibleUnitTypes(site).includes(unitType)
+}
+
+export function getBlacksmithProductionDiscount(
+  state: GameState,
+  factionId: FactionId,
+  unitType: UnitType,
+): number {
+  const level = Math.max(
+    0,
+    ...state.sites
+      .filter((site) => site.ownerId === factionId && site.kind === 'blacksmith')
+      .map(getSiteLevel),
+  )
+  if (level >= 3) return 2
+  if (
+    level >= 1 &&
+    (unitType === 'infantry' ||
+      unitType === 'spearman' ||
+      (level >= 2 && unitType === 'archer'))
+  ) {
+    return 1
+  }
+  return 0
+}
+
+export function getUnitProductionCost(
+  state: GameState,
+  factionId: FactionId,
+  unitType: UnitType,
+): number {
+  return Math.max(
+    0,
+    UNIT_STATS[unitType].cost -
+      getBlacksmithProductionDiscount(state, factionId, unitType),
+  )
 }
 
 export const TERRAIN_MOVEMENT_COST: Record<Terrain, number | null> = {
@@ -368,7 +439,7 @@ export function getFactionIncome(
 ): number {
   return state.sites
     .filter((site) => site.ownerId === factionId)
-    .reduce((total, site) => total + SITE_STATS[site.kind].income, 0)
+    .reduce((total, site) => total + getSiteIncome(site), 0)
 }
 
 export function captureSiteAt(

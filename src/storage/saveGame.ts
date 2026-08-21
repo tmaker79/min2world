@@ -10,6 +10,7 @@ import { cloneGameState } from '../game/state'
 import {
   getSiteOccupiedPositions,
   isValidCastleFootprint,
+  isValidCityFootprint,
 } from '../game/siteFootprint'
 import { SITE_STATS, TERRAIN_MOVEMENT_COST, UNIT_STATS } from '../game/rules'
 import {
@@ -72,10 +73,13 @@ const TERRAINS = new Set<Terrain>([
 ])
 const UNIT_TYPES = new Set<UnitType>(['infantry', 'cavalry', 'archer', 'spearman'])
 const SITE_TYPES = new Set<SiteType>([
+  'outpost',
+  'keep',
   'stronghold',
   'village',
   'farm',
   'mine',
+  'blacksmith',
   'city',
   'castle',
 ])
@@ -190,12 +194,14 @@ function parseSite(value: unknown, boardSize: BoardSize): Site | undefined {
     !SITE_OWNERS.has(value.ownerId as SiteOwnerId) ||
     (value.capitalFor !== undefined &&
       (typeof value.capitalFor !== 'string' || !FACTIONS.has(value.capitalFor as FactionId))) ||
-    (value.lastProducedTurn !== undefined && !isIntegerInRange(value.lastProducedTurn, 1))
+    (value.lastProducedTurn !== undefined && !isIntegerInRange(value.lastProducedTurn, 1)) ||
+    (value.lastDevelopedTurn !== undefined && !isIntegerInRange(value.lastDevelopedTurn, 1))
   ) {
     return undefined
   }
   const position = parsePosition(value.position, boardSize)
   const kind = value.kind as SiteType
+  const requiresLevel = kind === 'farm' || kind === 'mine' || kind === 'blacksmith'
   const footprint = Array.isArray(value.footprint)
     ? value.footprint.map((candidate) => parsePosition(candidate, boardSize))
     : undefined
@@ -204,6 +210,17 @@ function parseSite(value: unknown, boardSize: BoardSize): Site | undefined {
     (value.capitalFor !== undefined &&
       kind !== 'stronghold' &&
       kind !== 'castle') ||
+    (requiresLevel
+      ? !isIntegerInRange(value.level, 1, 3)
+      : value.level !== undefined) ||
+    (kind === 'city' &&
+      (!footprint ||
+        footprint.some((candidate) => !candidate) ||
+        !isValidCityFootprint(
+          position,
+          footprint as Position[],
+          boardSize,
+        ))) ||
     (kind === 'castle' &&
       (!footprint ||
         footprint.some((candidate) => !candidate) ||
@@ -212,7 +229,7 @@ function parseSite(value: unknown, boardSize: BoardSize): Site | undefined {
           footprint as Position[],
           boardSize,
         ))) ||
-    (kind !== 'castle' && value.footprint !== undefined)
+    (kind !== 'city' && kind !== 'castle' && value.footprint !== undefined)
   ) {
     return undefined
   }
@@ -225,10 +242,14 @@ function parseSite(value: unknown, boardSize: BoardSize): Site | undefined {
       ? {}
       : { footprint: footprint as Position[] }),
     ownerId: value.ownerId as SiteOwnerId,
+    ...(requiresLevel ? { level: value.level as 1 | 2 | 3 } : {}),
     ...(value.capitalFor === undefined ? {} : { capitalFor: value.capitalFor as FactionId }),
     ...(value.lastProducedTurn === undefined || !SITE_STATS[kind].canProduce
       ? {}
       : { lastProducedTurn: value.lastProducedTurn as number }),
+    ...(value.lastDevelopedTurn === undefined
+      ? {}
+      : { lastDevelopedTurn: value.lastDevelopedTurn as number }),
   }
 }
 
@@ -322,7 +343,6 @@ function parseGameState(value: unknown): StorageResult<GameState> {
     tiles.length !== boardSize.columns * boardSize.rows ||
     tiles.some((tile) => !tile) ||
     units.some((unit) => !unit) ||
-    sites.length !== factionCount * 4 ||
     sites.some((site) => !site)
   ) {
     return failure('invalidData', '지도, 유닛 또는 거점 정보가 올바르지 않습니다.')
@@ -346,7 +366,8 @@ function parseGameState(value: unknown): StorageResult<GameState> {
     !hasUniqueValues(parsedUnits.map((unit) => positionKey(unit.position))) ||
     !hasUniqueValues(parsedSites.map((site) => site.id)) ||
     !hasUniqueValues(parsedSites.map((site) => positionKey(site.position))) ||
-    !hasUniqueValues(occupiedSiteEntries.map(({ key }) => key))
+    !hasUniqueValues(occupiedSiteEntries.map(({ key }) => key)) ||
+    !hasUniqueValues(factionOrder as string[])
   ) {
     return failure('invalidData', '중복되거나 올바르지 않은 지도 좌표가 있습니다.')
   }
@@ -400,6 +421,9 @@ function parseGameState(value: unknown): StorageResult<GameState> {
   const productionTurnsAreValid = parsedSites.every(
     (site) => site.lastProducedTurn === undefined || site.lastProducedTurn <= state.turn,
   )
+  const developmentTurnsAreValid = parsedSites.every(
+    (site) => site.lastDevelopedTurn === undefined || site.lastDevelopedTurn <= state.turn,
+  )
   const capitals = parsedSites.filter((site) => site.capitalFor)
   const capitalsAreValid =
     capitals.length === factionCount &&
@@ -407,7 +431,14 @@ function parseGameState(value: unknown): StorageResult<GameState> {
       capitals.some((site) => site.capitalFor === factionId),
     )
 
-  if (!tilesMatchSites || !sitesMatchTiles || !unitsAreValid || !productionTurnsAreValid || !capitalsAreValid) {
+  if (
+    !tilesMatchSites ||
+    !sitesMatchTiles ||
+    !unitsAreValid ||
+    !productionTurnsAreValid ||
+    !developmentTurnsAreValid ||
+    !capitalsAreValid
+  ) {
     return failure('invalidData', '지도 참조 관계가 올바르지 않습니다.')
   }
   return success(state)
@@ -496,12 +527,42 @@ function readSavedGame(storage?: StorageLike): StorageResult<SavedGame> {
     }
     parsed = {
       ...siteTypeRecord,
+      schemaVersion: 8,
+      gameState: {
+        ...legacyState,
+        schemaVersion: 8,
+        sites: Array.isArray(legacyState.sites)
+          ? legacyState.sites.map(remapSiteType)
+          : legacyState.sites,
+      },
+    }
+  }
+  const developmentRecord = parsed as Record<string, unknown>
+  if (developmentRecord.schemaVersion === 8 && isRecord(developmentRecord.gameState)) {
+    const legacyState = developmentRecord.gameState
+    const migrateSite = (site: unknown) => {
+      if (!isRecord(site)) return site
+      const {
+        lastDevelopedTurn: _lastDevelopedTurn,
+        level: _level,
+        ...legacySite
+      } = site
+      void _lastDevelopedTurn
+      void _level
+      const requiresLevel = legacySite.kind === 'farm' || legacySite.kind === 'mine'
+      return {
+        ...legacySite,
+        ...(requiresLevel ? { level: 1 } : {}),
+      }
+    }
+    parsed = {
+      ...developmentRecord,
       schemaVersion: GAME_SCHEMA_VERSION,
       gameState: {
         ...legacyState,
         schemaVersion: GAME_SCHEMA_VERSION,
         sites: Array.isArray(legacyState.sites)
-          ? legacyState.sites.map(remapSiteType)
+          ? legacyState.sites.map(migrateSite)
           : legacyState.sites,
       },
     }

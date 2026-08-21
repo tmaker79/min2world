@@ -9,9 +9,12 @@ import {
   getFactionIncome,
   getHexDistance,
   getMovementCost,
+  getProducibleUnitTypes,
   getReachablePositions,
   getCombatDamage,
   getHealthCombatPenalty,
+  getSiteIncome,
+  getUnitProductionCost,
   resolveCombat,
   SITE_STATS,
   UNIT_MAX_HP,
@@ -223,22 +226,50 @@ describe('hex combat rules', () => {
 describe('sites', () => {
   it('uses the configured income and production rules', () => {
     expect(SITE_STATS).toEqual({
+      outpost: { income: 2, canProduce: true },
+      keep: { income: 3, canProduce: true },
       stronghold: { income: 5, canProduce: true },
-      castle: { income: 5, canProduce: true },
-      village: { income: 4, canProduce: false },
+      village: { income: 3, canProduce: false },
+      city: { income: 5, canProduce: false },
+      castle: { income: 7, canProduce: true },
       farm: { income: 2, canProduce: false },
       mine: { income: 3, canProduce: false },
-      city: { income: 0, canProduce: false },
+      blacksmith: { income: 2, canProduce: false },
     })
 
     const state = createInitialGameState('sites')
     const playerCapital = state.sites.find((site) => site.capitalFor === 'player')!
     const village = state.sites.find((site) => site.kind === 'village')!
     const farm = state.sites.find((site) => site.kind === 'farm')!
-    expect(getFactionIncome(state, 'player')).toBe(5)
+    expect(getFactionIncome(state, 'player')).toBe(7)
     expect(getDeployablePositions(state, playerCapital).length).toBeGreaterThan(0)
     expect(getDeployablePositions(state, village)).toEqual([])
     expect(getDeployablePositions(state, farm)).toEqual([])
+  })
+
+  it('applies level income, unit unlocks, and the best owned blacksmith discount', () => {
+    const state = createInitialGameState('site-balance')
+    const ownerId = state.activeFactionId
+    const blacksmith = {
+      id: 'smith',
+      name: 'Smith',
+      kind: 'blacksmith' as const,
+      level: 2 as const,
+      position: { q: 0, r: 0 },
+      ownerId,
+    }
+    const keep = { ...blacksmith, id: 'keep', kind: 'keep' as const, level: undefined }
+    const discounted = { ...state, sites: [blacksmith, keep] }
+
+    expect(getSiteIncome(blacksmith)).toBe(3)
+    expect(getProducibleUnitTypes(keep)).toEqual([
+      'infantry',
+      'spearman',
+      'archer',
+    ])
+    expect(getUnitProductionCost(discounted, ownerId, 'infantry')).toBe(9)
+    expect(getUnitProductionCost(discounted, ownerId, 'archer')).toBe(14)
+    expect(getUnitProductionCost(discounted, ownerId, 'cavalry')).toBe(18)
   })
 
   it('captures neutral sites while preserving immutable capital ownership', () => {

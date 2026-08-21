@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
 import { AppChrome } from './components/AppChrome'
 import type { ChromeMenuId } from './components/AppChrome'
 import { CityPanel } from './components/CityPanel'
+import type { CityPanelTab } from './components/CityPanel'
+import { DevelopmentPanel } from './components/DevelopmentPanel'
 import { GameResultPanel } from './components/GameResultPanel'
 import { GameMap } from './components/GameMap'
 import type {
@@ -19,8 +21,10 @@ import { createInitialGameState } from './game/initialState'
 import { BOARD_SIZE_PRESETS } from './game/hex'
 import { createRandomMapSeed, normalizeMapSeed } from './game/mapGenerator'
 import { gameReducer } from './game/reducer'
+import { getSiteDevelopmentFootprints } from './game/siteDevelopment'
 import {
   getDeployablePositions,
+  getProducibleUnitTypes,
   getSiteAt,
   getUnitAt,
   positionKey,
@@ -73,7 +77,8 @@ function GameApp({ initialState }: { initialState: GameState }) {
     )?.id ?? '',
   )
   const [cityInfoSiteId, setCityInfoSiteId] = useState<string>()
-  const [productionPanelOpen, setProductionPanelOpen] = useState(false)
+  const [activeSiteTab, setActiveSiteTab] = useState<CityPanelTab>()
+  const [developmentFootprintIndex, setDevelopmentFootprintIndex] = useState(0)
   const [productionUnitType, setProductionUnitType] = useState<UnitType>()
   const [productionFeedback, setProductionFeedback] = useState<{
     type: 'status' | 'error'
@@ -107,11 +112,32 @@ function GameApp({ initialState }: { initialState: GameState }) {
   const productionSite = playerProductionSites.find(
     (site) => site.id === availableProductionSiteId,
   )
-  const cityInfoSite = state.sites.find(
-    (site) =>
-      site.id === cityInfoSiteId &&
-      site.ownerId === state.humanFactionId &&
-      SITE_STATS[site.kind].canProduce,
+  const cityInfoSite = state.sites.find((site) => site.id === cityInfoSiteId)
+  const developmentFootprints = useMemo(
+    () =>
+      cityInfoSite && activeSiteTab === 'development'
+        ? getSiteDevelopmentFootprints(state, cityInfoSite)
+        : [],
+    [activeSiteTab, cityInfoSite, state],
+  )
+  const developmentFootprintKeys = useMemo(
+    () =>
+      new Set(
+        developmentFootprints.flatMap((footprint) =>
+          footprint.map(positionKey),
+        ),
+      ),
+    [developmentFootprints],
+  )
+  const selectedDevelopmentFootprint = developmentFootprints[
+    developmentFootprintIndex
+  ]
+  const selectedDevelopmentFootprintKeys = useMemo(
+    () =>
+      new Set(
+        (selectedDevelopmentFootprint ?? []).map(positionKey),
+      ),
+    [selectedDevelopmentFootprint],
   )
   const activeProductionUnitType =
     state.phase === 'playing' &&
@@ -212,6 +238,8 @@ function GameApp({ initialState }: { initialState: GameState }) {
       const result = resolveCombat(state, attacker, defender)
       setCombatPhase('attack')
       setProductionUnitType(undefined)
+      setActiveSiteTab(undefined)
+      setDevelopmentFootprintIndex(0)
       setActiveCombat({
         attackerId: attacker.id,
         defenderId: defender.id,
@@ -286,7 +314,8 @@ function GameApp({ initialState }: { initialState: GameState }) {
     setActiveCombat(undefined)
     setCombatPhase('attack')
     setProductionUnitType(undefined)
-    setProductionPanelOpen(false)
+    setActiveSiteTab(undefined)
+    setDevelopmentFootprintIndex(0)
     setCityInfoSiteId(undefined)
     setProductionSiteId(
       result.value.gameState.sites.find(
@@ -370,10 +399,15 @@ function GameApp({ initialState }: { initialState: GameState }) {
         target instanceof HTMLButtonElement ||
         target instanceof HTMLAnchorElement
 
-      if (event.key === 'Escape' && activeProductionUnitType) {
+      if (
+        event.key === 'Escape' &&
+        (activeProductionUnitType || activeSiteTab === 'development')
+      ) {
         event.preventDefault()
         setProductionUnitType(undefined)
         setProductionFeedback(undefined)
+        setActiveSiteTab(undefined)
+        setDevelopmentFootprintIndex(0)
         return
       }
 
@@ -392,7 +426,8 @@ function GameApp({ initialState }: { initialState: GameState }) {
 
       event.preventDefault()
       setProductionUnitType(undefined)
-      setProductionPanelOpen(false)
+      setActiveSiteTab(undefined)
+      setDevelopmentFootprintIndex(0)
       setCityInfoSiteId(undefined)
       dispatch({ type: 'turnEnded' })
     }
@@ -402,18 +437,30 @@ function GameApp({ initialState }: { initialState: GameState }) {
   }, [
     activeCombat,
     activeProductionUnitType,
+    activeSiteTab,
     state.activeFactionId,
     state.humanFactionId,
     state.phase,
   ])
 
   const handleTileClick = useCallback((tile: Tile) => {
-    if (activeCombat || state.activeFactionId !== state.humanFactionId) {
+    const unit = getUnitAt(state, tile.position)
+    const site = getSiteAt(state, tile.position)
+
+    if (activeCombat) {
       return
     }
 
-    const unit = getUnitAt(state, tile.position)
-    const site = getSiteAt(state, tile.position)
+    if (state.activeFactionId !== state.humanFactionId) {
+      if (site) {
+        setCityInfoSiteId(site.id)
+        setActiveSiteTab(undefined)
+        setDevelopmentFootprintIndex(0)
+        setProductionUnitType(undefined)
+        setProductionFeedback(undefined)
+      }
+      return
+    }
 
     if (activeProductionUnitType && productionSite) {
       if (!deployableKeys.has(positionKey(tile.position))) {
@@ -431,7 +478,8 @@ function GameApp({ initialState }: { initialState: GameState }) {
         destination: tile.position,
       })
       setProductionUnitType(undefined)
-      setProductionPanelOpen(false)
+      setActiveSiteTab(undefined)
+      setDevelopmentFootprintIndex(0)
       setCityInfoSiteId(undefined)
       setProductionFeedback(undefined)
       return
@@ -443,16 +491,17 @@ function GameApp({ initialState }: { initialState: GameState }) {
     }
 
     if (unit?.factionId === state.humanFactionId) {
-      const canSelectSite =
-        site &&
-        site.ownerId === state.humanFactionId &&
-        SITE_STATS[site.kind].canProduce
-
-      if (selectedUnit?.id === unit.id && canSelectSite) {
+      if (selectedUnit?.id === unit.id && site) {
         dispatch({ type: 'selectionCleared' })
-        setProductionSiteId(site.id)
+        if (
+          site.ownerId === state.humanFactionId &&
+          SITE_STATS[site.kind].canProduce
+        ) {
+          setProductionSiteId(site.id)
+        }
         setCityInfoSiteId(site.id)
-        setProductionPanelOpen(false)
+        setActiveSiteTab(undefined)
+        setDevelopmentFootprintIndex(0)
         setProductionUnitType(undefined)
         setProductionFeedback(undefined)
         return
@@ -460,21 +509,24 @@ function GameApp({ initialState }: { initialState: GameState }) {
 
       dispatch({ type: 'unitSelected', unitId: unit.id })
       setCityInfoSiteId(undefined)
-      setProductionPanelOpen(false)
+      setActiveSiteTab(undefined)
+      setDevelopmentFootprintIndex(0)
       setProductionUnitType(undefined)
       setProductionFeedback(undefined)
       return
     }
 
-    if (
-      site &&
-      site.ownerId === state.humanFactionId &&
-      SITE_STATS[site.kind].canProduce
-    ) {
+    if (site) {
       dispatch({ type: 'selectionCleared' })
-      setProductionSiteId(site.id)
+      if (
+        site.ownerId === state.humanFactionId &&
+        SITE_STATS[site.kind].canProduce
+      ) {
+        setProductionSiteId(site.id)
+      }
       setCityInfoSiteId(site.id)
-      setProductionPanelOpen(false)
+      setActiveSiteTab(undefined)
+      setDevelopmentFootprintIndex(0)
       setProductionUnitType(undefined)
       setProductionFeedback(undefined)
       return
@@ -487,7 +539,8 @@ function GameApp({ initialState }: { initialState: GameState }) {
 
     dispatch({ type: 'selectionCleared' })
     setCityInfoSiteId(undefined)
-    setProductionPanelOpen(false)
+    setActiveSiteTab(undefined)
+    setDevelopmentFootprintIndex(0)
     setProductionUnitType(undefined)
     setProductionFeedback(undefined)
   }, [
@@ -560,7 +613,8 @@ function GameApp({ initialState }: { initialState: GameState }) {
     setActiveCombat(undefined)
     setCombatPhase('attack')
     setProductionUnitType(undefined)
-    setProductionPanelOpen(false)
+    setActiveSiteTab(undefined)
+    setDevelopmentFootprintIndex(0)
     setCityInfoSiteId(undefined)
     setProductionFeedback(undefined)
     setSaveFeedback(undefined)
@@ -640,7 +694,8 @@ function GameApp({ initialState }: { initialState: GameState }) {
               }
               onEndTurn={() => {
                 setProductionUnitType(undefined)
-                setProductionPanelOpen(false)
+                setActiveSiteTab(undefined)
+                setDevelopmentFootprintIndex(0)
                 setCityInfoSiteId(undefined)
                 setProductionFeedback(undefined)
                 dispatch({ type: 'turnEnded' })
@@ -695,20 +750,19 @@ function GameApp({ initialState }: { initialState: GameState }) {
                   reachableKeys={reachableKeys}
                   attackableKeys={attackableKeys}
                   deployableKeys={deployableKeys}
-                  zoneOfControlKeys={zoneOfControlKeys}
-                  selectedSiteId={
-                    cityInfoSite?.id ??
-                    (productionPanelOpen ? availableProductionSiteId : undefined)
+                  developmentFootprintKeys={developmentFootprintKeys}
+                  selectedDevelopmentFootprintKeys={
+                    selectedDevelopmentFootprintKeys
                   }
+                  zoneOfControlKeys={zoneOfControlKeys}
+                  selectedSiteId={cityInfoSite?.id}
                   combatAnimation={
                     activeCombat
                       ? { ...activeCombat, phase: combatPhase }
                       : undefined
                   }
                   disabled={
-                    state.phase !== 'playing' ||
-                    state.activeFactionId !== state.humanFactionId ||
-                    Boolean(activeCombat)
+                    state.phase !== 'playing'
                   }
                   suppressClickRef={mapDragMovedRef}
                   onTileClick={handleTileClick}
@@ -728,23 +782,32 @@ function GameApp({ initialState }: { initialState: GameState }) {
                 {!activeProductionUnitType && cityInfoSite && (
                   <CityPanel
                     site={cityInfoSite}
-                    productionOpen={productionPanelOpen}
-                    onProductionOpen={() => {
-                      setProductionSiteId(cityInfoSite.id)
-                      setProductionPanelOpen(true)
+                    activeTab={activeSiteTab}
+                    canProduce={
+                      cityInfoSite.ownerId === state.humanFactionId &&
+                      SITE_STATS[cityInfoSite.kind].canProduce
+                    }
+                    onTabChange={(tab) => {
+                      setActiveSiteTab(tab)
+                      setDevelopmentFootprintIndex(0)
                       setProductionUnitType(undefined)
                       setProductionFeedback(undefined)
+                      if (tab === 'production') {
+                        setProductionSiteId(cityInfoSite.id)
+                      }
                     }}
                     onClose={() => {
                       setCityInfoSiteId(undefined)
-                      setProductionPanelOpen(false)
+                      setActiveSiteTab(undefined)
+                      setDevelopmentFootprintIndex(0)
                       setProductionUnitType(undefined)
                       setProductionFeedback(undefined)
                     }}
                   >
-                    {productionPanelOpen && (
+                    {activeSiteTab === 'production' && (
                       <ProductionPanel
                         site={productionSite}
+                        state={state}
                         selectedUnitType={activeProductionUnitType}
                         resource={state.resources[state.humanFactionId] ?? 0}
                         turn={state.turn}
@@ -756,6 +819,14 @@ function GameApp({ initialState }: { initialState: GameState }) {
                         }
                         feedback={productionFeedback}
                         onUnitTypeSelected={(unitType) => {
+                          if (
+                            !productionSite ||
+                            !getProducibleUnitTypes(productionSite).includes(
+                              unitType,
+                            )
+                          ) {
+                            return
+                          }
                           setProductionUnitType(unitType)
                           setProductionFeedback(undefined)
                           dispatch({ type: 'selectionCleared' })
@@ -763,6 +834,24 @@ function GameApp({ initialState }: { initialState: GameState }) {
                         onCancel={() => {
                           setProductionUnitType(undefined)
                           setProductionFeedback(undefined)
+                        }}
+                      />
+                    )}
+                    {activeSiteTab === 'development' && (
+                      <DevelopmentPanel
+                        state={state}
+                        site={cityInfoSite}
+                        footprints={developmentFootprints}
+                        selectedFootprintIndex={developmentFootprintIndex}
+                        onFootprintSelected={setDevelopmentFootprintIndex}
+                        onDevelop={() => {
+                          dispatch({
+                            type: 'siteDeveloped',
+                            siteId: cityInfoSite.id,
+                            footprint: selectedDevelopmentFootprint,
+                          })
+                          setActiveSiteTab(undefined)
+                          setDevelopmentFootprintIndex(0)
                         }}
                       />
                     )}

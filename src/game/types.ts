@@ -13,8 +13,8 @@ export type Terrain =
 
 export type MapType = 'balanced' | 'plains' | 'mountainous' | 'forested'
 
-export const GAME_SCHEMA_VERSION = 8
-export const MAP_GENERATION_VERSION = 21
+export const GAME_SCHEMA_VERSION = 9
+export const MAP_GENERATION_VERSION = 22
 export const SUPPORTED_MAP_GENERATION_VERSIONS: readonly number[] = [
   5,
   6,
@@ -31,6 +31,7 @@ export const SUPPORTED_MAP_GENERATION_VERSIONS: readonly number[] = [
   17,
   18,
   19,
+  21,
   MAP_GENERATION_VERSION,
 ]
 export const FOREST_TERRAIN_VARIANT_COUNT = 2
@@ -49,12 +50,15 @@ export type BoardSize = {
 }
 export type SiteOwnerId = FactionId | 'neutral'
 export type SiteType =
+  | 'outpost'
+  | 'keep'
   | 'stronghold'
   | 'village'
-  | 'farm'
-  | 'mine'
   | 'city'
   | 'castle'
+  | 'farm'
+  | 'mine'
+  | 'blacksmith'
 export type UnitType = 'infantry' | 'cavalry' | 'archer' | 'spearman'
 export type GamePhase = 'playing' | 'victory' | 'defeat'
 
@@ -98,9 +102,11 @@ export type Site = {
   kind: SiteType
   position: Position
   footprint?: Position[]
+  level?: 1 | 2 | 3
   ownerId: SiteOwnerId
   capitalFor?: FactionId
   lastProducedTurn?: number
+  lastDevelopedTurn?: number
 }
 
 export type GameState = {
@@ -134,6 +140,7 @@ export type GameAction =
       unitType: UnitType
       destination: Position
     }
+  | { type: 'siteDeveloped'; siteId: string; footprint?: Position[] }
   | { type: 'turnEnded' }
   | { type: 'gameLoaded'; state: GameState }
   | {

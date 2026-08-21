@@ -104,4 +104,27 @@ describe('SiteIcon', () => {
       expect.stringContaining('city-eastern-3tile-roofmatch.png'),
     )
   })
+
+  it.each([
+    ['outpost', 1, 'outpost.png'],
+    ['keep', 1, 'keep.png'],
+    ['blacksmith', 1, 'smithy.png'],
+    ['blacksmith', 2, 'smithy-level-2.png'],
+    ['blacksmith', 3, 'smithy-level-3.png'],
+    ['farm', 2, 'farm-level-2.png'],
+    ['mine', 3, 'mine-level-3.png'],
+  ] as const)('uses the dedicated %s level %s asset', (kind, level, fileName) => {
+    const { container } = render(
+      <SiteIcon kind={kind} ownerId="neutral" level={level} />,
+    )
+
+    expect(container.querySelector('img')).toHaveAttribute(
+      'src',
+      expect.stringContaining(`/assets/sites/${fileName}`),
+    )
+    expect(container.querySelector('img')).toHaveAttribute(
+      'data-site-level',
+      String(level),
+    )
+  })
 })

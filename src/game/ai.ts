@@ -1,16 +1,23 @@
 import {
+  canSiteProduceUnit,
   getAttackableUnits,
   getDeployablePositions,
   getHexNeighbors,
+  getProducibleUnitTypes,
   getReachablePositionCosts,
   getMovementStepCost,
   getTileAt,
+  getUnitProductionCost,
   getUnitAt,
   isPositionInEnemyZoneOfControl,
   positionKey,
   TERRAIN_MOVEMENT_COST,
-  UNIT_STATS,
 } from './rules'
+import {
+  canDevelopSite,
+  getSiteDevelopmentFootprints,
+  getSiteDevelopmentTarget,
+} from './siteDevelopment'
 import { MinPriorityQueue } from './priorityQueue'
 import type {
   FactionId,
@@ -18,9 +25,12 @@ import type {
   GameState,
   Position,
   Site,
+  SiteType,
   Unit,
   UnitType,
 } from './types'
+
+const AI_DEVELOPMENT_RESERVE = 5
 
 const AI_PRODUCTION_PRIORITY: readonly UnitType[] = [
   'spearman',
@@ -31,6 +41,60 @@ const AI_PRODUCTION_PRIORITY: readonly UnitType[] = [
 
 function compareIds(left: { id: string }, right: { id: string }) {
   return left.id.localeCompare(right.id)
+}
+
+type AiSiteDevelopmentScore = {
+  stage: number
+  role: number
+}
+
+const SITE_ROLE_PRIORITY: Record<SiteType, number> = {
+  outpost: 0,
+  keep: 0,
+  stronghold: 0,
+  village: 1,
+  city: 1,
+  castle: 1,
+  farm: 2,
+  mine: 2,
+  blacksmith: 2,
+}
+
+export function getAiSiteDevelopmentScore(
+  site: Site,
+): AiSiteDevelopmentScore {
+  const stage =
+    site.kind === 'outpost' || site.kind === 'village'
+      ? 1
+      : site.kind === 'keep' || site.kind === 'city'
+        ? 2
+        : site.kind === 'stronghold' || site.kind === 'castle'
+          ? 3
+          : (site.level ?? 1)
+
+  return { stage, role: SITE_ROLE_PRIORITY[site.kind] }
+}
+
+export function compareAiSiteDevelopmentCandidates(
+  left: Site,
+  right: Site,
+): number {
+  const leftScore = getAiSiteDevelopmentScore(left)
+  const rightScore = getAiSiteDevelopmentScore(right)
+  return (
+    leftScore.stage - rightScore.stage ||
+    leftScore.role - rightScore.role ||
+    left.id.localeCompare(right.id)
+  )
+}
+
+function compareFootprints(left: readonly Position[], right: readonly Position[]) {
+  const getKey = (footprint: readonly Position[]) =>
+    [...footprint]
+      .sort((a, b) => a.r - b.r || a.q - b.q)
+      .map(positionKey)
+      .join('|')
+  return getKey(left).localeCompare(getKey(right))
 }
 
 function getApproachPositions(
@@ -258,18 +322,15 @@ function chooseProduction(
   state: GameState,
   factionId: FactionId,
 ): GameAction | undefined {
-  const site = state.sites
+  const sites = state.sites
     .filter(
       (candidate) =>
         candidate.ownerId === factionId &&
         candidate.lastProducedTurn !== state.turn &&
+        getProducibleUnitTypes(candidate).length > 0 &&
         getDeployablePositions(state, candidate).length > 0,
     )
-    .sort(compareIds)[0]
-
-  if (!site) {
-    return undefined
-  }
+    .sort(compareIds)
 
   const unitCounts = new Map<UnitType, number>(
     AI_PRODUCTION_PRIORITY.map((type) => [
@@ -279,25 +340,86 @@ function chooseProduction(
       ).length,
     ]),
   )
-  const unitType = AI_PRODUCTION_PRIORITY.filter(
-    (type) => UNIT_STATS[type].cost <= (state.resources[factionId] ?? 0),
-  ).sort(
-    (left, right) =>
-      (unitCounts.get(left) ?? 0) - (unitCounts.get(right) ?? 0) ||
-      AI_PRODUCTION_PRIORITY.indexOf(left) -
-        AI_PRODUCTION_PRIORITY.indexOf(right),
-  )[0]
+  for (const site of sites) {
+    const unitType = getProducibleUnitTypes(site)
+      .filter(
+        (type) =>
+          canSiteProduceUnit(site, type) &&
+          getUnitProductionCost(state, factionId, type) <=
+            (state.resources[factionId] ?? 0),
+      )
+      .sort(
+        (left, right) =>
+          (unitCounts.get(left) ?? 0) - (unitCounts.get(right) ?? 0) ||
+          AI_PRODUCTION_PRIORITY.indexOf(left) -
+            AI_PRODUCTION_PRIORITY.indexOf(right),
+      )[0]
 
-  if (!unitType) {
+    if (unitType) {
+      return {
+        type: 'unitProduced',
+        siteId: site.id,
+        unitType,
+        destination: getDeployablePositions(state, site)[0],
+      }
+    }
+  }
+
+  return undefined
+}
+
+function chooseDevelopment(
+  state: GameState,
+  factionId: FactionId,
+): GameAction | undefined {
+  const ownedSites = state.sites.filter((site) => site.ownerId === factionId)
+  if (
+    ownedSites.some((site) => site.lastDevelopedTurn === state.turn)
+  ) {
     return undefined
   }
 
-  return {
-    type: 'unitProduced',
-    siteId: site.id,
-    unitType,
-    destination: getDeployablePositions(state, site)[0],
-  }
+  const resources = state.resources[factionId] ?? 0
+  const candidates = ownedSites
+    .filter(
+      (site) =>
+        getSiteDevelopmentTarget(site) &&
+        site.lastDevelopedTurn !== state.turn,
+    )
+    .map((site) => {
+      const footprint =
+        site.kind === 'village' || site.kind === 'city'
+          ? [...getSiteDevelopmentFootprints(state, site)].sort(
+              compareFootprints,
+            )[0]
+          : undefined
+      if ((site.kind === 'village' || site.kind === 'city') && !footprint) {
+        return undefined
+      }
+
+      const check = canDevelopSite(state, site.id, footprint)
+      return check.ok && resources - check.cost >= AI_DEVELOPMENT_RESERVE
+        ? { site, footprint }
+        : undefined
+    })
+    .filter(
+      (
+        candidate,
+      ): candidate is { site: Site; footprint: Position[] | undefined } =>
+        Boolean(candidate),
+    )
+    .sort((left, right) =>
+      compareAiSiteDevelopmentCandidates(left.site, right.site),
+    )
+
+  const selected = candidates[0]
+  return selected
+    ? {
+        type: 'siteDeveloped',
+        siteId: selected.site.id,
+        footprint: selected.footprint,
+      }
+    : undefined
 }
 
 export function chooseAiAction(
@@ -326,7 +448,8 @@ export function chooseAiAction(
 
     return nextUnit
       ? { type: 'unitSelected', unitId: nextUnit.id }
-      : (chooseProduction(state, factionId) ?? { type: 'turnEnded' })
+      : (chooseDevelopment(state, factionId) ??
+          chooseProduction(state, factionId) ?? { type: 'turnEnded' })
   }
 
   const attackTarget = getAttackableUnits(state, selectedUnit).sort(

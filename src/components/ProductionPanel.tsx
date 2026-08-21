@@ -1,5 +1,11 @@
-import { UNIT_STATS, UNIT_TYPE_LABELS, UNIT_TYPES } from '../game/rules'
-import type { Site, UnitType } from '../game/types'
+import {
+  getProducibleUnitTypes,
+  getUnitProductionCost,
+  UNIT_STATS,
+  UNIT_TYPE_LABELS,
+  UNIT_TYPES,
+} from '../game/rules'
+import type { GameState, Site, UnitType } from '../game/types'
 import { UnitIcon } from './UnitIcon'
 
 type ProductionFeedback = {
@@ -9,6 +15,7 @@ type ProductionFeedback = {
 
 type ProductionPanelProps = {
   site?: Site
+  state: GameState
   selectedUnitType?: UnitType
   resource: number
   turn: number
@@ -21,6 +28,7 @@ type ProductionPanelProps = {
 
 export function ProductionPanel({
   site,
+  state,
   selectedUnitType,
   resource,
   turn,
@@ -32,14 +40,27 @@ export function ProductionPanel({
 }: ProductionPanelProps) {
   const unavailable =
     disabled || !site || site.lastProducedTurn === turn || deployableCount === 0
+  const unlockedTypes = site ? getProducibleUnitTypes(site) : []
 
   return (
-    <section className="production-card" aria-label="부대 생산">
+    <section
+      id="site-panel-production"
+      className="production-card"
+      aria-label="부대 생산"
+      role="tabpanel"
+      aria-labelledby="site-tab-production"
+    >
       {site ? (
         <>
           <div className="production-list">
             {UNIT_TYPES.map((unitType) => {
               const stats = UNIT_STATS[unitType]
+              const unlocked = unlockedTypes.includes(unitType)
+              const cost = getUnitProductionCost(
+                state,
+                state.humanFactionId,
+                unitType,
+              )
               return (
                 <button
                   key={unitType}
@@ -50,18 +71,20 @@ export function ProductionPanel({
                   }
                   type="button"
                   aria-pressed={selectedUnitType === unitType}
-                  disabled={unavailable || resource < stats.cost}
+                  disabled={!unlocked || unavailable || resource < cost}
                   onClick={() => onUnitTypeSelected(unitType)}
                 >
                   <strong>
                     <UnitIcon type={unitType} />
                     {UNIT_TYPE_LABELS[unitType]}
                   </strong>
-                  <span>{stats.cost} 자원</span>
+                  <span>{cost} 자원</span>
                   <small>
-                    이동 {stats.movement} · 근접 {stats.melee}
-                    {stats.ranged > 0 ? ` · 원거리 ${stats.ranged}` : ''} · 사거리{' '}
-                    {stats.range}
+                    {unlocked
+                      ? `이동 ${stats.movement} · 근접 ${stats.melee}${
+                          stats.ranged > 0 ? ` · 원거리 ${stats.ranged}` : ''
+                        } · 사거리 ${stats.range}`
+                      : `${site.kind} 단계에서는 해금되지 않은 병종입니다.`}
                   </small>
                 </button>
               )

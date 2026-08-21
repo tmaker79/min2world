@@ -2,7 +2,7 @@
 
 ## 상태
 
-예정
+완료
 
 ## 목표
 
@@ -31,7 +31,7 @@
 
 ### 데이터
 
-계획 중인 거점 종류는 다음과 같다.
+구현된 거점 종류는 다음과 같다.
 
 ```ts
 type SiteType =
@@ -65,7 +65,21 @@ type SiteType =
 - City와 Castle은 여러 타일을 사용하지만 소유권·수입·점령 상태는 각각 하나의 `Site`에서 관리한다. 점령 기준은 기존 `Site.position`인 기준(anchor) 타일로 유지한다.
 - City와 Castle의 추가 점유 타일은 다른 거점과 생산 특화 시설의 건설을 막는다. 유닛 이동과 전투는 기존 거점 타일 규칙을 따른다.
 - 점령 시 발전 단계, 생산 특화 시설 레벨과 Castle footprint를 유지한다.
-- 발전 비용·수입·병종 해금·Blacksmith 효과의 수치는 구현 전에 별도 밸런스 표로 확정한다.
+
+### 현재 밸런스
+
+| 발전 | 비용 |
+| --- | ---: |
+| Outpost → Keep / Keep → Stronghold | 8 / 12 |
+| Village → City / City → Castle | 10 / 15 |
+| Farm·Mine Lv.2 / Lv.3 | 6 / 10 |
+| Blacksmith Lv.2 / Lv.3 | 7 / 11 |
+
+- 턴 수입은 Outpost·Keep·Stronghold가 2·3·5, Village·City·Castle이 3·5·7이다.
+- Farm은 레벨별 2·3·4, Mine은 3·4·5, Blacksmith는 2·3·4를 지급한다.
+- Outpost는 보병, Keep은 보병·창병·궁병, Stronghold와 Castle은 모든 병종을 생산한다.
+- 소유 Blacksmith의 최고 레벨을 적용해 Lv.1은 보병·창병 생산비 -1, Lv.2는 궁병까지 -1, Lv.3은 모든 병종 생산비 -2를 제공한다.
+- AI는 발전 뒤 자원 5 이상을 남기며 세력 턴마다 최대 한 거점만 발전한다.
 
 ### UI
 
@@ -83,7 +97,7 @@ type SiteType =
 - 세력 턴당 AI 발전은 최대 1회다.
 - 구체적인 경제·군사 성향은 Milestone 13에서 다룬다.
 
-## 구현 순서
+## 구현 내역
 
 1. 새 `SiteType`, 생산 특화 시설 레벨, Castle footprint 데이터와 스키마 마이그레이션을 추가한다.
 2. 두 발전 계열과 생산 특화 시설 개발 규칙을 순수 함수로 구현한다.
@@ -97,7 +111,6 @@ type SiteType =
 - 건물 슬롯·대기열(Milestone 11)
 - 유지비(Milestone 12)
 - 발전 단계 하락·거점 파괴
-- 발전 비용·수입·Blacksmith 세부 효과 확정
 
 ## 완료 조건
 

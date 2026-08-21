@@ -1,12 +1,15 @@
 import { createInitialGameState } from './initialState'
 import { cloneGameState } from './state'
+import { resolveSiteDevelopment } from './siteDevelopment'
 import {
+  canSiteProduceUnit,
   captureSiteAt,
   getCapitalPhase,
   getAttackableUnits,
   getDeployablePositions,
   getFactionIncome,
   getMovementCost,
+  getUnitProductionCost,
   isPositionInEnemyZoneOfControl,
   resolveCombat,
   UNIT_MAX_HP,
@@ -209,13 +212,19 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         (candidate) => candidate.id === action.siteId,
       )
       const stats = UNIT_STATS[action.unitType]
+      const productionCost = getUnitProductionCost(
+        state,
+        state.activeFactionId,
+        action.unitType,
+      )
 
       if (
         !site ||
         site.ownerId !== state.activeFactionId ||
         site.lastProducedTurn === state.turn ||
         !stats ||
-        (state.resources[state.activeFactionId] ?? 0) < stats.cost ||
+        !canSiteProduceUnit(site, action.unitType) ||
+        (state.resources[state.activeFactionId] ?? 0) < productionCost ||
         !getDeployablePositions(state, site).some(
           (position) =>
             position.q === action.destination.q &&
@@ -257,7 +266,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         resources: {
           ...state.resources,
           [state.activeFactionId]:
-            (state.resources[state.activeFactionId] ?? 0) - stats.cost,
+            (state.resources[state.activeFactionId] ?? 0) - productionCost,
         },
         units: [...state.units, unit],
         sites: state.sites.map((candidate) =>
@@ -267,6 +276,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ),
       }
     }
+
+    case 'siteDeveloped':
+      return resolveSiteDevelopment(state, action.siteId, action.footprint)
 
     case 'turnEnded': {
       const endingFactionId = state.activeFactionId

@@ -132,6 +132,64 @@ describe('gameReducer on a hex map', () => {
     })).toBe(produced)
   })
 
+  it('routes site development and validates production unlocks and discounts', () => {
+    const initial = createInitialGameState('reducer-development')
+    const ownerId = initial.activeFactionId
+    const site = {
+      id: 'outpost',
+      name: 'Outpost',
+      kind: 'outpost' as const,
+      position: { q: 0, r: 0 },
+      ownerId,
+    }
+    const blacksmith = {
+      ...site,
+      id: 'blacksmith',
+      kind: 'blacksmith' as const,
+      level: 1 as const,
+      position: { q: 3, r: 0 },
+    }
+    const state = {
+      ...initial,
+      resources: { ...initial.resources, [ownerId]: 100 },
+      units: [],
+      sites: [site, blacksmith],
+      tiles: initial.tiles.map((tile) => ({
+        ...tile,
+        terrain: 'plain' as const,
+        siteId:
+          tile.position.q === site.position.q &&
+          tile.position.r === site.position.r
+            ? site.id
+            : undefined,
+      })),
+    }
+    const developed = gameReducer(state, {
+      type: 'siteDeveloped',
+      siteId: site.id,
+    })
+    const keep = developed.sites.find((candidate) => candidate.id === site.id)!
+    expect(keep.kind).toBe('keep')
+    expect(developed.resources[ownerId]).toBe(92)
+
+    const destination = getDeployablePositions(developed, keep)[0]
+    expect(
+      gameReducer(developed, {
+        type: 'unitProduced',
+        siteId: keep.id,
+        unitType: 'cavalry',
+        destination,
+      }),
+    ).toBe(developed)
+    const produced = gameReducer(developed, {
+      type: 'unitProduced',
+      siteId: keep.id,
+      unitType: 'infantry',
+      destination,
+    })
+    expect(produced.resources[ownerId]).toBe(83)
+  })
+
   it('adds the ending faction income and refreshes the next faction', () => {
     const state = createInitialGameState('reducer-turn')
     const income = getFactionIncome(state, 'player')

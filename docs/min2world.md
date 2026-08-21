@@ -73,9 +73,9 @@
 - 서버 계정 및 클라우드 저장
 - 모바일 전용 UI
 
-### 예정된 거점 발전 구조
+### 구현된 거점 발전 구조
 
-현재 구현된 `stronghold`, `village`, `farm`, `mine`, 예약된 `city` 타입과 아래 발전 설계를 구분한다. 다음 거점 개발에서는 숫자 레벨만 공통으로 올리는 대신 역할별 이름과 이미지가 바뀌는 구조를 사용한다.
+거점은 숫자 레벨만 공통으로 올리는 대신 역할별 이름과 이미지가 바뀌는 구조를 사용한다.
 
 | 분류 | 발전 단계 | 점유 범위 |
 | --- | --- | --- |
@@ -330,7 +330,16 @@ src/
 - 사막 언덕·오아시스·툰드라 숲·툰드라 산 후속 확장
 - 지형 래스터 타일, 미니맵 색, 범례, 툴팁
 - 일반 숲의 활엽수·침엽수 군락 변형
-- 스키마 8, 현재 맵 생성 버전 20
+- 완료 당시 스키마 8, 맵 생성 버전 20
+
+### Milestone 10: 거점 발전
+
+상세 기록: [Milestone 10](milestones/10-site-development.md)
+
+- Outpost → Keep → Stronghold와 Village → City → Castle 발전 계열
+- Farm·Mine·Blacksmith 1~3레벨 및 수입·생산 보조 효과
+- City 3칸·Castle 4칸 footprint 방향 선택과 지도 미리보기
+- 거점별 병종 해금, AI 발전, 스키마 9·맵 생성 버전 22
 
 ## 8. 테스트 전략
 
@@ -372,11 +381,12 @@ src/
 localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지만 사용자가 사이트 데이터를 삭제하거나 저장 공간이 제한되면 사라질 수 있다. 따라서 저장은 편의 기능으로 간주하며 영구 보관을 보장하지 않는다.
 
 - 저장 데이터에 `schemaVersion`, `mapSeed`, `mapType`, `mapGenerationVersion`, `boardSize`, `factionCount`, `humanFactionId`, `factionOrder`를 포함한다.
-- 현재 스키마는 8이다.
+- 현재 스키마는 9이다.
 - 스키마 6은 `player`/`enemy`를 `f1`/`f2`로 바꾼 뒤 연쇄 마이그레이션한다.
 - 스키마 7은 기존 `city`(마을)를 `village`로, `village`(농장)를 `farm`으로 바꿔 불러온다.
 - 스키마 8 저장에 `mapType`이 없으면 기존 생성 방식인 `balanced`로 불러온다.
-- 맵 생성 버전 5부터 현재 버전 20까지 저장된 타일을 재생성하지 않고 지원한다.
+- 스키마 8의 기존 거점은 종류와 Castle footprint를 보존하고 생산 특화 시설을 Lv.1로 채워 불러온다.
+- 맵 생성 버전 5부터 현재 버전 22까지 저장된 타일을 재생성하지 않고 지원한다.
 - JSON을 읽은 뒤 필요한 필드와 값의 범위를 검증한다.
 - 스키마 4·5를 포함한 지원하지 않는 버전은 불러오지 않고 사용자에게 알린다.
 - 파생 상태와 일시적인 UI 상태는 저장하지 않는다.
@@ -410,8 +420,8 @@ localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지
 | 단계 | 목표 | 상태 |
 | --- | --- | --- |
 | [09](milestones/09-terrain-expansion.md) | 사막·툰드라와 후속 지형 확장 | 완료 |
-| [10](milestones/10-site-development.md) | 역할별 거점 발전 | 다음 목표 |
-| [11](milestones/11-city-administration.md) | 거점 건물·대기열 | 예정 |
+| [10](milestones/10-site-development.md) | 역할별 거점 발전 | 완료 |
+| [11](milestones/11-city-administration.md) | 거점 건물·대기열 | 다음 목표 |
 | [12](milestones/12-upkeep.md) | 유지비(소프트 제약) | 예정 |
 | [13](milestones/13-ai-refinement.md) | 경제를 보는 AI | 예정 |
 | [14](milestones/14-settlement-construction.md) | 개척자·건설자의 신규 거점 건설 | 예정 |
@@ -426,9 +436,9 @@ localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지
 
 ## 12. 현재 개발 목표
 
-다음 구현 목표는 [Milestone 10: 거점 발전](milestones/10-site-development.md)이다.
+다음 구현 목표는 [Milestone 11: 거점 내정](milestones/11-city-administration.md)이다.
 
-Milestone 10에서는 군사·방어 계열 `Outpost → Keep → Stronghold`, 정착 계열 `Village → City → Castle`, 생산 특화 시설 `Farm`·`Mine`·`Blacksmith`를 도입한다. 군사·방어 및 정착 계열은 종류가 다음 단계로 바뀌고, 생산 특화 시설은 같은 종류 안에서 자체 개발한다. 정착지는 Village 1타일, City 3타일, Castle 4타일로 확장된다.
+Milestone 10에서 군사·방어 계열 `Outpost → Keep → Stronghold`, 정착 계열 `Village → City → Castle`, 생산 특화 시설 `Farm`·`Mine`·`Blacksmith`를 구현했다. Milestone 11에서는 발전한 거점에 건물 슬롯과 생산 대기열을 추가한다.
 
 가변 지도·다세력·HUD까지 반영한 현재 기준 시나리오는 다음과 같다.
 

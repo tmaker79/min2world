@@ -102,6 +102,8 @@ type GameMapProps = {
   reachableKeys: Set<string>
   attackableKeys: Set<string>
   deployableKeys: Set<string>
+  developmentFootprintKeys?: Set<string>
+  selectedDevelopmentFootprintKeys?: Set<string>
   zoneOfControlKeys: Set<string>
   selectedSiteId?: string
   combatAnimation?: CombatAnimation
@@ -122,6 +124,8 @@ type TileButtonProps = {
   reachable: boolean
   attackable: boolean
   deployable: boolean
+  developmentFootprint: boolean
+  selectedDevelopmentFootprint: boolean
   inZoneOfControl: boolean
   disabled: boolean
   style: CSSProperties
@@ -154,6 +158,8 @@ function getTileLabel(
   attackable = false,
   inZoneOfControl = false,
   deployable = false,
+  developmentFootprint = false,
+  selectedDevelopmentFootprint = false,
 ) {
   const parts = [
     `육각 좌표 ${tile.position.q}, ${tile.position.r}`,
@@ -161,6 +167,11 @@ function getTileLabel(
   ]
   if (inZoneOfControl) parts.push('적 통제 구역')
   if (deployable) parts.push('생산 배치 가능')
+  if (developmentFootprint) {
+    parts.push(
+      selectedDevelopmentFootprint ? '선택한 발전 footprint' : '발전 footprint 후보',
+    )
+  }
   if (site) {
     parts.push(
       `${site.name}, ${factionLabel(site.ownerId)} ${SITE_TYPE_LABELS[site.kind]}`,
@@ -251,6 +262,8 @@ const TileButton = memo(function TileButton({
   reachable,
   attackable,
   deployable,
+  developmentFootprint,
+  selectedDevelopmentFootprint,
   inZoneOfControl,
   disabled,
   style,
@@ -268,6 +281,10 @@ const TileButton = memo(function TileButton({
     inZoneOfControl ? 'map-tile--zoc' : '',
     attackable ? 'map-tile--attackable' : '',
     deployable ? 'map-tile--deployable' : '',
+    developmentFootprint ? 'map-tile--development-footprint' : '',
+    selectedDevelopmentFootprint
+      ? 'map-tile--development-footprint-selected'
+      : '',
     unit ? 'map-tile--has-unit' : '',
   ]
     .filter(Boolean)
@@ -296,7 +313,16 @@ const TileButton = memo(function TileButton({
       className={classNames}
       style={style}
       type="button"
-      aria-label={getTileLabel(tile, unit, site, attackable, inZoneOfControl, deployable)}
+      aria-label={getTileLabel(
+        tile,
+        unit,
+        site,
+        attackable,
+        inZoneOfControl,
+        deployable,
+        developmentFootprint,
+        selectedDevelopmentFootprint,
+      )}
       aria-pressed={
         selected || siteSelected ? true : unit ? false : undefined
       }
@@ -304,6 +330,10 @@ const TileButton = memo(function TileButton({
       data-reachable={reachable ? 'true' : undefined}
       data-attackable={attackable ? 'true' : undefined}
       data-deployable={deployable ? 'true' : undefined}
+      data-development-footprint={developmentFootprint ? 'true' : undefined}
+      data-development-footprint-selected={
+        selectedDevelopmentFootprint ? 'true' : undefined
+      }
       data-zone-of-control={inZoneOfControl ? 'true' : undefined}
       data-site-selected={siteSelected ? 'true' : undefined}
       aria-disabled={disabled || undefined}
@@ -449,7 +479,7 @@ function SiteMarker({
         data-owner={site.ownerId}
         data-site-selected={selected ? 'true' : undefined}
       >
-        <SiteIcon kind={site.kind} ownerId={site.ownerId} />
+        <SiteIcon kind={site.kind} ownerId={site.ownerId} level={site.level} />
         {site.ownerId !== 'neutral' && (
           <span className={`site-banner site-banner--${site.ownerId}`} />
         )}
@@ -578,6 +608,8 @@ function GameMapComponent({
   reachableKeys,
   attackableKeys,
   deployableKeys,
+  developmentFootprintKeys = new Set(),
+  selectedDevelopmentFootprintKeys = new Set(),
   zoneOfControlKeys,
   selectedSiteId,
   combatAnimation,
@@ -818,6 +850,8 @@ function GameMapComponent({
       ...reachableKeys,
       ...attackableKeys,
       ...deployableKeys,
+      ...developmentFootprintKeys,
+      ...selectedDevelopmentFootprintKeys,
       ...zoneOfControlKeys,
     ]) {
       const entry = layout.byKey.get(key)
@@ -831,7 +865,9 @@ function GameMapComponent({
     layout,
     attackableKeys,
     deployableKeys,
+    developmentFootprintKeys,
     reachableKeys,
+    selectedDevelopmentFootprintKeys,
     siteAssetPreviews,
     state.sites,
     state.units,
@@ -906,6 +942,11 @@ function GameMapComponent({
           const reachable = reachableKeys.has(positionKey(tile.position))
           const attackable = attackableKeys.has(positionKey(tile.position))
           const deployable = deployableKeys.has(positionKey(tile.position))
+          const developmentFootprint = developmentFootprintKeys.has(
+            positionKey(tile.position),
+          )
+          const selectedDevelopmentFootprint =
+            selectedDevelopmentFootprintKeys.has(positionKey(tile.position))
           const inZoneOfControl = zoneOfControlKeys.has(positionKey(tile.position))
 
           return (
@@ -920,6 +961,8 @@ function GameMapComponent({
               reachable={reachable}
               attackable={attackable}
               deployable={deployable}
+              developmentFootprint={developmentFootprint}
+              selectedDevelopmentFootprint={selectedDevelopmentFootprint}
               inZoneOfControl={inZoneOfControl}
               disabled={disabled}
               style={style}

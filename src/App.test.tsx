@@ -1,9 +1,10 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { getHexNeighbors, HEX_TILE_COUNT, positionKey } from './game/hex'
 import { createInitialGameState } from './game/initialState'
+import { getSiteDevelopmentFootprints } from './game/siteDevelopment'
 import type { GameState, Unit } from './game/types'
 
 function renderApp(state: GameState = createInitialGameState('ui-seed')) {
@@ -48,7 +49,7 @@ describe('Milestone 07 UI', () => {
     expect(tiles.length).toBeLessThanOrEqual(HEX_TILE_COUNT)
     expect([...tiles].every((tile) => tile.type === 'button' && !tile.disabled)).toBe(true)
     expect(container.querySelector('.app-chrome__seed')).toHaveTextContent('ui-seed')
-    expect(container.querySelectorAll('.site-marker')).toHaveLength(8)
+    expect(container.querySelectorAll('.site-marker')).toHaveLength(12)
     expect(container.querySelectorAll('.unit-token')).toHaveLength(6)
     expect(container.querySelector('.map-layer--terrain .map-tile')).toBeInTheDocument()
     expect(container.querySelector('.map-layer--sites .site-marker')).toBeInTheDocument()
@@ -324,8 +325,8 @@ describe('Milestone 07 UI', () => {
     )!
     await user.click(strongholdTile)
 
-    const cityInfo = screen.getByLabelText('성 정보')
-    const cityMenu = screen.getByRole('tablist', { name: '성 메뉴' })
+    const cityInfo = screen.getByLabelText('거점 정보')
+    const cityMenu = screen.getByRole('tablist', { name: '거점 메뉴' })
     expect(cityInfo).toBeVisible()
     expect(screen.getByLabelText('지도 사이드바')).toContainElement(
       cityInfo,
@@ -429,12 +430,162 @@ describe('Milestone 07 UI', () => {
     expect(tile).toHaveAttribute('aria-pressed', 'true')
     expect(tile).toHaveAttribute('data-site-selected', 'true')
     expect(container.querySelector('.site-marker--selected')).toBeInTheDocument()
-    expect(screen.getByLabelText('성 정보')).toBeVisible()
+    expect(screen.getByLabelText('거점 정보')).toBeVisible()
     expect(container.querySelector('.production-card')).toBeNull()
 
     await user.click(screen.getByRole('tab', { name: '생산' }))
     expect(container.querySelector('.production-card')).toBeInTheDocument()
     expect(screen.getByLabelText('부대 생산')).toBeVisible()
+  })
+
+  it('shows non-owned site development as read-only', async () => {
+    const user = userEvent.setup()
+    const state = createInitialGameState('ui-development-readonly')
+    const site = state.sites.find((candidate) => candidate.ownerId === 'neutral')!
+    const { container } = renderApp(state)
+
+    await user.click(container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(site.position)}"]`,
+    )!)
+
+    expect(screen.getByLabelText('거점 정보')).toHaveTextContent(site.name)
+    expect(screen.queryByRole('tab', { name: '생산' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('tab', { name: '발전' }))
+    expect(screen.getByLabelText('거점 발전')).toHaveTextContent(
+      '비소유 거점은 발전 정보를 열람만 할 수 있습니다.',
+    )
+    expect(screen.queryByRole('button', { name: '발전 확인' })).not.toBeInTheDocument()
+  })
+
+  it('separately explains insufficient resources and maximum development', async () => {
+    const user = userEvent.setup()
+    const state = createInitialGameState('ui-development-blocked')
+    const site = state.sites.find(
+      (candidate) => candidate.ownerId === state.humanFactionId,
+    )!
+    site.kind = 'outpost'
+    site.footprint = undefined
+    state.resources[state.humanFactionId] = 0
+    const { container, unmount } = renderApp(state)
+
+    await user.click(container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(site.position)}"]`,
+    )!)
+    await user.click(screen.getByRole('tab', { name: '발전' }))
+    expect(within(screen.getByLabelText('거점 발전')).getByRole('status'))
+      .toHaveTextContent('자원이 부족')
+    expect(screen.getByRole('button', { name: '발전 확인' })).toBeDisabled()
+
+    unmount()
+    const maxState = createInitialGameState('ui-development-max')
+    const maxSite = maxState.sites.find(
+      (candidate) =>
+        candidate.ownerId === maxState.humanFactionId &&
+        candidate.kind === 'castle',
+    )!
+    const maximum = renderApp(maxState)
+    await user.click(maximum.container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(maxSite.position)}"]`,
+    )!)
+    await user.click(screen.getByRole('tab', { name: '발전' }))
+    expect(within(screen.getByLabelText('거점 발전')).getByRole('status'))
+      .toHaveTextContent('최고 단계')
+  })
+
+  it('reports missing footprint space for settlement development', async () => {
+    const user = userEvent.setup()
+    const state = createInitialGameState('ui-development-space')
+    const village = state.sites.find((site) => site.kind === 'village')!
+    village.ownerId = state.humanFactionId
+    state.sites = [village]
+    state.units = []
+    state.resources[state.humanFactionId] = 100
+    state.tiles = state.tiles.map((tile) => ({
+      ...tile,
+      terrain:
+        positionKey(tile.position) === positionKey(village.position)
+          ? 'plain'
+          : 'mountain',
+    }))
+    const { container } = renderApp(state)
+
+    await user.click(container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(village.position)}"]`,
+    )!)
+    await user.click(screen.getByRole('tab', { name: '발전' }))
+
+    expect(within(screen.getByLabelText('거점 발전')).getByRole('status'))
+      .toHaveTextContent('footprint가 없습니다')
+    expect(container.querySelector('[data-development-footprint="true"]')).toBeNull()
+  })
+
+  it('previews a selected footprint, develops on confirmation, and cancels with Escape', async () => {
+    const user = userEvent.setup()
+    const state = createInitialGameState('ui-development-footprint')
+    const village = state.sites.find((site) => site.kind === 'village')!
+    village.ownerId = state.humanFactionId
+    state.sites = [village]
+    state.units = []
+    state.resources[state.humanFactionId] = 100
+    state.tiles = state.tiles.map((tile) => ({ ...tile, terrain: 'plain' }))
+    expect(getSiteDevelopmentFootprints(state, village).length).toBeGreaterThan(1)
+    const { container } = renderApp(state)
+    const anchor = container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(village.position)}"]`,
+    )!
+
+    await user.click(anchor)
+    await user.click(screen.getByRole('tab', { name: '발전' }))
+    expect(container.querySelectorAll('[data-development-footprint="true"]').length)
+      .toBeGreaterThan(3)
+    expect(
+      container.querySelectorAll('[data-development-footprint-selected="true"]'),
+    ).toHaveLength(3)
+
+    await user.click(screen.getByRole('button', { name: '방향 2' }))
+    expect(screen.getByRole('button', { name: '방향 2' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    await user.click(screen.getByRole('button', { name: '발전 확인' }))
+    expect(screen.getByLabelText('거점 정보')).toHaveTextContent('도시')
+    expect(container.querySelector('[data-development-footprint="true"]')).toBeNull()
+
+    await user.click(screen.getByRole('tab', { name: '발전' }))
+    expect(container.querySelector('[data-development-footprint="true"]')).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByLabelText('거점 발전')).not.toBeInTheDocument()
+    expect(container.querySelector('[data-development-footprint="true"]')).toBeNull()
+  })
+
+  it('shows locked unit types and applies blacksmith discounts', async () => {
+    const user = userEvent.setup()
+    const state = createInitialGameState('ui-production-unlocks')
+    const outpost = state.sites.find(
+      (site) => site.ownerId === state.humanFactionId,
+    )!
+    outpost.kind = 'outpost'
+    outpost.footprint = undefined
+    const smithy = state.sites.find((site) => site.kind === 'blacksmith')!
+    smithy.ownerId = state.humanFactionId
+    smithy.level = 3
+    state.resources[state.humanFactionId] = 100
+    const { container } = renderApp(state)
+
+    await user.click(container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(outpost.position)}"]`,
+    )!)
+    await user.click(screen.getByRole('tab', { name: '생산' }))
+
+    const options = container.querySelectorAll<HTMLButtonElement>('.production-option')
+    const productionPanel = screen.getByLabelText('부대 생산')
+    expect(options).toHaveLength(4)
+    expect(within(productionPanel).getByRole('button', { name: /보병.*8 자원/ }))
+      .toBeEnabled()
+    expect(within(productionPanel).getByRole('button', { name: /기병/ })).toBeDisabled()
+    expect(within(productionPanel).getByRole('button', { name: /궁병/ })).toHaveTextContent(
+      '해금되지 않은 병종',
+    )
   })
 
   it('opens chrome utility menus one at a time from the top bar', async () => {

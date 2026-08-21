@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import type { Dispatch } from 'react'
 import { chooseAiAction } from '../game/ai'
-import { UNIT_TYPE_LABELS } from '../game/rules'
+import { SITE_TYPE_LABELS, UNIT_TYPE_LABELS } from '../game/rules'
+import { getSiteDevelopmentTarget } from '../game/siteDevelopment'
 import type { GameAction, GameState } from '../game/types'
 
 type UseAiTurnOptions = {
@@ -11,7 +12,10 @@ type UseAiTurnOptions = {
   startCombat: (attackerId: string, defenderId: string) => void
 }
 
-function getActionAnnouncement(state: GameState, action: GameAction): string {
+export function getAiActionAnnouncement(
+  state: GameState,
+  action: GameAction,
+): string {
   if (action.type === 'turnEnded') {
     return 'AI 작전이 끝났습니다.'
   }
@@ -54,6 +58,16 @@ function getActionAnnouncement(state: GameState, action: GameAction): string {
     return `${site?.name ?? '거점'}에서 ${UNIT_TYPE_LABELS[action.unitType]}을 생산합니다.`
   }
 
+  if (action.type === 'siteDeveloped') {
+    const site = state.sites.find(
+      (candidate) => candidate.id === action.siteId,
+    )
+    const target = site ? getSiteDevelopmentTarget(site) : undefined
+    return site && target
+      ? `${site.name}을 ${SITE_TYPE_LABELS[target.kind]}(으)로 발전시킵니다.`
+      : 'AI가 거점을 발전시킵니다.'
+  }
+
   return ''
 }
 
@@ -84,7 +98,7 @@ export function useAiTurn({
     ).matches
     const timer = window.setTimeout(
       () => {
-        setAnnouncement(getActionAnnouncement(state, action))
+        setAnnouncement(getAiActionAnnouncement(state, action))
 
         if (action.type === 'unitAttacked') {
           startCombat(action.attackerId, action.defenderId)

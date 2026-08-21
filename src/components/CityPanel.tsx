@@ -1,29 +1,33 @@
-import { SITE_STATS, SITE_TYPE_LABELS } from '../game/rules'
+import { getSiteIncome, SITE_TYPE_LABELS } from '../game/rules'
 import type { Site } from '../game/types'
 import type { ReactNode } from 'react'
 import { SiteIcon } from './SiteIcon'
 
+export type CityPanelTab = 'production' | 'development' | 'construction'
+
 type CityPanelProps = {
   site: Site
-  productionOpen: boolean
-  onProductionOpen: () => void
+  activeTab?: CityPanelTab
+  canProduce: boolean
+  onTabChange: (tab: CityPanelTab) => void
   onClose: () => void
   children?: ReactNode
 }
 
 export function CityPanel({
   site,
-  productionOpen,
-  onProductionOpen,
+  activeTab,
+  canProduce,
+  onTabChange,
   onClose,
   children,
 }: CityPanelProps) {
   return (
     <div className="city-stack">
-      <section className="city-card" aria-label="성 정보">
+      <section className="city-card" aria-label="거점 정보">
         <div className="city-card__summary">
           <span className="city-card__icon" aria-hidden="true">
-            <SiteIcon kind={site.kind} ownerId={site.ownerId} />
+            <SiteIcon kind={site.kind} ownerId={site.ownerId} level={site.level} />
           </span>
           <div>
             <strong>{site.name}</strong>
@@ -33,33 +37,51 @@ export function CityPanel({
         <dl>
           <div>
             <dt>수입</dt>
-            <dd>{SITE_STATS[site.kind].income} 자원/턴</dd>
+            <dd>{getSiteIncome(site)} 자원/턴</dd>
           </div>
           <div>
-            <dt>생산</dt>
-            <dd>
-              {site.lastProducedTurn ? `${site.lastProducedTurn}턴 완료` : '가능'}
-            </dd>
+            <dt>소유</dt>
+            <dd>{site.ownerId === 'neutral' ? '중립' : site.ownerId}</dd>
           </div>
         </dl>
       </section>
 
-      <div className="city-card__menu" role="tablist" aria-label="성 메뉴">
+      <div className="city-card__menu" role="tablist" aria-label="거점 메뉴">
+        {canProduce && (
+          <button
+            id="site-tab-production"
+            type="button"
+            role="tab"
+            aria-controls="site-panel-production"
+            aria-selected={activeTab === 'production'}
+            onClick={() => onTabChange('production')}
+          >
+            생산
+          </button>
+        )}
+        <button
+          id="site-tab-development"
+          type="button"
+          role="tab"
+          aria-controls="site-panel-development"
+          aria-selected={activeTab === 'development'}
+          onClick={() => onTabChange('development')}
+        >
+          발전
+        </button>
         <button
           type="button"
           role="tab"
-          aria-selected={productionOpen}
-          onClick={onProductionOpen}
+          aria-selected={false}
+          disabled
+          title="준비 중인 기능입니다."
         >
-          생산
-        </button>
-        <button type="button" role="tab" disabled title="준비 중인 기능입니다.">
           건설
         </button>
         <button
           type="button"
           className="city-card__close"
-          aria-label="성 정보 닫기"
+          aria-label="거점 정보 닫기"
           onClick={onClose}
         >
           ×
