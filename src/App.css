@@ -1,7 +1,11 @@
 .app-shell {
+  display: flex;
   width: min(1360px, calc(100% - 28px));
+  height: 100%;
+  min-height: 100%;
   margin: 0 auto;
-  padding: 18px 0 40px;
+  padding: 16px 0;
+  flex-direction: column;
 }
 
 .start-screen {
@@ -579,9 +583,12 @@
 
 .game-layout {
   display: grid;
+  flex: 1 1 0;
   grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   gap: 14px;
-  align-items: start;
+  align-items: stretch;
+  min-height: 0;
 }
 
 .board-panel,
@@ -599,15 +606,22 @@
 
 .board-panel {
   position: relative;
+  display: flex;
   min-width: 0;
+  min-height: 0;
   padding: 14px 14px 12px;
+  flex: 1 1 0;
+  flex-direction: column;
   overflow: visible;
 }
 
 .board-workspace {
   display: grid;
   min-width: 0;
+  min-height: 0;
+  flex: 1 1 0;
   grid-template-columns: minmax(0, 1fr) 264px;
+  grid-template-rows: minmax(0, 1fr);
   align-items: stretch;
   gap: 10px;
 }
@@ -629,6 +643,7 @@
   display: flex;
   min-width: 0;
   min-height: 0;
+  height: 100%;
   overflow: hidden;
   background: rgba(14, 21, 26, 0.78);
   border: 1px solid rgba(169, 194, 204, 0.2);
@@ -638,23 +653,19 @@
 .map-scroll {
   position: relative;
   z-index: 0;
-  display: flex;
+  display: grid;
   min-width: 0;
+  min-height: 0;
   flex: 1;
-  justify-content: safe center;
-  align-items: flex-start;
+  place-content: center;
+  place-content: safe center;
+  place-items: center;
   overflow: auto;
-  max-height: min(78vh, 900px);
   padding: 8px 12px;
   cursor: grab;
   touch-action: none;
   scrollbar-width: none;
   -ms-overflow-style: none;
-}
-
-.map-scroll--fit {
-  align-items: center;
-  max-height: min(88vh, 920px);
 }
 
 .map-scroll::-webkit-scrollbar {
@@ -698,8 +709,8 @@
 .map-sidebar {
   display: grid;
   min-width: 0;
+  min-height: 0;
   height: 100%;
-  max-height: min(78vh, 900px);
   padding: 10px;
   grid-template-rows: auto minmax(0, 1fr);
   align-content: start;
@@ -1010,7 +1021,7 @@
 .map-zoom-shell {
   position: relative;
   flex: 0 0 auto;
-  margin: 0 auto;
+  margin: 0;
 }
 
 .game-map {
@@ -2750,14 +2761,17 @@
 
   .board-workspace {
     grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
   }
 
   .map-scroll {
+    min-height: min(50vh, 520px);
     max-height: min(70vh, 720px);
   }
 
   .map-sidebar {
     height: auto;
+    min-height: 0;
     max-height: none;
     grid-template-columns: minmax(190px, 0.7fr) minmax(0, 1.3fr);
     grid-template-rows: auto;

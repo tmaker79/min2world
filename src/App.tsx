@@ -221,7 +221,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
   )
 
   useEffect(() => {
-    if (!mapScrollElement || !playerCapitalPosition) return
+    if (!mapScrollElement || !playerCapitalPosition || isCompactBoard) return
 
     const frame = window.requestAnimationFrame(() => {
       const capitalTile = mapScrollElement.querySelector<HTMLElement>(
@@ -251,6 +251,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
 
     return () => window.cancelAnimationFrame(frame)
   }, [
+    isCompactBoard,
     mapScrollElement,
     playerCapitalPosition,
     state.tiles,
