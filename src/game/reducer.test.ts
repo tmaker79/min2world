@@ -23,7 +23,8 @@ describe('gameReducer on a hex map', () => {
 
   it('moves onto natural terrain and captures a neutral site', () => {
     const initial = createInitialGameState('reducer-capture')
-    const neutral = initial.sites.find((site) => site.ownerId === 'neutral')!
+    const generatedNeutral = initial.sites.find((site) => site.ownerId === 'neutral')!
+    const neutral = { ...generatedNeutral, kind: 'village' as const }
     const start = getHexNeighbors(neutral.position).find((position) =>
       initial.tiles.some((tile) =>
         tile.position.q === position.q && tile.position.r === position.r && tile.terrain !== 'water',
@@ -36,6 +37,9 @@ describe('gameReducer on a hex map', () => {
     const state: GameState = {
       ...initial,
       units: [mover],
+      sites: initial.sites.map((site) =>
+        site.id === neutral.id ? neutral : site,
+      ),
       tiles: initial.tiles.map((tile) =>
         (tile.position.q === start.q && tile.position.r === start.r) ||
         (tile.position.q === neutral.position.q && tile.position.r === neutral.position.r)
@@ -52,9 +56,10 @@ describe('gameReducer on a hex map', () => {
     expect(moved.sites.find((site) => site.id === neutral.id)?.ownerId).toBe('player')
   })
 
-  it('wins immediately when the enemy capital is occupied', () => {
+  it('captures an enemy capital at 50% health and wins immediately', () => {
     const initial = createInitialGameState('reducer-victory')
-    const capital = initial.sites.find((site) => site.capitalFor === 'enemy')!
+    const generatedCapital = initial.sites.find((site) => site.capitalFor === 'enemy')!
+    const capital = { ...generatedCapital, hp: 1, maxHp: 100 }
     const start = getHexNeighbors(capital.position)[0]
     const attacker: Unit = {
       id: 'winner', name: 'winner', factionId: 'player', type: 'infantry',
@@ -62,7 +67,11 @@ describe('gameReducer on a hex map', () => {
     }
     const state = {
       ...initial,
+      selectedUnitId: attacker.id,
       units: [attacker],
+      sites: initial.sites.map((site) =>
+        site.id === capital.id ? capital : site,
+      ),
       tiles: initial.tiles.map((tile) =>
         tile.position.q === capital.position.q && tile.position.r === capital.position.r
           ? { ...tile, terrain: 'plain' as const }
@@ -70,11 +79,64 @@ describe('gameReducer on a hex map', () => {
       ),
     }
 
-    const result = gameReducer(select(state, attacker.id), {
-      type: 'unitMoved', unitId: attacker.id, destination: capital.position,
+    const result = gameReducer(state, {
+      type: 'siteAttacked', attackerId: attacker.id, siteId: capital.id,
     })
     expect(result.phase).toBe('victory')
-    expect(result.sites.find((site) => site.id === capital.id)?.capitalFor).toBe('enemy')
+    expect(result.sites.find((site) => site.id === capital.id)).toMatchObject({
+      ownerId: 'player',
+      hp: 50,
+      maxHp: 100,
+      capitalFor: 'enemy',
+    })
+    expect(result.factionOrder).not.toContain('enemy')
+    expect(result.units[0]).toMatchObject({
+      movementRemaining: 0,
+      hasActed: true,
+    })
+    expect(result.selectedUnitId).toBeUndefined()
+  })
+
+  it('loses immediately when the human capital falls to a site attack', () => {
+    const initial = createInitialGameState('reducer-defeat')
+    const generatedCapital = initial.sites.find(
+      (site) => site.capitalFor === initial.humanFactionId,
+    )!
+    const capital = { ...generatedCapital, hp: 1, maxHp: 100 }
+    const start = getHexNeighbors(capital.position)[0]
+    const attacker: Unit = {
+      id: 'enemy-winner',
+      name: 'enemy winner',
+      factionId: 'enemy',
+      type: 'infantry',
+      position: start,
+      hp: 100,
+      maxHp: 100,
+      movementRemaining: 2,
+      hasActed: false,
+    }
+    const state = {
+      ...initial,
+      activeFactionId: 'enemy' as const,
+      selectedUnitId: attacker.id,
+      units: [attacker],
+      sites: initial.sites.map((site) =>
+        site.id === capital.id ? capital : site,
+      ),
+    }
+
+    const result = gameReducer(state, {
+      type: 'siteAttacked',
+      attackerId: attacker.id,
+      siteId: capital.id,
+    })
+    expect(result.phase).toBe('defeat')
+    expect(result.sites.find((site) => site.id === capital.id)).toMatchObject({
+      ownerId: 'enemy',
+      hp: 50,
+      capitalFor: initial.humanFactionId,
+    })
+    expect(result.factionOrder).toEqual(state.factionOrder)
   })
 
   it('rejects movement outside the unit range', () => {
@@ -113,6 +175,47 @@ describe('gameReducer on a hex map', () => {
     expect(result.units.find((unit) => unit.id === attacker.id)).toMatchObject({ hp: 70, hasActed: true })
     expect(result.units.find((unit) => unit.id === defender.id)?.hp).toBe(70)
     expect(result.selectedUnitId).toBeUndefined()
+  })
+
+  it('reduces fortified site health and rejects invalid site attacks', () => {
+    const initial = createInitialGameState('reducer-site-combat')
+    const attacker: Unit = {
+      id: 'attacker', name: 'attacker', factionId: 'player', type: 'infantry',
+      position: { q: 0, r: 0 }, hp: 100, maxHp: 100, movementRemaining: 2, hasActed: false,
+    }
+    const site = {
+      id: 'outpost',
+      name: 'Outpost',
+      kind: 'outpost' as const,
+      position: { q: 1, r: 0 },
+      ownerId: 'enemy' as const,
+      hp: 50,
+      maxHp: 50,
+    }
+    const state = {
+      ...initial,
+      selectedUnitId: attacker.id,
+      units: [attacker],
+      sites: [site],
+      tiles: initial.tiles.map((tile) => ({
+        ...tile,
+        terrain: 'plain' as const,
+      })),
+    }
+
+    const result = gameReducer(state, {
+      type: 'siteAttacked',
+      attackerId: attacker.id,
+      siteId: site.id,
+    })
+    expect(result.sites[0]).toMatchObject({ ownerId: 'enemy', hp: 5, maxHp: 50 })
+    expect(
+      gameReducer({ ...state, selectedUnitId: undefined }, {
+        type: 'siteAttacked',
+        attackerId: attacker.id,
+        siteId: site.id,
+      }),
+    ).toEqual({ ...state, selectedUnitId: undefined })
   })
 
   it('produces only at an owned production site and charges resources', () => {

@@ -13,7 +13,7 @@ const sitePositionIndexCache = new WeakMap<Site[], SiteIndex>()
 const siteIdIndexCache = new WeakMap<Site[], SiteIndex>()
 const zoneOfControlCache = new WeakMap<
   Unit[],
-  Map<FactionId, ReadonlyMap<string, Position>>
+  WeakMap<Site[], Map<FactionId, ReadonlyMap<string, Position>>>
 >()
 
 function getOrCreateIndex<T extends { position: Position }>(
@@ -74,7 +74,13 @@ export function getZoneOfControlIndex(
   state: GameState,
   factionId: FactionId,
 ): ReadonlyMap<string, Position> {
-  let cached = zoneOfControlCache.get(state.units)
+  let siteCaches = zoneOfControlCache.get(state.units)
+  if (!siteCaches) {
+    siteCaches = new WeakMap()
+    zoneOfControlCache.set(state.units, siteCaches)
+  }
+
+  let cached = siteCaches.get(state.sites)
   if (!cached) {
     const zones = new Map<FactionId, Map<string, Position>>(
       state.factionOrder.map((id) => [id, new Map()]),
@@ -90,8 +96,32 @@ export function getZoneOfControlIndex(
       }
     }
 
+    for (const site of state.sites) {
+      if (
+        site.ownerId === 'neutral' ||
+        (site.kind !== 'outpost' &&
+          site.kind !== 'keep' &&
+          site.kind !== 'stronghold' &&
+          site.kind !== 'castle')
+      ) {
+        continue
+      }
+      for (const affectedFactionId of state.factionOrder) {
+        if (affectedFactionId === site.ownerId) continue
+        const zone = zones.get(affectedFactionId)!
+        for (const occupiedPosition of getSiteOccupiedPositions(site)) {
+          for (const position of getHexNeighbors(
+            occupiedPosition,
+            state.boardSize,
+          )) {
+            zone.set(positionKey(position), position)
+          }
+        }
+      }
+    }
+
     cached = zones
-    zoneOfControlCache.set(state.units, cached)
+    siteCaches.set(state.sites, cached)
   }
 
   return cached.get(factionId) ?? new Map()

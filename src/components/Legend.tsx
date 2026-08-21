@@ -84,7 +84,7 @@ export function Legend({ embedded = false }: LegendProps) {
         </li>
         <li>
           <span className="legend-swatch legend-swatch--zoc" />
-          적 통제 구역 <small>진입 시 이동 종료</small>
+          적 통제 구역 <small>적 유닛 및 소유 방어 거점 주변 · 진입 시 이동 종료</small>
         </li>
       </ul>
     </section>

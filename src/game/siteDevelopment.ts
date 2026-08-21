@@ -1,5 +1,9 @@
 import { positionKey } from './hex'
 import {
+  getSiteMaxHp,
+  isFortifiedSiteKind,
+} from './rules'
+import {
   getCastleFootprintCandidates,
   getCityFootprintCandidates,
   getSiteOccupiedPositions,
@@ -204,6 +208,14 @@ export function resolveSiteDevelopment(
   const site = state.sites.find((candidate) => candidate.id === siteId)!
   const target = getSiteDevelopmentTarget(site)!
   const previousFootprint = getSiteOccupiedPositions(site)
+  const targetMaxHp = getSiteMaxHp(target.kind)
+  const currentMaxHp = getSiteMaxHp(site)
+  const targetHp =
+    target.kind === 'castle'
+      ? targetMaxHp
+      : isFortifiedSiteKind(target.kind) && targetMaxHp && currentMaxHp
+        ? Math.ceil(((site.hp ?? currentMaxHp) / currentMaxHp) * targetMaxHp)
+        : undefined
   return {
     ...state,
     resources: {
@@ -211,17 +223,26 @@ export function resolveSiteDevelopment(
       [state.activeFactionId]:
         (state.resources[state.activeFactionId] ?? 0) - target.cost,
     },
-    sites: state.sites.map((candidate) =>
-      candidate.id === site.id
-        ? {
-            ...candidate,
-            kind: target.kind,
-            level: target.level,
-            lastDevelopedTurn: state.turn,
-            footprint: check.footprint,
-          }
-        : candidate,
-    ),
+    sites: state.sites.map((candidate) => {
+      if (candidate.id !== site.id) return candidate
+      const {
+        hp: _hp,
+        maxHp: _maxHp,
+        ...withoutCombatStats
+      } = candidate
+      void _hp
+      void _maxHp
+      return {
+        ...withoutCombatStats,
+        kind: target.kind,
+        level: target.level,
+        lastDevelopedTurn: state.turn,
+        footprint: check.footprint,
+        ...(targetHp !== undefined && targetMaxHp !== undefined
+          ? { hp: targetHp, maxHp: targetMaxHp }
+          : {}),
+      }
+    }),
     tiles: updateSiteFootprintTiles(
       state.tiles,
       site.id,

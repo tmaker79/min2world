@@ -71,6 +71,113 @@ describe('hex-map AI', () => {
     })
   })
 
+  it('attacks an enemy unit before an attackable fortified site', () => {
+    const initial = enemyTurn('ai-unit-before-site')
+    const attacker: Unit = {
+      id: 'enemy-archer', name: 'archer', factionId: 'enemy', type: 'archer',
+      position: { q: 0, r: 0 }, hp: 100, maxHp: 100, movementRemaining: 2, hasActed: false,
+    }
+    const defender: Unit = {
+      id: 'player-unit', name: 'unit', factionId: 'player', type: 'infantry',
+      position: { q: 1, r: 0 }, hp: 100, maxHp: 100, movementRemaining: 0, hasActed: true,
+    }
+    const site = enemySite(initial, {
+      id: 'player-fort', ownerId: 'player', position: { q: 2, r: 0 },
+      hp: 1, maxHp: 50,
+    })
+    const state = {
+      ...initial, selectedUnitId: attacker.id, units: [attacker, defender], sites: [site],
+    }
+
+    expect(chooseAiAction(state)).toEqual({
+      type: 'unitAttacked', attackerId: attacker.id, defenderId: defender.id,
+    })
+  })
+
+  it('orders attackable sites by enemy capital, hp, then stable id', () => {
+    const initial = enemyTurn('ai-site-order')
+    const attacker: Unit = {
+      id: 'enemy-archer', name: 'archer', factionId: 'enemy', type: 'archer',
+      position: { q: 0, r: 0 }, hp: 100, maxHp: 100, movementRemaining: 2, hasActed: false,
+    }
+    const makeSite = (id: string, position: Site['position'], hp: number, capital = false) =>
+      enemySite(initial, {
+        id, ownerId: 'player', position, hp, maxHp: 50,
+        capitalFor: capital ? 'player' : undefined,
+      })
+    const low = makeSite('a-low', { q: 1, r: 0 }, 1)
+    const capital = makeSite('z-capital', { q: 2, r: 0 }, 40, true)
+    const state = {
+      ...initial, selectedUnitId: attacker.id, units: [attacker],
+      sites: [low, capital],
+    }
+
+    expect(chooseAiAction(state)).toEqual({
+      type: 'siteAttacked', attackerId: attacker.id, siteId: capital.id,
+    })
+
+    const equalHpSites = [
+      makeSite('z-site', { q: 1, r: 0 }, 10),
+      makeSite('a-site', { q: 2, r: 0 }, 10),
+      makeSite('m-lowest', { q: 1, r: 1 }, 2),
+    ]
+    expect(chooseAiAction({ ...state, sites: equalHpSites })).toEqual({
+      type: 'siteAttacked', attackerId: attacker.id, siteId: 'm-lowest',
+    })
+    expect(chooseAiAction({ ...state, sites: equalHpSites.slice(0, 2) })).toEqual({
+      type: 'siteAttacked', attackerId: attacker.id, siteId: 'a-site',
+    })
+  })
+
+  it('attacks a neutral fortified site', () => {
+    const initial = enemyTurn('ai-neutral-site')
+    const attacker: Unit = {
+      id: 'enemy-infantry', name: 'infantry', factionId: 'enemy', type: 'infantry',
+      position: { q: 0, r: 0 }, hp: 100, maxHp: 100, movementRemaining: 2, hasActed: false,
+    }
+    const neutral = enemySite(initial, {
+      id: 'neutral-fort', ownerId: 'neutral', position: { q: 1, r: 0 }, hp: 50,
+    })
+    const state = {
+      ...initial, selectedUnitId: attacker.id, units: [attacker], sites: [neutral],
+    }
+
+    expect(chooseAiAction(state)).toEqual({
+      type: 'siteAttacked', attackerId: attacker.id, siteId: neutral.id,
+    })
+  })
+
+  it('moves into siege range without entering the fortified footprint', () => {
+    const initial = enemyTurn('ai-move-to-siege-range')
+    const attacker: Unit = {
+      id: 'enemy-archer', name: 'archer', factionId: 'enemy', type: 'archer',
+      position: { q: 0, r: 0 }, hp: 100, maxHp: 100, movementRemaining: 2, hasActed: false,
+    }
+    const capital = enemySite(initial, {
+      id: 'player-capital', ownerId: 'player', capitalFor: 'player',
+      kind: 'castle', position: { q: 3, r: 0 },
+      footprint: [{ q: 3, r: 0 }, { q: 4, r: 0 }],
+      hp: 120, maxHp: 120,
+    })
+    const state = {
+      ...initial,
+      selectedUnitId: attacker.id,
+      tiles: initial.tiles.map((tile) => ({ ...tile, terrain: 'plain' as const })),
+      units: [attacker],
+      sites: [capital],
+    }
+    const movement = chooseAiAction(state)
+
+    expect(movement).toEqual({
+      type: 'unitMoved', unitId: attacker.id, destination: { q: 1, r: 0 },
+    })
+    const moved = gameReducer(state, movement!)
+    expect(capital.footprint).not.toContainEqual(moved.units[0].position)
+    expect(chooseAiAction(moved)).toEqual({
+      type: 'siteAttacked', attackerId: attacker.id, siteId: capital.id,
+    })
+  })
+
   it('moves toward the player capital over a valid weighted hex path', () => {
     const initial = enemyTurn('ai-move-open')
     const capital = initial.sites.find((site) => site.capitalFor === 'player')!

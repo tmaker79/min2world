@@ -29,6 +29,8 @@ import {
 } from '../game/hex'
 import {
   getSiteAt,
+  getSiteCombatStats,
+  getSiteMaxHp,
   getUnitAt,
   positionKey,
   SITE_TYPE_LABELS,
@@ -91,6 +93,16 @@ export type CombatAnimation = {
   phase: CombatAnimationPhase
 }
 
+export type SiteAttackAnimation = {
+  attackerId: string
+  attackerPosition: Position
+  siteId: string
+  sitePosition: Position
+  damage: number
+  captured: boolean
+  phase: CombatAnimationPhase
+}
+
 type HoverTarget =
   | { kind: 'unit'; unitId: string; element: HTMLElement }
   | { kind: 'terrain'; tileKey: string; element: HTMLElement }
@@ -101,12 +113,14 @@ type GameMapProps = {
   zoom?: number
   reachableKeys: Set<string>
   attackableKeys: Set<string>
+  attackableSiteKeys?: Set<string>
   deployableKeys: Set<string>
   developmentFootprintKeys?: Set<string>
   selectedDevelopmentFootprintKeys?: Set<string>
   zoneOfControlKeys: Set<string>
   selectedSiteId?: string
   combatAnimation?: CombatAnimation
+  siteAttackAnimation?: SiteAttackAnimation
   showSiteAssetPreview?: boolean
   disabled: boolean
   suppressClickRef?: { current: boolean }
@@ -123,6 +137,7 @@ type TileButtonProps = {
   siteSelected: boolean
   reachable: boolean
   attackable: boolean
+  attackableSite: boolean
   deployable: boolean
   developmentFootprint: boolean
   selectedDevelopmentFootprint: boolean
@@ -176,6 +191,7 @@ function getTileLabel(
     parts.push(
       `${site.name}, ${factionLabel(site.ownerId)} ${SITE_TYPE_LABELS[site.kind]}`,
     )
+    if (attackable) parts.push('공격 가능')
   }
   if (unit) {
     parts.push(`${unit.name}, ${UNIT_TYPE_LABELS[unit.type]}`)
@@ -187,7 +203,7 @@ function getTileLabel(
           ? '공격만 가능'
           : '행동 가능',
     )
-    if (attackable) parts.push('공격 가능')
+    if (attackable && !site) parts.push('공격 가능')
   }
   return parts.join(', ')
 }
@@ -263,6 +279,7 @@ const TileButton = memo(function TileButton({
   siteSelected,
   reachable,
   attackable,
+  attackableSite,
   deployable,
   developmentFootprint,
   selectedDevelopmentFootprint,
@@ -282,6 +299,7 @@ const TileButton = memo(function TileButton({
     reachable ? 'map-tile--reachable' : '',
     inZoneOfControl ? 'map-tile--zoc' : '',
     attackable ? 'map-tile--attackable' : '',
+    attackableSite ? 'map-tile--attackable-site' : '',
     deployable ? 'map-tile--deployable' : '',
     developmentFootprint ? 'map-tile--development-footprint' : '',
     selectedDevelopmentFootprint
@@ -319,7 +337,7 @@ const TileButton = memo(function TileButton({
         tile,
         unit,
         site,
-        attackable,
+        attackable || attackableSite,
         inZoneOfControl,
         deployable,
         developmentFootprint,
@@ -331,6 +349,7 @@ const TileButton = memo(function TileButton({
       data-coordinate={positionKey(tile.position)}
       data-reachable={reachable ? 'true' : undefined}
       data-attackable={attackable ? 'true' : undefined}
+      data-attackable-site={attackableSite ? 'true' : undefined}
       data-deployable={deployable ? 'true' : undefined}
       data-development-footprint={developmentFootprint ? 'true' : undefined}
       data-development-footprint-selected={
@@ -466,12 +485,24 @@ function TerrainTooltip({
 function SiteMarker({
   site,
   selected,
+  siteAttackAnimation,
   style,
 }: {
   site: Site
   selected: boolean
+  siteAttackAnimation?: SiteAttackAnimation
   style: CSSProperties
 }) {
+  const combatStats = getSiteCombatStats(site)
+  const maxHp = getSiteMaxHp(site)
+  const hp = combatStats && maxHp ? (site.hp ?? maxHp) : undefined
+  const healthPercent =
+    hp !== undefined && maxHp ? Math.max(0, Math.min(100, (hp / maxHp) * 100)) : 0
+  const isHit =
+    site.id === siteAttackAnimation?.siteId &&
+    siteAttackAnimation.phase === 'hit'
+  const healthLabel =
+    hp !== undefined && maxHp ? `, 체력 ${hp}/${maxHp}` : ''
   return (
     <span className="map-overlay-cell" style={style}>
       <span
@@ -481,13 +512,27 @@ function SiteMarker({
             : ''
         } site-marker--${site.kind} site-marker--${site.ownerId}${
           selected ? ' site-marker--selected' : ''
+        }${isHit ? ' site-marker--hit' : ''
         }`}
         data-owner={site.ownerId}
+        data-site-id={site.id}
+        data-health={hp !== undefined && maxHp ? `${hp}/${maxHp}` : undefined}
         data-site-selected={selected ? 'true' : undefined}
+        role="img"
+        aria-label={`${site.name}, ${SITE_TYPE_LABELS[site.kind]}${healthLabel}`}
+        title={`${site.name} ${SITE_TYPE_LABELS[site.kind]}${healthLabel}`}
       >
         <SiteIcon kind={site.kind} ownerId={site.ownerId} level={site.level} />
         {site.ownerId !== 'neutral' && (
           <span className={`site-banner site-banner--${site.ownerId}`} />
+        )}
+        {hp !== undefined && maxHp && (
+          <span className="site-health-bar">
+            <span
+              className="site-health-bar__fill"
+              style={{ width: `${healthPercent}%` }}
+            />
+          </span>
         )}
       </span>
     </span>
@@ -530,12 +575,14 @@ function UnitMarker({
   unit,
   selected,
   combatAnimation,
+  siteAttackAnimation,
   style,
   tokenRef,
 }: {
   unit: Unit
   selected: boolean
   combatAnimation?: CombatAnimation
+  siteAttackAnimation?: SiteAttackAnimation
   style: CSSProperties
   tokenRef?: (element: HTMLSpanElement | null) => void
 }) {
@@ -547,13 +594,15 @@ function UnitMarker({
         ? 'damaged'
         : 'healthy'
   const isAttacker = unit.id === combatAnimation?.attackerId
+  const isSiteAttacker = unit.id === siteAttackAnimation?.attackerId
   const isDefender = unit.id === combatAnimation?.defenderId
   const meleeExchange = Boolean(
     combatAnimation && combatAnimation.damageToAttacker > 0,
   )
   const isStriking =
-    combatAnimation?.phase === 'attack' &&
-    (isAttacker || (isDefender && meleeExchange))
+    (combatAnimation?.phase === 'attack' &&
+      (isAttacker || (isDefender && meleeExchange))) ||
+    (siteAttackAnimation?.phase === 'attack' && isSiteAttacker)
   const isHit =
     combatAnimation?.phase === 'hit' &&
     ((isDefender && combatAnimation.damageToDefender > 0) ||
@@ -562,9 +611,11 @@ function UnitMarker({
     isHit &&
     ((isDefender && combatAnimation.defenderDefeated) ||
       (isAttacker && combatAnimation.attackerDefeated))
-  const strikeTarget = isAttacker
-    ? combatAnimation?.defenderPosition
-    : combatAnimation?.attackerPosition
+  const strikeTarget = isSiteAttacker
+    ? siteAttackAnimation?.sitePosition
+    : isAttacker
+      ? combatAnimation?.defenderPosition
+      : combatAnimation?.attackerPosition
   const originPixel = getHexPixelPosition(unit.position)
   const targetPixel = strikeTarget ? getHexPixelPosition(strikeTarget) : undefined
   const deltaX = targetPixel ? targetPixel.x - originPixel.x : 0
@@ -613,12 +664,14 @@ function GameMapComponent({
   zoom = 1,
   reachableKeys,
   attackableKeys,
+  attackableSiteKeys = new Set(),
   deployableKeys,
   developmentFootprintKeys = new Set(),
   selectedDevelopmentFootprintKeys = new Set(),
   zoneOfControlKeys,
   selectedSiteId,
   combatAnimation,
+  siteAttackAnimation,
   showSiteAssetPreview = false,
   disabled,
   suppressClickRef,
@@ -845,6 +898,8 @@ function GameMapComponent({
       ...state.sites.flatMap((site) => getSiteOccupiedPositions(site)),
       combatAnimation?.attackerPosition,
       combatAnimation?.defenderPosition,
+      siteAttackAnimation?.attackerPosition,
+      siteAttackAnimation?.sitePosition,
       ...siteAssetPreviews.map((preview) => preview.position),
     ]
     for (const position of persistentPositions) {
@@ -855,6 +910,7 @@ function GameMapComponent({
     for (const key of [
       ...reachableKeys,
       ...attackableKeys,
+      ...attackableSiteKeys,
       ...deployableKeys,
       ...developmentFootprintKeys,
       ...selectedDevelopmentFootprintKeys,
@@ -868,8 +924,11 @@ function GameMapComponent({
   }, [
     combatAnimation?.attackerPosition,
     combatAnimation?.defenderPosition,
+    siteAttackAnimation?.attackerPosition,
+    siteAttackAnimation?.sitePosition,
     layout,
     attackableKeys,
+    attackableSiteKeys,
     deployableKeys,
     developmentFootprintKeys,
     reachableKeys,
@@ -947,6 +1006,9 @@ function GameMapComponent({
           const siteSelected = Boolean(selectedSiteId && site?.id === selectedSiteId)
           const reachable = reachableKeys.has(positionKey(tile.position))
           const attackable = attackableKeys.has(positionKey(tile.position))
+          const attackableSite = attackableSiteKeys.has(
+            positionKey(tile.position),
+          )
           const deployable = deployableKeys.has(positionKey(tile.position))
           const developmentFootprint = developmentFootprintKeys.has(
             positionKey(tile.position),
@@ -966,6 +1028,7 @@ function GameMapComponent({
               siteSelected={siteSelected}
               reachable={reachable}
               attackable={attackable}
+              attackableSite={attackableSite}
               deployable={deployable}
               developmentFootprint={developmentFootprint}
               selectedDevelopmentFootprint={selectedDevelopmentFootprint}
@@ -981,12 +1044,13 @@ function GameMapComponent({
         })}
       </div>
 
-      <div className="map-layer map-layer--sites" aria-hidden="true">
+      <div className="map-layer map-layer--sites">
         {state.sites.map((site) => (
           <SiteMarker
             key={site.id}
             site={site}
             selected={site.id === selectedSiteId}
+            siteAttackAnimation={siteAttackAnimation}
             style={getSiteOverlayStyle(site, minimumX, minimumY)}
           />
         ))}
@@ -1008,6 +1072,7 @@ function GameMapComponent({
             unit={unit}
             selected={unit.id === state.selectedUnitId}
             combatAnimation={combatAnimation}
+            siteAttackAnimation={siteAttackAnimation}
             style={getOverlayStyle(unit.position, minimumX, minimumY)}
             tokenRef={(element) => {
               if (element) {
@@ -1030,6 +1095,19 @@ function GameMapComponent({
             <span className="damage-popup">-{damage}</span>
           </span>
         ))}
+        {siteAttackAnimation?.phase === 'hit' &&
+          siteAttackAnimation.damage > 0 && (
+            <span
+              className="map-overlay-cell"
+              style={getOverlayStyle(
+                siteAttackAnimation.sitePosition,
+                minimumX,
+                minimumY,
+              )}
+            >
+              <span className="damage-popup">-{siteAttackAnimation.damage}</span>
+            </span>
+          )}
       </div>
 
       {hoveredUnit && hoveredUnitTile && tooltipAnchor && (

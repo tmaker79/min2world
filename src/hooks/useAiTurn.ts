@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react'
 import type { Dispatch } from 'react'
 import { chooseAiAction } from '../game/ai'
-import { SITE_TYPE_LABELS, UNIT_TYPE_LABELS } from '../game/rules'
+import { gameReducer } from '../game/reducer'
+import {
+  getSiteMaxHp,
+  SITE_TYPE_LABELS,
+  UNIT_TYPE_LABELS,
+} from '../game/rules'
 import { getSiteDevelopmentTarget } from '../game/siteDevelopment'
 import type { GameAction, GameState } from '../game/types'
 
@@ -15,6 +20,7 @@ type UseAiTurnOptions = {
 export function getAiActionAnnouncement(
   state: GameState,
   action: GameAction,
+  nextState?: GameState,
 ): string {
   if (action.type === 'turnEnded') {
     return 'AI 작전이 끝났습니다.'
@@ -51,6 +57,27 @@ export function getAiActionAnnouncement(
       : 'AI 공격'
   }
 
+  if (action.type === 'siteAttacked') {
+    const site = state.sites.find(
+      (candidate) => candidate.id === action.siteId,
+    )
+    const nextSite = nextState?.sites.find(
+      (candidate) => candidate.id === action.siteId,
+    )
+    if (!site || !nextSite) {
+      return 'AI 거점 공격'
+    }
+
+    const beforeHp = site.hp ?? getSiteMaxHp(site) ?? 0
+    const captured = nextSite.ownerId !== site.ownerId
+    const damage = captured
+      ? beforeHp
+      : beforeHp - (nextSite.hp ?? getSiteMaxHp(nextSite) ?? beforeHp)
+    return captured
+      ? `${site.name}에 ${damage} 피해, ${site.name} 점령`
+      : `${site.name}에 ${damage} 피해`
+  }
+
   if (action.type === 'unitProduced') {
     const site = state.sites.find(
       (candidate) => candidate.id === action.siteId,
@@ -78,12 +105,23 @@ export function useAiTurn({
   startCombat,
 }: UseAiTurnOptions) {
   const [announcement, setAnnouncement] = useState('')
+  const [siteCombatWaiting, setSiteCombatWaiting] = useState(false)
+
+  useEffect(() => {
+    if (!siteCombatWaiting) {
+      return
+    }
+
+    const timer = window.setTimeout(() => setSiteCombatWaiting(false), 450)
+    return () => window.clearTimeout(timer)
+  }, [siteCombatWaiting])
 
   useEffect(() => {
     if (
       state.phase !== 'playing' ||
       state.activeFactionId === state.humanFactionId ||
-      combatActive
+      combatActive ||
+      siteCombatWaiting
     ) {
       return
     }
@@ -98,20 +136,31 @@ export function useAiTurn({
     ).matches
     const timer = window.setTimeout(
       () => {
-        setAnnouncement(getAiActionAnnouncement(state, action))
-
         if (action.type === 'unitAttacked') {
+          setAnnouncement(getAiActionAnnouncement(state, action))
           startCombat(action.attackerId, action.defenderId)
           return
         }
 
+        if (action.type === 'siteAttacked') {
+          const nextState = gameReducer(state, action)
+          setAnnouncement(getAiActionAnnouncement(state, action, nextState))
+          dispatch(action)
+          if (nextState === state) {
+            dispatch({ type: 'unitWaited', unitId: action.attackerId })
+          }
+          setSiteCombatWaiting(true)
+          return
+        }
+
+        setAnnouncement(getAiActionAnnouncement(state, action))
         dispatch(action)
       },
       reducedMotion ? 50 : 400,
     )
 
     return () => window.clearTimeout(timer)
-  }, [combatActive, dispatch, startCombat, state])
+  }, [combatActive, dispatch, siteCombatWaiting, startCombat, state])
 
   return announcement
 }

@@ -1,4 +1,9 @@
-import { getSiteIncome, SITE_TYPE_LABELS } from '../game/rules'
+import {
+  getSiteCombatStats,
+  getSiteIncome,
+  getSiteMaxHp,
+  SITE_TYPE_LABELS,
+} from '../game/rules'
 import type { Site } from '../game/types'
 import type { ReactNode } from 'react'
 import { SiteIcon } from './SiteIcon'
@@ -22,6 +27,9 @@ export function CityPanel({
   onClose,
   children,
 }: CityPanelProps) {
+  const combatStats = getSiteCombatStats(site)
+  const maxHp = getSiteMaxHp(site)
+
   return (
     <div className="city-stack">
       <section className="city-card" aria-label="거점 정보">
@@ -43,6 +51,18 @@ export function CityPanel({
             <dt>소유</dt>
             <dd>{site.ownerId === 'neutral' ? '중립' : site.ownerId}</dd>
           </div>
+          {combatStats && maxHp && (
+            <>
+              <div>
+                <dt>체력</dt>
+                <dd>{site.hp ?? maxHp}/{maxHp}</dd>
+              </div>
+              <div>
+                <dt>방어력</dt>
+                <dd>{combatStats.defense}</dd>
+              </div>
+            </>
+          )}
         </dl>
       </section>
 

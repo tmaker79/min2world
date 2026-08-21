@@ -60,6 +60,7 @@ describe('GameMap large-map rendering', () => {
         scrollElement={null}
         reachableKeys={new Set()}
         attackableKeys={new Set()}
+        attackableSiteKeys={new Set()}
         deployableKeys={new Set()}
         zoneOfControlKeys={new Set()}
         showSiteAssetPreview

@@ -13,7 +13,7 @@ export type Terrain =
 
 export type MapType = 'balanced' | 'plains' | 'mountainous' | 'forested'
 
-export const GAME_SCHEMA_VERSION = 9
+export const GAME_SCHEMA_VERSION = 10
 export const MAP_GENERATION_VERSION = 22
 export const SUPPORTED_MAP_GENERATION_VERSIONS: readonly number[] = [
   5,
@@ -31,6 +31,7 @@ export const SUPPORTED_MAP_GENERATION_VERSIONS: readonly number[] = [
   17,
   18,
   19,
+  20,
   21,
   MAP_GENERATION_VERSION,
 ]
@@ -75,6 +76,11 @@ export type SiteStats = {
   canProduce: boolean
 }
 
+export type SiteCombatStats = {
+  maxHp: number
+  defense: number
+}
+
 export type Tile = {
   id: string
   position: Position
@@ -105,6 +111,8 @@ export type Site = {
   level?: 1 | 2 | 3
   ownerId: SiteOwnerId
   capitalFor?: FactionId
+  hp?: number
+  maxHp?: number
   lastProducedTurn?: number
   lastDevelopedTurn?: number
 }
@@ -133,6 +141,7 @@ export type GameAction =
   | { type: 'selectionCleared' }
   | { type: 'unitMoved'; unitId: string; destination: Position }
   | { type: 'unitAttacked'; attackerId: string; defenderId: string }
+  | { type: 'siteAttacked'; attackerId: string; siteId: string }
   | { type: 'unitWaited'; unitId: string }
   | {
       type: 'unitProduced'

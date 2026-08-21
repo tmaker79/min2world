@@ -1,18 +1,24 @@
 import {
   canSiteProduceUnit,
+  getAttackableSites,
   getAttackableUnits,
   getDeployablePositions,
   getHexNeighbors,
   getProducibleUnitTypes,
   getReachablePositionCosts,
   getMovementStepCost,
+  getSiteMaxHp,
   getTileAt,
   getUnitProductionCost,
   getUnitAt,
+  isFortifiedSite,
   isPositionInEnemyZoneOfControl,
   positionKey,
   TERRAIN_MOVEMENT_COST,
+  UNIT_STATS,
 } from './rules'
+import { getHexDistance } from './hex'
+import { getSiteOccupiedPositions } from './siteFootprint'
 import {
   canDevelopSite,
   getSiteDevelopmentFootprints,
@@ -97,7 +103,7 @@ function compareFootprints(left: readonly Position[], right: readonly Position[]
   return getKey(left).localeCompare(getKey(right))
 }
 
-function getApproachPositions(
+function getUnitApproachPositions(
   state: GameState,
   target: Unit,
   movingUnit: Unit,
@@ -112,6 +118,37 @@ function getApproachPositions(
         (!occupant || occupant.id === movingUnit.id),
     )
   })
+}
+
+function getSiteApproachPositions(
+  state: GameState,
+  target: Site,
+  movingUnit: Unit,
+): Position[] {
+  const range = UNIT_STATS[movingUnit.type].range
+  const occupiedPositions = getSiteOccupiedPositions(target)
+
+  return state.tiles
+    .filter(
+      (tile) =>
+        TERRAIN_MOVEMENT_COST[tile.terrain] !== null &&
+        occupiedPositions.some(
+          (position) => getHexDistance(tile.position, position) <= range,
+        ),
+    )
+    .map((tile) => tile.position)
+    .filter((position) => {
+      const occupant = getUnitAt(state, position)
+      const site = state.sites.find(
+        (candidate) =>
+          isFortifiedSite(candidate) &&
+          candidate.ownerId !== movingUnit.factionId &&
+          getSiteOccupiedPositions(candidate).some(
+            (occupied) => positionKey(occupied) === positionKey(position),
+          ),
+      )
+      return (!occupant || occupant.id === movingUnit.id) && !site
+    })
 }
 
 type PathSearch = {
@@ -131,6 +168,15 @@ function getWeightedPathSearch(
           candidate.id !== unit.id && candidate.factionId !== unit.factionId,
       )
       .map((candidate) => positionKey(candidate.position)),
+  )
+  const fortifiedKeys = new Set(
+    state.sites
+      .filter(
+        (site) =>
+          isFortifiedSite(site) && site.ownerId !== unit.factionId,
+      )
+      .flatMap(getSiteOccupiedPositions)
+      .map(positionKey),
   )
   const bestCosts = new Map<string, number>([[positionKey(start), 0]])
   const previous = new Map<string, Position>()
@@ -163,7 +209,7 @@ function getWeightedPathSearch(
 
     for (const neighbor of getHexNeighbors(current.position, state.boardSize)) {
       const neighborKey = positionKey(neighbor)
-      if (occupiedKeys.has(neighborKey)) {
+      if (occupiedKeys.has(neighborKey) || fortifiedKeys.has(neighborKey)) {
         continue
       }
 
@@ -241,13 +287,15 @@ function chooseTarget(
   unit: Unit,
   costs: ReadonlyMap<string, number>,
 ): Target | undefined {
-  const capital = state.sites.find((site) => {
-    return Boolean(
-      site.capitalFor &&
+  const capital = state.sites
+    .filter(
+      (site) =>
+        site.capitalFor &&
         site.capitalFor !== unit.factionId &&
+        site.ownerId !== 'neutral' &&
         site.ownerId !== unit.factionId,
     )
-  })
+    .sort(compareIds)[0]
   const sites = state.sites
     .filter(
       (site) =>
@@ -257,7 +305,9 @@ function chooseTarget(
   const siteTarget = chooseClosestTarget(
     (capital ? [capital] : sites).map((site: Site) => ({
       id: site.id,
-      positions: [site.position],
+      positions: isFortifiedSite(site)
+        ? getSiteApproachPositions(state, site, unit)
+        : [site.position],
     })),
     costs,
   )
@@ -273,7 +323,7 @@ function chooseTarget(
   return chooseClosestTarget(
     enemyUnits.map((target) => ({
       id: target.id,
-      positions: getApproachPositions(state, target, unit),
+      positions: getUnitApproachPositions(state, target, unit),
     })),
     costs,
   )
@@ -461,6 +511,35 @@ export function chooseAiAction(
       type: 'unitAttacked',
       attackerId: selectedUnit.id,
       defenderId: attackTarget.id,
+    }
+  }
+
+  const siteTarget = getAttackableSites(state, selectedUnit).sort(
+    (left, right) => {
+      const leftIsEnemyCapital = Boolean(
+        left.capitalFor &&
+          left.capitalFor !== selectedUnit.factionId &&
+          left.ownerId !== 'neutral',
+      )
+      const rightIsEnemyCapital = Boolean(
+        right.capitalFor &&
+          right.capitalFor !== selectedUnit.factionId &&
+          right.ownerId !== 'neutral',
+      )
+      return (
+        Number(rightIsEnemyCapital) - Number(leftIsEnemyCapital) ||
+        (left.hp ?? getSiteMaxHp(left) ?? Infinity) -
+          (right.hp ?? getSiteMaxHp(right) ?? Infinity) ||
+        left.id.localeCompare(right.id)
+      )
+    },
+  )[0]
+
+  if (siteTarget) {
+    return {
+      type: 'siteAttacked',
+      attackerId: selectedUnit.id,
+      siteId: siteTarget.id,
     }
   }
 

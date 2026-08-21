@@ -8,7 +8,12 @@ import {
   positionKey,
 } from './hex'
 import { MinPriorityQueue } from './priorityQueue'
-import { UNIT_MAX_HP, UNIT_STATS } from './rules'
+import {
+  getSiteMaxHp,
+  isFortifiedSiteKind,
+  UNIT_MAX_HP,
+  UNIT_STATS,
+} from './rules'
 import {
   findCastleFootprint,
   getSiteOccupiedPositions,
@@ -421,6 +426,9 @@ function chooseNeutralSites(
     kind,
     position: { ...position },
     ownerId: 'neutral',
+    ...(isFortifiedSiteKind(kind)
+      ? { hp: getSiteMaxHp(kind)!, maxHp: getSiteMaxHp(kind)! }
+      : {}),
     ...(kind === 'farm' || kind === 'mine' || kind === 'blacksmith'
       ? { level: 1 as const }
       : {}),
@@ -526,6 +534,23 @@ export function validateGeneratedMap(state: GameState): string[] {
     )
   ) {
     issues.push('siteLevels')
+  }
+  if (
+    state.sites.some((site) => {
+      if (!isFortifiedSiteKind(site.kind)) {
+        return site.hp !== undefined || site.maxHp !== undefined
+      }
+      const expectedMaxHp = getSiteMaxHp(site.kind)!
+      return (
+        site.maxHp !== expectedMaxHp ||
+        !Number.isInteger(site.hp) ||
+        site.hp === undefined ||
+        site.hp < 1 ||
+        site.hp > expectedMaxHp
+      )
+    })
+  ) {
+    issues.push('siteHp')
   }
   if (
     NEUTRAL_SITE_TYPES.some(
@@ -650,17 +675,22 @@ function createSites(
     f4: '자색 성',
   }
   return [
-    ...getFactionIds(factionCount).map((factionId) => ({
-      id: `site-${factionId}-castle`,
-      name: names[factionId] ?? factionId,
-      kind: 'castle' as const,
-      position: { ...capitals[factionId] },
-      footprint: castleFootprints[factionId].map((position) => ({
-        ...position,
-      })),
-      ownerId: factionId,
-      capitalFor: factionId,
-    })),
+    ...getFactionIds(factionCount).map((factionId) => {
+      const maxHp = getSiteMaxHp('castle')!
+      return {
+        id: `site-${factionId}-castle`,
+        name: names[factionId] ?? factionId,
+        kind: 'castle' as const,
+        position: { ...capitals[factionId] },
+        footprint: castleFootprints[factionId].map((position) => ({
+          ...position,
+        })),
+        ownerId: factionId,
+        capitalFor: factionId,
+        hp: maxHp,
+        maxHp,
+      }
+    }),
     ...neutrals,
   ]
 }

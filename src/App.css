@@ -1287,8 +1287,16 @@
   z-index: 2;
 }
 
+.map-tile--attackable-site {
+  --hex-border: #ff9b54;
+  z-index: 2;
+  box-shadow: inset 0 0 18px rgba(181, 44, 35, 0.28);
+}
+
 .map-tile--attackable:not([aria-disabled='true']),
-.map-tile--attackable:not([aria-disabled='true']) * {
+.map-tile--attackable:not([aria-disabled='true']) *,
+.map-tile--attackable-site:not([aria-disabled='true']),
+.map-tile--attackable-site:not([aria-disabled='true']) * {
   cursor: url('./assets/crossed-swords.svg') 16 16, crosshair;
 }
 
@@ -1396,6 +1404,38 @@
   filter:
     drop-shadow(0 0 6px rgba(110, 215, 255, 0.95))
     drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
+}
+
+.site-marker--hit {
+  z-index: 4;
+  animation: site-hit 260ms ease-out;
+}
+
+.site-health-bar {
+  position: absolute;
+  z-index: 3;
+  bottom: -4px;
+  left: 50%;
+  display: block;
+  width: 38px;
+  height: 5px;
+  overflow: hidden;
+  background: rgba(8, 10, 12, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.75);
+  transform: translateX(-50%);
+}
+
+.site-marker--multi .site-health-bar {
+  bottom: 5px;
+}
+
+.site-health-bar__fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(180deg, #7be08a 0%, #2f9a4a 100%);
+  transition: width 160ms ease;
 }
 
 .site-marker [data-site-icon],
@@ -1805,6 +1845,23 @@
   }
 }
 
+@keyframes site-hit {
+  0%,
+  100% {
+    filter: brightness(1);
+    transform: translateX(0);
+  }
+
+  20% {
+    filter: brightness(2) sepia(1) saturate(4);
+    transform: translateX(-4px);
+  }
+
+  50% {
+    transform: translateX(5px);
+  }
+}
+
 @keyframes unit-defeat {
   0% {
     filter: brightness(1.7) sepia(1) saturate(4) hue-rotate(320deg);
@@ -1840,6 +1897,7 @@
   .unit-token--striking,
   .unit-token--hit,
   .unit-token--defeated,
+  .site-marker--hit,
   .site-marker--selected,
   .damage-popup {
     animation-duration: 1ms;
@@ -1848,6 +1906,10 @@
   .start-screen__actions button,
   .start-screen__start-arrow,
   .unit-health-bar__fill {
+    transition: none;
+  }
+
+  .site-health-bar__fill {
     transition: none;
   }
 }

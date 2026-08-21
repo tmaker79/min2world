@@ -6,6 +6,7 @@ import {
   normalizeMapSeed,
   validateGeneratedMap,
 } from './mapGenerator'
+import { getSiteMaxHp, isFortifiedSiteKind } from './rules'
 import {
   FOREST_TERRAIN_VARIANT_COUNT,
   GAME_SCHEMA_VERSION,
@@ -363,6 +364,14 @@ describe('procedural map generation', () => {
       expect(state.sites.filter((site) => site.kind === 'blacksmith')).toHaveLength(2)
       expect(state.sites.filter((site) => site.kind === 'city')).toHaveLength(0)
       expect(
+        state.sites.every((site) =>
+          isFortifiedSiteKind(site.kind)
+            ? site.hp === getSiteMaxHp(site.kind) &&
+              site.maxHp === getSiteMaxHp(site.kind)
+            : site.hp === undefined && site.maxHp === undefined,
+        ),
+      ).toBe(true)
+      expect(
         state.sites
           .filter(
             (site) =>
@@ -384,6 +393,23 @@ describe('procedural map generation', () => {
       expect(state.schemaVersion).toBe(GAME_SCHEMA_VERSION)
     },
   )
+
+  it.each([
+    ['missing fortified hp', (state: ReturnType<typeof generateGameState>) => {
+      delete state.sites.find((site) => site.kind === 'castle')!.hp
+    }],
+    ['wrong fortified max hp', (state: ReturnType<typeof generateGameState>) => {
+      state.sites.find((site) => site.kind === 'outpost')!.maxHp = 1
+    }],
+    ['nonfortified hp', (state: ReturnType<typeof generateGameState>) => {
+      state.sites.find((site) => site.kind === 'village')!.hp = 1
+    }],
+  ])('reports generated site hp invariant violations: %s', (_, mutate) => {
+    const state = generateGameState('invalid-generated-site-hp')
+    mutate(state)
+
+    expect(validateGeneratedMap(state)).toContain('siteHp')
+  })
 
   it('normalizes seeds and generates an eight-character hexadecimal seed', () => {
     expect(normalizeMapSeed('  a seed  ')).toBe('a seed')

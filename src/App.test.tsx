@@ -335,6 +335,8 @@ describe('Milestone 07 UI', () => {
       cityInfo.compareDocumentPosition(cityMenu) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
     expect(screen.getByText(stronghold.name)).toBeVisible()
+    expect(cityInfo).toHaveTextContent('체력120/120')
+    expect(cityInfo).toHaveTextContent('방어력55')
     expect(screen.getByRole('tab', { name: /건설/ })).toBeDisabled()
     expect(screen.queryByText('미구현')).not.toBeInTheDocument()
     expect(container.querySelector('.production-card')).toBeNull()
@@ -609,18 +611,22 @@ describe('Milestone 07 UI', () => {
     expect(screen.queryByRole('heading', { name: '저장 관리' })).not.toBeInTheDocument()
   })
 
-  it('shows victory immediately after occupying the enemy stronghold', async () => {
-    const user = userEvent.setup()
+  it('shows fortified health and resolves a castle siege with damage feedback', () => {
+    vi.useFakeTimers()
     const initial = createInitialGameState('ui-victory')
     const capital = initial.sites.find((site) => site.capitalFor === 'enemy')!
     const start = getHexNeighbors(capital.position)[0]
     const winner: Unit = {
-      id: 'winner', name: 'winner', factionId: 'player', type: 'infantry',
+      id: 'winner', name: 'winner', factionId: 'player', type: 'archer',
       position: start, hp: 100, maxHp: 100, movementRemaining: 2, hasActed: false,
     }
     const state = {
       ...initial,
+      selectedUnitId: winner.id,
       units: [winner],
+      sites: initial.sites.map((site) =>
+        site.id === capital.id ? { ...site, hp: 1, maxHp: 120 } : site,
+      ),
       tiles: initial.tiles.map((tile) =>
         tile.position.q === capital.position.q && tile.position.r === capital.position.r
           ? { ...tile, terrain: 'plain' as const }
@@ -628,16 +634,68 @@ describe('Milestone 07 UI', () => {
       ),
     }
     const { container } = renderApp(state)
+    const capitalMarker = container.querySelector<HTMLElement>(
+      `[data-site-id="${capital.id}"]`,
+    )!
+    const target = container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(capital.position)}"]`,
+    )!
 
-    await user.click(container.querySelector<HTMLButtonElement>(
-      `.map-tile[data-coordinate="${positionKey(winner.position)}"]`,
-    )!)
-    fireEvent.contextMenu(
-      container.querySelector(`[data-coordinate="${positionKey(capital.position)}"]`)!,
-    )
+    expect(capitalMarker).toHaveAttribute('data-health', '1/120')
+    expect(capitalMarker).toHaveAttribute('title', expect.stringContaining('체력 1/120'))
+    expect(target).toHaveClass('map-tile--attackable-site')
+    expect(target).toHaveAttribute('data-attackable-site', 'true')
 
+    fireEvent.click(target)
+    act(() => vi.advanceTimersByTime(20))
+    expect(capitalMarker).toHaveClass('site-marker--hit')
+    expect(container.querySelector('.damage-popup')).toHaveTextContent('-1')
+    expect(
+      screen.getByText(`${capital.name}에 1 피해, ${capital.name} 점령`),
+    ).toBeInTheDocument()
+
+    act(() => vi.advanceTimersByTime(50))
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(screen.getByText('CAMPAIGN COMPLETE')).toBeInTheDocument()
     expect(screen.getByRole('dialog').querySelectorAll('button')).toHaveLength(2)
+    expect(container.querySelector(`[data-unit-id="${winner.id}"]`))
+      .toHaveClass('unit-token--acted')
+    vi.useRealTimers()
+  })
+
+  it('attacks an enemy unit before a fortified site on the same tile', () => {
+    vi.useFakeTimers()
+    const initial = createInitialGameState('ui-site-unit-priority')
+    const capital = initial.sites.find((site) => site.capitalFor === 'enemy')!
+    const attacker: Unit = {
+      id: 'siege-archer', name: 'siege archer', factionId: 'player', type: 'archer',
+      position: getHexNeighbors(capital.position)[0],
+      hp: 100, maxHp: 100, movementRemaining: 2, hasActed: false,
+    }
+    const defender: Unit = {
+      id: 'castle-guard', name: 'castle guard', factionId: 'enemy', type: 'infantry',
+      position: capital.position,
+      hp: 100, maxHp: 100, movementRemaining: 2, hasActed: false,
+    }
+    const state = {
+      ...initial,
+      selectedUnitId: attacker.id,
+      units: [attacker, defender],
+      sites: initial.sites.map((site) =>
+        site.id === capital.id ? { ...site, hp: 120, maxHp: 120 } : site,
+      ),
+    }
+    const { container } = renderApp(state)
+
+    fireEvent.click(container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(capital.position)}"]`,
+    )!)
+    act(() => vi.advanceTimersByTime(70))
+
+    expect(container.querySelector(`[data-unit-id="${defender.id}"]`))
+      .not.toHaveAttribute('data-health', '100/100')
+    expect(container.querySelector(`[data-site-id="${capital.id}"]`))
+      .toHaveAttribute('data-health', '120/120')
+    vi.useRealTimers()
   })
 })

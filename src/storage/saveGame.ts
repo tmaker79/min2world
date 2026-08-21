@@ -12,7 +12,13 @@ import {
   isValidCastleFootprint,
   isValidCityFootprint,
 } from '../game/siteFootprint'
-import { SITE_STATS, TERRAIN_MOVEMENT_COST, UNIT_STATS } from '../game/rules'
+import {
+  getSiteMaxHp,
+  isFortifiedSiteKind,
+  SITE_STATS,
+  TERRAIN_MOVEMENT_COST,
+  UNIT_STATS,
+} from '../game/rules'
 import {
   GAME_SCHEMA_VERSION,
   MAP_GENERATION_VERSION,
@@ -202,6 +208,8 @@ function parseSite(value: unknown, boardSize: BoardSize): Site | undefined {
   const position = parsePosition(value.position, boardSize)
   const kind = value.kind as SiteType
   const requiresLevel = kind === 'farm' || kind === 'mine' || kind === 'blacksmith'
+  const fortified = isFortifiedSiteKind(kind)
+  const expectedMaxHp = getSiteMaxHp(kind)!
   const footprint = Array.isArray(value.footprint)
     ? value.footprint.map((candidate) => parsePosition(candidate, boardSize))
     : undefined
@@ -229,7 +237,11 @@ function parseSite(value: unknown, boardSize: BoardSize): Site | undefined {
           footprint as Position[],
           boardSize,
         ))) ||
-    (kind !== 'city' && kind !== 'castle' && value.footprint !== undefined)
+    (kind !== 'city' && kind !== 'castle' && value.footprint !== undefined) ||
+    (fortified
+      ? value.maxHp !== expectedMaxHp ||
+        !isIntegerInRange(value.hp, 1, expectedMaxHp)
+      : value.hp !== undefined || value.maxHp !== undefined)
   ) {
     return undefined
   }
@@ -242,6 +254,9 @@ function parseSite(value: unknown, boardSize: BoardSize): Site | undefined {
       ? {}
       : { footprint: footprint as Position[] }),
     ownerId: value.ownerId as SiteOwnerId,
+    ...(fortified
+      ? { hp: value.hp as number, maxHp: value.maxHp as number }
+      : {}),
     ...(requiresLevel ? { level: value.level as 1 | 2 | 3 } : {}),
     ...(value.capitalFor === undefined ? {} : { capitalFor: value.capitalFor as FactionId }),
     ...(value.lastProducedTurn === undefined || !SITE_STATS[kind].canProduce
@@ -557,10 +572,36 @@ function readSavedGame(storage?: StorageLike): StorageResult<SavedGame> {
     }
     parsed = {
       ...developmentRecord,
-      schemaVersion: GAME_SCHEMA_VERSION,
+      schemaVersion: 9,
       gameState: {
         ...legacyState,
-        schemaVersion: GAME_SCHEMA_VERSION,
+        schemaVersion: 9,
+        sites: Array.isArray(legacyState.sites)
+          ? legacyState.sites.map(migrateSite)
+          : legacyState.sites,
+      },
+    }
+  }
+  const siteCombatRecord = parsed as Record<string, unknown>
+  if (siteCombatRecord.schemaVersion === 9 && isRecord(siteCombatRecord.gameState)) {
+    const legacyState = siteCombatRecord.gameState
+    const migrateSite = (site: unknown) => {
+      if (!isRecord(site) || typeof site.kind !== 'string') return site
+      const kind = site.kind as SiteType
+      if (!SITE_TYPES.has(kind) || !isFortifiedSiteKind(kind)) return site
+      const maxHp = getSiteMaxHp(kind)!
+      return {
+        ...site,
+        hp: maxHp,
+        maxHp,
+      }
+    }
+    parsed = {
+      ...siteCombatRecord,
+      schemaVersion: 10,
+      gameState: {
+        ...legacyState,
+        schemaVersion: 10,
         sites: Array.isArray(legacyState.sites)
           ? legacyState.sites.map(migrateSite)
           : legacyState.sites,

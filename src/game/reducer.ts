@@ -4,14 +4,19 @@ import { resolveSiteDevelopment } from './siteDevelopment'
 import {
   canSiteProduceUnit,
   captureSiteAt,
-  getCapitalPhase,
+  getAttackableSites,
   getAttackableUnits,
+  getCapitalPhase,
   getDeployablePositions,
   getFactionIncome,
   getMovementCost,
+  getSiteAt,
+  getSiteMaxHp,
   getUnitProductionCost,
   isPositionInEnemyZoneOfControl,
+  isFortifiedSite,
   resolveCombat,
+  resolveSiteCombat,
   UNIT_MAX_HP,
   UNIT_TYPE_LABELS,
   UNIT_STATS,
@@ -69,6 +74,15 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       const unit = state.units.find((candidate) => candidate.id === action.unitId)
       if (!unit || unit.factionId !== state.activeFactionId || unit.hasActed) {
+        return state
+      }
+
+      const destinationSite = getSiteAt(state, action.destination)
+      if (
+        destinationSite &&
+        isFortifiedSite(destinationSite) &&
+        destinationSite.ownerId !== unit.factionId
+      ) {
         return state
       }
 
@@ -182,6 +196,75 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ...state,
         selectedUnitId: undefined,
         units,
+      }
+    }
+
+    case 'siteAttacked': {
+      if (state.selectedUnitId !== action.attackerId) {
+        return state
+      }
+
+      const attacker = state.units.find(
+        (unit) => unit.id === action.attackerId,
+      )
+      const site = state.sites.find(
+        (candidate) => candidate.id === action.siteId,
+      )
+      if (
+        !attacker ||
+        !site ||
+        attacker.hasActed ||
+        attacker.factionId !== state.activeFactionId ||
+        !getAttackableSites(state, attacker).some(
+          (candidate) => candidate.id === site.id,
+        )
+      ) {
+        return state
+      }
+
+      const result = resolveSiteCombat(state, attacker, site)
+      const captured = result.siteHp <= 0
+      const maxHp = getSiteMaxHp(site)!
+      const sites = state.sites.map((candidate) =>
+        candidate.id === site.id
+          ? {
+              ...candidate,
+              ownerId: captured ? attacker.factionId : candidate.ownerId,
+              hp: captured ? Math.ceil(maxHp * 0.5) : result.siteHp,
+              maxHp,
+            }
+          : candidate,
+      )
+      const defeatedFactionId = captured
+        ? sites.find(
+            (candidate) =>
+              candidate.capitalFor &&
+              candidate.capitalFor !== state.humanFactionId &&
+              candidate.capitalFor !== attacker.factionId &&
+              candidate.ownerId === attacker.factionId,
+          )?.capitalFor
+        : undefined
+      const factionOrder = defeatedFactionId
+        ? state.factionOrder.filter(
+            (factionId) => factionId !== defeatedFactionId,
+          )
+        : state.factionOrder
+
+      return {
+        ...state,
+        phase: getCapitalPhase(
+          sites,
+          state.humanFactionId,
+          state.factionOrder,
+        ),
+        factionOrder,
+        selectedUnitId: undefined,
+        sites,
+        units: state.units.map((unit) =>
+          unit.id === attacker.id
+            ? { ...unit, movementRemaining: 0, hasActed: true }
+            : unit,
+        ),
       }
     }
 

@@ -45,17 +45,17 @@
 - 지도 종류 선택: 균형, 평원, 산악, 삼림
 - 평지, 언덕, 숲, 산, 물, 사막, 사막 언덕, 오아시스, 툰드라, 툰드라 숲, 툰드라 산의 지형 11종
 - 일반 숲의 활엽수·침엽수 군락 변형과 지형별 래스터 타일
-- 성, 마을, 농장, 광산의 거점 4종
+- Outpost·Keep·Stronghold, Village·City·Castle, Farm·Mine·Blacksmith의 거점 9종
 - 세력별 수도(성) 1개와 시작 유닛 3개(보병 2, 기병 1)
 - 보병, 기병, 궁병, 창병
 - 최대 체력 100, 근접/원거리 전투력과 병종 상성
 - 궁병 공격은 반격 없음, 반격은 근접 전투력 사용
 - 육각 6방향 이동, 통제 구역, 사거리 공격
 - 지형 이동 비용과 언덕·숲·사막 언덕·툰드라 숲 전투력 보정(+3)
-- 거점 점령, 다세력 수도 점령 승패
+- 군사 거점 공성, 일반 거점 점령, 다세력 수도 점령 승패
 - 턴 종료 시 소유 거점 수입과 유닛 생산
 - 규칙 기반 AI 턴(활성 세력 순회)
-- localStorage 저장과 불러오기(스키마 8, 스키마 6·7 마이그레이션)
+- localStorage 저장과 불러오기(스키마 10, 스키마 6~9 연쇄 마이그레이션)
 - 시작 화면·seed 입력·무작위 지도·새 게임
 - 지도 휠 줌·드래그 팬·미니맵
 - 지형/유닛 호버 툴팁, 성·부대 정보창, 우클릭 이동
@@ -84,6 +84,17 @@
 | 생산 특화 | `Farm`, `Mine`, `Blacksmith` | 종류를 유지하며 자체 개발 |
 
 Castle은 Stronghold의 상위 단계가 아니라 정착 계열의 최종 형태다. Village를 City로 발전시키면 기존 타일에 인접한 빈 2타일을 더해 위 1칸·아래 2칸의 삼각형 3타일을 사용한다. City를 Castle로 발전시키면 기존 City footprint에 빈 1타일을 더해 가로형 마름모 4타일을 완성한다. 수도 여부는 거점 종류와 별개로 `capitalFor`가 결정한다.
+
+군사 거점의 전투 수치는 다음과 같다.
+
+| 거점 | 최대 HP | 방어력 |
+| --- | ---: | ---: |
+| Outpost | 50 | 35 |
+| Keep | 75 | 42 |
+| Stronghold | 100 | 50 |
+| Castle | 120 | 55 |
+
+소유된 군사 거점은 전체 footprint의 인접 칸에 통제 구역을 만들지만 중립 거점은 만들지 않는다. 적 또는 중립 군사 거점에는 공성 공격을 사용하며 거점은 반격하지 않는다. HP가 0이 되면 즉시 공격 세력이 점령하고 최대 HP의 50%를 회복한다. `Outpost → Keep → Stronghold` 발전은 기존 HP 비율을 유지하고, `City → Castle`은 최대 HP로 시작한다.
 
 새로운 아이디어는 백로그에 기록하고, 다음 마일스톤을 추가한 뒤에 구현한다.
 
@@ -169,7 +180,16 @@ type FactionId = 'f1' | 'f2' | 'f3' | 'f4' | 'player' | 'enemy' // player/enemy�
 type FactionCount = 2 | 3 | 4
 type BoardSize = { columns: number; rows: number }
 type SiteOwnerId = FactionId | 'neutral'
-type SiteType = 'stronghold' | 'village' | 'farm' | 'mine' | 'city' // city는 향후 도시용 예약
+type SiteType =
+  | 'outpost'
+  | 'keep'
+  | 'stronghold'
+  | 'village'
+  | 'city'
+  | 'castle'
+  | 'farm'
+  | 'mine'
+  | 'blacksmith'
 type UnitType = 'infantry' | 'cavalry' | 'archer' | 'spearman'
 type GamePhase = 'playing' | 'victory' | 'defeat'
 
@@ -198,16 +218,21 @@ type Site = {
   name: string
   kind: SiteType
   position: Position
+  footprint?: Position[]
+  level?: 1 | 2 | 3
   ownerId: SiteOwnerId
   capitalFor?: FactionId
+  hp?: number
+  maxHp?: number
   lastProducedTurn?: number
+  lastDevelopedTurn?: number
 }
 
 type GameState = {
-  schemaVersion: number // 8
+  schemaVersion: number // 10
   mapSeed: string
   mapType: MapType
-  mapGenerationVersion: number // 20
+  mapGenerationVersion: number // 22
   boardSize: BoardSize
   factionCount: FactionCount
   humanFactionId: FactionId
@@ -233,6 +258,7 @@ type GameAction =
   | { type: 'selectionCleared' }
   | { type: 'unitMoved'; unitId: string; destination: Position }
   | { type: 'unitAttacked'; attackerId: string; defenderId: string }
+  | { type: 'siteAttacked'; attackerId: string; siteId: string }
   | { type: 'unitWaited'; unitId: string }
   | {
       type: 'unitProduced'
@@ -240,6 +266,7 @@ type GameAction =
       unitType: UnitType
       destination: Position
     }
+  | { type: 'siteDeveloped'; siteId: string; footprint?: Position[] }
   | { type: 'turnEnded' }
   | { type: 'gameLoaded'; state: GameState }
   | {
@@ -339,7 +366,7 @@ src/
 - Outpost → Keep → Stronghold와 Village → City → Castle 발전 계열
 - Farm·Mine·Blacksmith 1~3레벨 및 수입·생산 보조 효과
 - City 3칸·Castle 4칸 footprint 방향 선택과 지도 미리보기
-- 거점별 병종 해금, AI 발전, 스키마 9·맵 생성 버전 22
+- 거점별 병종 해금, AI 발전, 군사 거점 공성, 스키마 10·맵 생성 버전 22
 
 ## 8. 테스트 전략
 
@@ -381,11 +408,13 @@ src/
 localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지만 사용자가 사이트 데이터를 삭제하거나 저장 공간이 제한되면 사라질 수 있다. 따라서 저장은 편의 기능으로 간주하며 영구 보관을 보장하지 않는다.
 
 - 저장 데이터에 `schemaVersion`, `mapSeed`, `mapType`, `mapGenerationVersion`, `boardSize`, `factionCount`, `humanFactionId`, `factionOrder`를 포함한다.
-- 현재 스키마는 9이다.
+- 현재 스키마는 10이다.
 - 스키마 6은 `player`/`enemy`를 `f1`/`f2`로 바꾼 뒤 연쇄 마이그레이션한다.
 - 스키마 7은 기존 `city`(마을)를 `village`로, `village`(농장)를 `farm`으로 바꿔 불러온다.
 - 스키마 8 저장에 `mapType`이 없으면 기존 생성 방식인 `balanced`로 불러온다.
-- 스키마 8의 기존 거점은 종류와 Castle footprint를 보존하고 생산 특화 시설을 Lv.1로 채워 불러온다.
+- 스키마 8의 기존 거점은 종류와 Castle footprint를 보존하고 생산 특화 시설을 Lv.1로 채운 뒤 연쇄 마이그레이션한다.
+- 스키마 9의 군사 거점은 종류별 최대 HP로 채워 스키마 10으로 불러온다.
+- 마이그레이션은 저장된 `mapGenerationVersion`을 바꾸지 않으며, 새 지도 생성 버전은 22를 유지한다.
 - 맵 생성 버전 5부터 현재 버전 22까지 저장된 타일을 재생성하지 않고 지원한다.
 - JSON을 읽은 뒤 필요한 필드와 값의 범위를 검증한다.
 - 스키마 4·5를 포함한 지원하지 않는 버전은 불러오지 않고 사용자에게 알린다.

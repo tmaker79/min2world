@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { HEX_TILE_COUNT, positionKey } from '../game/hex'
 import { createInitialGameState } from '../game/initialState'
-import { TERRAIN_MOVEMENT_COST } from '../game/rules'
+import {
+  getSiteMaxHp,
+  isFortifiedSiteKind,
+  TERRAIN_MOVEMENT_COST,
+} from '../game/rules'
 import { getCityFootprintCandidates } from '../game/siteFootprint'
 import { GAME_SCHEMA_VERSION, MAP_GENERATION_VERSION } from '../game/types'
 import type { GameState } from '../game/types'
@@ -87,6 +91,15 @@ describe('saved games', () => {
       expect(loaded.value.gameState.sites).toHaveLength(12)
       expect(loaded.value.gameState.mapSeed).toBe('save-roundtrip')
       expect(loaded.value.gameState.mapType).toBe('forested')
+      expect(
+        loaded.value.gameState.sites
+          .filter((site) => isFortifiedSiteKind(site.kind))
+          .every(
+            (site) =>
+              site.maxHp === getSiteMaxHp(site.kind) &&
+              site.hp === getSiteMaxHp(site.kind),
+          ),
+      ).toBe(true)
     }
   })
 
@@ -103,21 +116,26 @@ describe('saved games', () => {
     if (loaded.ok) expect(loaded.value.gameState.mapType).toBe('balanced')
   })
 
-  it('loads and re-saves map generation version 5 games', () => {
+  it.each([5, 20])(
+    'loads and re-saves map generation version %s games',
+    (mapGenerationVersion) => {
     const storage = new MemoryStorage()
-    const state = createInitialGameState('generation-v5')
-    state.mapGenerationVersion = 5
+    const state = createInitialGameState(`generation-v${mapGenerationVersion}`)
+    state.mapGenerationVersion = mapGenerationVersion
     storeEnvelope(storage, state)
 
     const loaded = loadGame(storage)
 
     expect(loaded.ok).toBe(true)
     if (loaded.ok) {
-      expect(loaded.value.gameState.mapGenerationVersion).toBe(5)
+      expect(loaded.value.gameState.mapGenerationVersion).toBe(
+        mapGenerationVersion,
+      )
       expect(saveGame(loaded.value.gameState, storage).ok).toBe(true)
     }
     expect(MAP_GENERATION_VERSION).toBe(22)
-  })
+    },
+  )
 
   it('loads schema 8 saves created with the previous 15x10 board', () => {
     const storage = new MemoryStorage()
@@ -216,7 +234,7 @@ describe('saved games', () => {
     }
   })
 
-  it('migrates an eight-site schema 8 save to schema 9 without changing its map version or castle footprints', () => {
+  it('migrates an eight-site schema 8 save to schema 10 without changing its map version or castle footprints', () => {
     const storage = new MemoryStorage()
     const state = createSchema8State('schema-8-migration')
     state.mapGenerationVersion = 21
@@ -229,8 +247,8 @@ describe('saved games', () => {
 
     expect(loaded.ok).toBe(true)
     if (loaded.ok) {
-      expect(loaded.value.schemaVersion).toBe(9)
-      expect(loaded.value.gameState.schemaVersion).toBe(9)
+      expect(loaded.value.schemaVersion).toBe(10)
+      expect(loaded.value.gameState.schemaVersion).toBe(10)
       expect(loaded.value.gameState.mapGenerationVersion).toBe(21)
       expect(loaded.value.gameState.sites).toHaveLength(8)
       expect(
@@ -244,6 +262,49 @@ describe('saved games', () => {
           .map((site) => site.footprint),
       ).toEqual(castleFootprints)
       expect(loaded.value.gameState.sites.every((site) => site.lastDevelopedTurn === undefined)).toBe(true)
+    }
+  })
+
+  it('migrates schema 9 fortified sites to full kind-specific hp while preserving site data', () => {
+    const storage = new MemoryStorage()
+    const state = createInitialGameState('schema-9-site-hp')
+    state.schemaVersion = 9
+    state.mapGenerationVersion = 21
+    const castle = state.sites.find((site) => site.kind === 'castle')!
+    const footprint = castle.footprint
+    const farm = state.sites.find((site) => site.kind === 'farm')!
+    farm.level = 2
+    farm.lastDevelopedTurn = 1
+    state.sites = state.sites.map(({ hp: _hp, maxHp: _maxHp, ...site }) => {
+      void _hp
+      void _maxHp
+      return site
+    })
+    storeEnvelope(storage, state, 9)
+
+    const loaded = loadGame(storage)
+
+    expect(loaded.ok).toBe(true)
+    if (loaded.ok) {
+      expect(loaded.value.schemaVersion).toBe(10)
+      expect(loaded.value.gameState.schemaVersion).toBe(10)
+      expect(loaded.value.gameState.mapGenerationVersion).toBe(21)
+      expect(loaded.value.gameState.sites.find((site) => site.id === castle.id)?.footprint).toEqual(footprint)
+      expect(loaded.value.gameState.sites.find((site) => site.id === farm.id)).toMatchObject({
+        level: 2,
+        lastDevelopedTurn: 1,
+      })
+      for (const site of loaded.value.gameState.sites) {
+        if (isFortifiedSiteKind(site.kind)) {
+          expect(site).toMatchObject({
+            hp: getSiteMaxHp(site.kind),
+            maxHp: getSiteMaxHp(site.kind),
+          })
+        } else {
+          expect(site.hp).toBeUndefined()
+          expect(site.maxHp).toBeUndefined()
+        }
+      }
     }
   })
 
@@ -297,7 +358,17 @@ describe('saved games', () => {
     }],
     ['footprint on a one-tile site', (state: GameState) => { state.sites.find((site) => site.kind === 'outpost')!.footprint = [state.sites.find((site) => site.kind === 'outpost')!.position] }],
     ['future development turn', (state: GameState) => { state.sites[0].lastDevelopedTurn = state.turn + 1 }],
-  ])('rejects schema 9 sites with %s', (_, mutate) => {
+    ['missing fortified hp', (state: GameState) => { delete state.sites.find((site) => site.kind === 'castle')!.hp }],
+    ['fractional fortified hp', (state: GameState) => { state.sites.find((site) => site.kind === 'outpost')!.hp = 1.5 }],
+    ['zero fortified hp', (state: GameState) => { state.sites.find((site) => site.kind === 'outpost')!.hp = 0 }],
+    ['hp above max', (state: GameState) => {
+      const site = state.sites.find((candidate) => candidate.kind === 'castle')!
+      site.hp = site.maxHp! + 1
+    }],
+    ['wrong fortified max hp', (state: GameState) => { state.sites.find((site) => site.kind === 'castle')!.maxHp = 1 }],
+    ['hp on nonfortified site', (state: GameState) => { state.sites.find((site) => site.kind === 'village')!.hp = 1 }],
+    ['max hp on nonfortified site', (state: GameState) => { state.sites.find((site) => site.kind === 'farm')!.maxHp = 1 }],
+  ])('rejects schema 10 sites with %s', (_, mutate) => {
     const storage = new MemoryStorage()
     const state = createInitialGameState('invalid-site-schema')
     mutate(state)

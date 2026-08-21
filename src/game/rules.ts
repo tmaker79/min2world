@@ -19,6 +19,7 @@ import type {
   GameState,
   Position,
   Site,
+  SiteCombatStats,
   SiteStats,
   SiteType,
   Terrain,
@@ -62,6 +63,42 @@ export const SITE_STATS: Record<SiteType, SiteStats> = {
   farm: { income: 2, canProduce: false },
   mine: { income: 3, canProduce: false },
   blacksmith: { income: 2, canProduce: false },
+}
+
+export type FortifiedSiteKind = 'outpost' | 'keep' | 'stronghold' | 'castle'
+
+export const SITE_COMBAT_STATS: Record<FortifiedSiteKind, SiteCombatStats> = {
+  outpost: { maxHp: 50, defense: 35 },
+  keep: { maxHp: 75, defense: 42 },
+  stronghold: { maxHp: 100, defense: 50 },
+  castle: { maxHp: 120, defense: 55 },
+}
+
+export function isFortifiedSiteKind(
+  kind: SiteType,
+): kind is FortifiedSiteKind {
+  return kind in SITE_COMBAT_STATS
+}
+
+export function isFortifiedSite(
+  site: Site,
+): site is Site & { kind: FortifiedSiteKind } {
+  return isFortifiedSiteKind(site.kind)
+}
+
+export function getSiteCombatStats(
+  siteOrKind: Site | SiteType,
+): SiteCombatStats | undefined {
+  const kind = typeof siteOrKind === 'string' ? siteOrKind : siteOrKind.kind
+  return isFortifiedSiteKind(kind) ? SITE_COMBAT_STATS[kind] : undefined
+}
+
+export function getSiteMaxHp(siteOrKind: Site | SiteType): number | undefined {
+  const stats = getSiteCombatStats(siteOrKind)
+  if (!stats) return undefined
+  return typeof siteOrKind !== 'string' && siteOrKind.maxHp !== undefined
+    ? siteOrKind.maxHp
+    : stats.maxHp
 }
 
 export const SITE_TYPE_LABELS: Record<SiteType, string> = {
@@ -252,6 +289,15 @@ export function getReachablePositionCosts(
       )
       .map((candidate) => positionKey(candidate.position)),
   )
+  const blockedFortifiedPositions = new Set(
+    state.sites
+      .filter(
+        (site) =>
+          isFortifiedSite(site) && site.ownerId !== unit.factionId,
+      )
+      .flatMap((site) => [...getSiteOccupiedPositions(site)])
+      .map(positionKey),
+  )
   const enemyZoneOfControlPositions = getZoneOfControlIndex(state, unit.factionId)
   const bestCosts = new Map<string, number>([[positionKey(unit.position), 0]])
   const frontier = new MinPriorityQueue<{ position: Position; cost: number }>(
@@ -274,6 +320,7 @@ export function getReachablePositionCosts(
     for (const neighbor of getHexNeighbors(current.position, state.boardSize)) {
       const neighborKey = positionKey(neighbor)
       if (enemyOccupiedPositions.has(neighborKey)) continue
+      if (blockedFortifiedPositions.has(neighborKey)) continue
       const stepCost = getMovementStepCost(state, current.position, neighbor)
       if (stepCost === null) continue
       const nextCost = current.cost + stepCost
@@ -329,6 +376,26 @@ export function getAttackableUnits(state: GameState, unit: Unit): Unit[] {
   )
 }
 
+export function getAttackableSites(state: GameState, unit: Unit): Site[] {
+  if (
+    state.phase !== 'playing' ||
+    unit.hasActed ||
+    unit.factionId !== state.activeFactionId
+  ) {
+    return []
+  }
+
+  const range = UNIT_STATS[unit.type].range
+  return state.sites.filter(
+    (site) =>
+      isFortifiedSite(site) &&
+      site.ownerId !== unit.factionId &&
+      getSiteOccupiedPositions(site).some(
+        (position) => getHexDistance(unit.position, position) <= range,
+      ),
+  )
+}
+
 export type CombatResult = {
   attackerHp: number
   defenderHp: number
@@ -344,12 +411,16 @@ export function getMatchupBonus(strikerType: UnitType, targetType: UnitType) {
   return 0
 }
 
-export function getHealthCombatPenalty(unit: Unit) {
-  if (unit.hp >= unit.maxHp) return 0
+function getHealthStrengthPenalty(hp: number, maxHp: number) {
+  if (hp >= maxHp) return 0
   return (
     -HEALTH_STRENGTH_LOSS_PER_MISSING_HP *
-    (100 - (unit.hp / unit.maxHp) * 100)
+    (100 - (hp / maxHp) * 100)
   )
+}
+
+export function getHealthCombatPenalty(unit: Unit) {
+  return getHealthStrengthPenalty(unit.hp, unit.maxHp)
 }
 
 export function getDisplayedCombatStrength(unit: Unit, stat: 'melee' | 'ranged') {
@@ -406,6 +477,38 @@ export function resolveCombat(
   }
 }
 
+export type SiteCombatResult = {
+  siteHp: number
+}
+
+export function resolveSiteCombat(
+  state: GameState,
+  attacker: Unit,
+  site: Site,
+): SiteCombatResult {
+  const siteStats = getSiteCombatStats(site)
+  if (!siteStats) {
+    return { siteHp: site.hp ?? 0 }
+  }
+
+  const attackerStats = UNIT_STATS[attacker.type]
+  const attackerStrength =
+    (attacker.type === 'archer'
+      ? attackerStats.ranged
+      : attackerStats.melee) +
+    getHealthCombatPenalty(attacker)
+  const maxHp = getSiteMaxHp(site) ?? siteStats.maxHp
+  const currentHp = site.hp ?? maxHp
+  const siteTerrain = getTileAt(state, site.position)?.terrain ?? 'plain'
+  const siteStrength =
+    siteStats.defense +
+    TERRAIN_COMBAT_BONUS[siteTerrain] +
+    getHealthStrengthPenalty(currentHp, maxHp)
+  const damage = getCombatDamage(attackerStrength, siteStrength)
+
+  return { siteHp: Math.max(0, currentHp - damage) }
+}
+
 export function getDeployablePositions(
   state: GameState,
   site: Site,
@@ -449,7 +552,11 @@ export function captureSiteAt(
 ): Site[] {
   let siteCaptured = false
   const nextSites = sites.map((site) => {
-    if (!positionsEqual(site.position, position) || site.ownerId === ownerId) {
+    if (
+      isFortifiedSite(site) ||
+      !positionsEqual(site.position, position) ||
+      site.ownerId === ownerId
+    ) {
       return site
     }
     siteCaptured = true

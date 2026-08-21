@@ -53,6 +53,46 @@ describe('site development', () => {
     ).toBeUndefined()
   })
 
+  it('preserves military-site health ratios and fully heals a new castle', () => {
+    const outpost = developmentState('outpost', { hp: 25, maxHp: 50 })
+    const keep = resolveSiteDevelopment(outpost, 'site-1')
+    expect(keep.sites[0]).toMatchObject({
+      kind: 'keep',
+      hp: 38,
+      maxHp: 75,
+    })
+
+    const stronghold = resolveSiteDevelopment(
+      { ...keep, turn: keep.turn + 1 },
+      'site-1',
+    )
+    expect(stronghold.sites[0]).toMatchObject({
+      kind: 'stronghold',
+      hp: 51,
+      maxHp: 100,
+    })
+
+    const village = developmentState('village', { hp: 10, maxHp: 20 })
+    const cityFootprint = getSiteDevelopmentFootprints(village, 'site-1')[0]
+    const city = resolveSiteDevelopment(village, 'site-1', cityFootprint)
+    expect(city.sites[0]).not.toHaveProperty('hp')
+    expect(city.sites[0]).not.toHaveProperty('maxHp')
+
+    const castleState = { ...city, turn: city.turn + 1 }
+    const castleFootprint =
+      getSiteDevelopmentFootprints(castleState, 'site-1')[0]
+    const castle = resolveSiteDevelopment(
+      castleState,
+      'site-1',
+      castleFootprint,
+    )
+    expect(castle.sites[0]).toMatchObject({
+      kind: 'castle',
+      hp: 120,
+      maxHp: 120,
+    })
+  })
+
   it('returns every available city footprint and rejects blocked new cells', () => {
     const state = developmentState()
     const candidates = getSiteDevelopmentFootprints(state, 'site-1')

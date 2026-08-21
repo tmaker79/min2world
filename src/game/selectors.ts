@@ -1,4 +1,5 @@
 import {
+  getAttackableSites,
   getAttackableUnits,
   getEnemyZoneOfControlPositions,
   getReachablePositions,
@@ -17,6 +18,11 @@ export function getSelectedUnitReachablePositions(state: GameState) {
 export function getSelectedUnitAttackableUnits(state: GameState) {
   const selectedUnit = getSelectedUnit(state)
   return selectedUnit ? getAttackableUnits(state, selectedUnit) : []
+}
+
+export function getSelectedUnitAttackableSites(state: GameState) {
+  const selectedUnit = getSelectedUnit(state)
+  return selectedUnit ? getAttackableSites(state, selectedUnit) : []
 }
 
 export function getSelectedUnitEnemyZoneOfControlPositions(state: GameState) {

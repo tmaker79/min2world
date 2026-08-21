@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { createInitialGameState } from './initialState'
 import {
   captureSiteAt,
+  getAttackableSites,
   getAttackableUnits,
-  getCapitalPhase,
   getDeployablePositions,
   getEnemyZoneOfControlPositions,
   getFactionIncome,
@@ -14,13 +14,16 @@ import {
   getCombatDamage,
   getHealthCombatPenalty,
   getSiteIncome,
+  getSiteMaxHp,
   getUnitProductionCost,
+  isFortifiedSite,
   resolveCombat,
+  resolveSiteCombat,
   SITE_STATS,
   UNIT_MAX_HP,
   UNIT_STATS,
 } from './rules'
-import type { GameState, Position, Terrain, Unit, UnitType } from './types'
+import type { GameState, Position, Site, Terrain, Unit, UnitType } from './types'
 
 function unit(
   id: string,
@@ -99,7 +102,12 @@ describe('hex movement rules', () => {
 
   it('uses all six adjacent cells for enemy zone of control', () => {
     const enemy = unit('e1', 'enemy', 'infantry', { q: 0, r: 0 })
-    expect(getEnemyZoneOfControlPositions(rulesState([enemy]), 'player')).toHaveLength(6)
+    expect(
+      getEnemyZoneOfControlPositions(
+        { ...rulesState([enemy]), sites: [] },
+        'player',
+      ),
+    ).toHaveLength(6)
   })
 
   it('allows moving through allies but not stopping on them', () => {
@@ -118,6 +126,30 @@ describe('hex movement rules', () => {
 
     expect(getMovementCost(state, mover, { q: 1, r: 0 })).toBeUndefined()
     expect(getMovementCost(state, mover, { q: 2, r: 0 })).toBeUndefined()
+  })
+
+  it('blocks every hostile or neutral fortified footprint but allows owned ones', () => {
+    const mover = unit('p1', 'player', 'cavalry', { q: 0, r: 0 })
+    const fortified: Site = {
+      id: 'fort',
+      name: 'Fort',
+      kind: 'castle',
+      position: { q: 2, r: 0 },
+      footprint: [{ q: 1, r: 0 }, { q: 2, r: 0 }],
+      ownerId: 'neutral',
+      hp: 120,
+      maxHp: 120,
+    }
+    const blocked = { ...rulesState([mover]), sites: [fortified] }
+
+    expect(getMovementCost(blocked, mover, { q: 1, r: 0 })).toBeUndefined()
+    expect(
+      getMovementCost(
+        { ...blocked, sites: [{ ...fortified, ownerId: 'player' }] },
+        mover,
+        { q: 1, r: 0 },
+      ),
+    ).toBe(1)
   })
 })
 
@@ -221,6 +253,75 @@ describe('hex combat rules', () => {
     expect(result.defenderHp).toBe(0)
     expect(result.attackerHp).toBe(78)
   })
+
+  it('damages fortified sites without return damage using site defense', () => {
+    const attacker = unit('p1', 'player', 'infantry', { q: 0, r: 0 })
+    const site: Site = {
+      id: 'outpost',
+      name: 'Outpost',
+      kind: 'outpost',
+      position: { q: 1, r: 0 },
+      ownerId: 'enemy',
+      hp: 50,
+      maxHp: 50,
+    }
+
+    expect(getSiteMaxHp(site)).toBe(50)
+    expect(isFortifiedSite(site)).toBe(true)
+    expect(resolveSiteCombat(rulesState([attacker]), attacker, site)).toEqual({
+      siteHp: 5,
+    })
+    expect(attacker.hp).toBe(100)
+  })
+
+  it('uses ranged power plus anchor terrain and site health defense modifiers', () => {
+    const archer = unit('p1', 'player', 'archer', { q: 0, r: 0 })
+    const site: Site = {
+      id: 'outpost',
+      name: 'Outpost',
+      kind: 'outpost',
+      position: { q: 1, r: 0 },
+      ownerId: 'enemy',
+      hp: 50,
+      maxHp: 50,
+    }
+    const forest = withTerrain(
+      rulesState([archer]),
+      site.position,
+      'forest',
+    )
+
+    expect(resolveSiteCombat(rulesState([archer]), archer, site).siteHp).toBe(13)
+    expect(resolveSiteCombat(forest, archer, site).siteHp).toBe(18)
+    expect(
+      resolveSiteCombat(forest, archer, { ...site, hp: 25 }).siteHp,
+    ).toBe(0)
+  })
+
+  it('attacks a fortified site through any footprint cell even when a unit occupies it', () => {
+    const archer = unit('p1', 'player', 'archer', { q: 0, r: 0 })
+    const blocker = unit('e1', 'enemy', 'infantry', { q: 2, r: 0 })
+    const castle: Site = {
+      id: 'castle',
+      name: 'Castle',
+      kind: 'castle',
+      position: { q: 3, r: 0 },
+      footprint: [{ q: 3, r: 0 }, { q: 2, r: 0 }],
+      ownerId: 'enemy',
+      hp: 120,
+      maxHp: 120,
+    }
+    const state = { ...rulesState([archer, blocker]), sites: [castle] }
+
+    expect(getAttackableSites(state, archer)).toEqual([castle])
+    expect(getAttackableUnits(state, archer)).toEqual([blocker])
+    expect(
+      getAttackableSites(
+        { ...state, sites: [{ ...castle, ownerId: 'neutral' }] },
+        archer,
+      ).map((site) => site.id),
+    ).toEqual([castle.id])
+  })
 })
 
 describe('sites', () => {
@@ -272,15 +373,39 @@ describe('sites', () => {
     expect(getUnitProductionCost(discounted, ownerId, 'cavalry')).toBe(18)
   })
 
-  it('captures neutral sites while preserving immutable capital ownership', () => {
+  it('captures ordinary sites but requires combat for fortified sites', () => {
     const state = createInitialGameState('capture')
-    const neutral = state.sites.find((site) => site.ownerId === 'neutral')!
+    const neutral: Site = {
+      id: 'village',
+      name: 'Village',
+      kind: 'village',
+      position: { q: 0, r: 0 },
+      ownerId: 'neutral',
+    }
     const enemyCapital = state.sites.find((site) => site.capitalFor === 'enemy')!
-    const capturedNeutral = captureSiteAt(state.sites, neutral.position, 'player')
+    const capturedNeutral = captureSiteAt([neutral, enemyCapital], neutral.position, 'player')
     const capturedCapital = captureSiteAt(capturedNeutral, enemyCapital.position, 'player')
 
     expect(capturedNeutral.find((site) => site.id === neutral.id)?.ownerId).toBe('player')
     expect(capturedCapital.find((site) => site.id === enemyCapital.id)?.capitalFor).toBe('enemy')
-    expect(getCapitalPhase(capturedCapital)).toBe('victory')
+    expect(capturedCapital.find((site) => site.id === enemyCapital.id)?.ownerId).not.toBe(
+      'player',
+    )
+  })
+
+  it('captures a non-fortified multi-tile site only at its anchor', () => {
+    const city: Site = {
+      id: 'city',
+      name: 'City',
+      kind: 'city',
+      position: { q: 0, r: 0 },
+      footprint: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 1, r: -1 }],
+      ownerId: 'neutral',
+    }
+
+    expect(captureSiteAt([city], { q: 1, r: 0 }, 'player')).toEqual([city])
+    expect(
+      captureSiteAt([city], city.position, 'player')[0].ownerId,
+    ).toBe('player')
   })
 })

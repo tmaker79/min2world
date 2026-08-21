@@ -26,19 +26,23 @@ import {
   getDeployablePositions,
   getProducibleUnitTypes,
   getSiteAt,
+  getSiteMaxHp,
   getUnitAt,
   positionKey,
   resolveCombat,
+  resolveSiteCombat,
   SITE_STATS,
   UNIT_TYPE_LABELS,
   UNIT_STATS,
 } from './game/rules'
 import {
   getSelectedUnit,
+  getSelectedUnitAttackableSites,
   getSelectedUnitAttackableUnits,
   getSelectedUnitEnemyZoneOfControlPositions,
   getSelectedUnitReachablePositions,
 } from './game/selectors'
+import { getSiteOccupiedPositions } from './game/siteFootprint'
 import type { GameState, Tile, UnitType } from './game/types'
 import { useAiTurn } from './hooks/useAiTurn'
 import { useMapPan } from './hooks/useMapPan'
@@ -62,6 +66,15 @@ function GameApp({ initialState }: { initialState: GameState }) {
     Omit<CombatAnimation, 'phase'>
   >()
   const [combatPhase, setCombatPhase] = useState<CombatAnimationPhase>('attack')
+  const [activeSiteAttack, setActiveSiteAttack] = useState<{
+    attackerId: string
+    attackerPosition: GameState['units'][number]['position']
+    siteId: string
+    sitePosition: GameState['sites'][number]['position']
+    damage: number
+    captured: boolean
+  }>()
+  const [siteAttackAnnouncement, setSiteAttackAnnouncement] = useState<string>()
   const [saveSlot, setSaveSlot] = useState(() => inspectSavedGame())
   const [saveFeedback, setSaveFeedback] = useState<{
     type: 'status' | 'error'
@@ -182,6 +195,23 @@ function GameApp({ initialState }: { initialState: GameState }) {
     () => new Set(attackableUnits.map((unit) => positionKey(unit.position))),
     [attackableUnits],
   )
+  const attackableSites = useMemo(
+    () => getSelectedUnitAttackableSites(state),
+    [state],
+  )
+  const attackableSiteIds = useMemo(
+    () => new Set(attackableSites.map((site) => site.id)),
+    [attackableSites],
+  )
+  const attackableSiteKeys = useMemo(
+    () =>
+      new Set(
+        attackableSites.flatMap((site) =>
+          getSiteOccupiedPositions(site).map(positionKey),
+        ),
+      ),
+    [attackableSites],
+  )
   const zoneOfControlKeys = useMemo(
     () =>
       new Set(
@@ -237,6 +267,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
 
       const result = resolveCombat(state, attacker, defender)
       setCombatPhase('attack')
+      setSiteAttackAnnouncement(undefined)
       setProductionUnitType(undefined)
       setActiveSiteTab(undefined)
       setDevelopmentFootprintIndex(0)
@@ -254,9 +285,40 @@ function GameApp({ initialState }: { initialState: GameState }) {
     [state],
   )
 
+  const startSiteAttack = useCallback(
+    (
+      attackerId: string,
+      siteId: string,
+      sitePosition: GameState['sites'][number]['position'],
+    ) => {
+      const attacker = state.units.find((unit) => unit.id === attackerId)
+      const site = state.sites.find((candidate) => candidate.id === siteId)
+      if (!attacker || !site) return
+
+      const beforeHp = site.hp ?? getSiteMaxHp(site) ?? 0
+      const result = resolveSiteCombat(state, attacker, site)
+      const damage = beforeHp - result.siteHp
+      const captured = result.siteHp === 0
+      setCombatPhase('attack')
+      setProductionUnitType(undefined)
+      setActiveSiteTab(undefined)
+      setDevelopmentFootprintIndex(0)
+      setSiteAttackAnnouncement(undefined)
+      setActiveSiteAttack({
+        attackerId,
+        attackerPosition: { ...attacker.position },
+        siteId,
+        sitePosition: { ...sitePosition },
+        damage,
+        captured,
+      })
+    },
+    [state],
+  )
+
   const aiAnnouncement = useAiTurn({
     state,
-    combatActive: Boolean(activeCombat),
+    combatActive: Boolean(activeCombat || activeSiteAttack),
     dispatch,
     startCombat,
   })
@@ -264,10 +326,12 @@ function GameApp({ initialState }: { initialState: GameState }) {
   const canSave =
     state.phase === 'playing' &&
     state.activeFactionId === state.humanFactionId &&
-    !activeCombat
+    !activeCombat &&
+    !activeSiteAttack
   const canLoad =
     saveSlot.ok &&
     !activeCombat &&
+    !activeSiteAttack &&
     (state.phase !== 'playing' || state.activeFactionId === state.humanFactionId)
   const canDelete =
     saveSlot.ok ||
@@ -380,10 +444,47 @@ function GameApp({ initialState }: { initialState: GameState }) {
   }, [activeCombat])
 
   useEffect(() => {
+    if (!activeSiteAttack) return
+
+    const site = state.sites.find(
+      (candidate) => candidate.id === activeSiteAttack.siteId,
+    )
+    const reducedMotion = window.matchMedia?.(
+      '(prefers-reduced-motion: reduce)',
+    ).matches
+    const timings = reducedMotion
+      ? { hit: 20, complete: 70 }
+      : { hit: 220, complete: 560 }
+    const timers = [
+      window.setTimeout(() => {
+        setCombatPhase('hit')
+        if (site) {
+          setSiteAttackAnnouncement(
+            `${site.name}에 ${activeSiteAttack.damage} 피해${
+              activeSiteAttack.captured ? `, ${site.name} 점령` : ''
+            }`,
+          )
+        }
+      }, timings.hit),
+      window.setTimeout(() => {
+        dispatch({
+          type: 'siteAttacked',
+          attackerId: activeSiteAttack.attackerId,
+          siteId: activeSiteAttack.siteId,
+        })
+        setActiveSiteAttack(undefined)
+      }, timings.complete),
+    ]
+
+    return () => timers.forEach(window.clearTimeout)
+  }, [activeSiteAttack, state.sites])
+
+  useEffect(() => {
     if (
       state.phase !== 'playing' ||
       state.activeFactionId !== state.humanFactionId ||
-      activeCombat
+      activeCombat ||
+      activeSiteAttack
     ) {
       return
     }
@@ -436,6 +537,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [
     activeCombat,
+    activeSiteAttack,
     activeProductionUnitType,
     activeSiteTab,
     state.activeFactionId,
@@ -447,7 +549,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     const unit = getUnitAt(state, tile.position)
     const site = getSiteAt(state, tile.position)
 
-    if (activeCombat) {
+    if (activeCombat || activeSiteAttack) {
       return
     }
 
@@ -487,6 +589,11 @@ function GameApp({ initialState }: { initialState: GameState }) {
 
     if (selectedUnit && unit && attackableIds.has(unit.id)) {
       startCombat(selectedUnit.id, unit.id)
+      return
+    }
+
+    if (selectedUnit && site && attackableSiteIds.has(site.id)) {
+      startSiteAttack(selectedUnit.id, site.id, tile.position)
       return
     }
 
@@ -545,18 +652,25 @@ function GameApp({ initialState }: { initialState: GameState }) {
     setProductionFeedback(undefined)
   }, [
     activeCombat,
+    activeSiteAttack,
     activeProductionUnitType,
     attackableIds,
+    attackableSiteIds,
     deployableKeys,
     productionSite,
     reachableKeys,
     selectedUnit,
     startCombat,
+    startSiteAttack,
     state,
   ])
 
   const handleTileContextMenu = useCallback((tile: Tile) => {
-    if (activeCombat || state.activeFactionId !== state.humanFactionId) {
+    if (
+      activeCombat ||
+      activeSiteAttack ||
+      state.activeFactionId !== state.humanFactionId
+    ) {
       return
     }
 
@@ -575,6 +689,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     })
   }, [
     activeCombat,
+    activeSiteAttack,
     activeProductionUnitType,
     reachableKeys,
     selectedUnit,
@@ -611,6 +726,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
       return false
     }
     setActiveCombat(undefined)
+    setActiveSiteAttack(undefined)
     setCombatPhase('attack')
     setProductionUnitType(undefined)
     setActiveSiteTab(undefined)
@@ -690,7 +806,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
               disabled={
                 state.phase !== 'playing' ||
                 state.activeFactionId !== state.humanFactionId ||
-                Boolean(activeCombat)
+                Boolean(activeCombat || activeSiteAttack)
               }
               onEndTurn={() => {
                 setProductionUnitType(undefined)
@@ -749,6 +865,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
                   zoom={mapZoom}
                   reachableKeys={reachableKeys}
                   attackableKeys={attackableKeys}
+                  attackableSiteKeys={attackableSiteKeys}
                   deployableKeys={deployableKeys}
                   developmentFootprintKeys={developmentFootprintKeys}
                   selectedDevelopmentFootprintKeys={
@@ -759,6 +876,11 @@ function GameApp({ initialState }: { initialState: GameState }) {
                   combatAnimation={
                     activeCombat
                       ? { ...activeCombat, phase: combatPhase }
+                      : undefined
+                  }
+                  siteAttackAnimation={
+                    activeSiteAttack
+                      ? { ...activeSiteAttack, phase: combatPhase }
                       : undefined
                   }
                   disabled={
@@ -815,7 +937,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
                         disabled={
                           state.phase !== 'playing' ||
                           state.activeFactionId !== state.humanFactionId ||
-                          Boolean(activeCombat)
+                          Boolean(activeCombat || activeSiteAttack)
                         }
                         feedback={productionFeedback}
                         onUnitTypeSelected={(unitType) => {
@@ -894,6 +1016,11 @@ function GameApp({ initialState }: { initialState: GameState }) {
       {aiAnnouncement && (
         <span className="sr-only" role="status" aria-live="polite">
           {aiAnnouncement}
+        </span>
+      )}
+      {siteAttackAnnouncement && (
+        <span className="sr-only" role="status" aria-live="polite">
+          {siteAttackAnnouncement}
         </span>
       )}
     </div>
