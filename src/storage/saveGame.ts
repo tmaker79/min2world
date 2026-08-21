@@ -7,6 +7,10 @@ import {
   positionsEqual,
 } from '../game/hex'
 import { cloneGameState } from '../game/state'
+import {
+  getSiteOccupiedPositions,
+  isValidCastleFootprint,
+} from '../game/siteFootprint'
 import { SITE_STATS, TERRAIN_MOVEMENT_COST, UNIT_STATS } from '../game/rules'
 import {
   GAME_SCHEMA_VERSION,
@@ -67,7 +71,14 @@ const TERRAINS = new Set<Terrain>([
   'tundraMountain',
 ])
 const UNIT_TYPES = new Set<UnitType>(['infantry', 'cavalry', 'archer', 'spearman'])
-const SITE_TYPES = new Set<SiteType>(['stronghold', 'village', 'farm', 'mine', 'city'])
+const SITE_TYPES = new Set<SiteType>([
+  'stronghold',
+  'village',
+  'farm',
+  'mine',
+  'city',
+  'castle',
+])
 const MAP_TYPES = new Set<MapType>(['balanced', 'plains', 'mountainous', 'forested'])
 
 function success<T>(value: T): StorageResult<T> {
@@ -185,7 +196,24 @@ function parseSite(value: unknown, boardSize: BoardSize): Site | undefined {
   }
   const position = parsePosition(value.position, boardSize)
   const kind = value.kind as SiteType
-  if (!position || (value.capitalFor !== undefined && kind !== 'stronghold')) {
+  const footprint = Array.isArray(value.footprint)
+    ? value.footprint.map((candidate) => parsePosition(candidate, boardSize))
+    : undefined
+  if (
+    !position ||
+    (value.capitalFor !== undefined &&
+      kind !== 'stronghold' &&
+      kind !== 'castle') ||
+    (kind === 'castle' &&
+      (!footprint ||
+        footprint.some((candidate) => !candidate) ||
+        !isValidCastleFootprint(
+          position,
+          footprint as Position[],
+          boardSize,
+        ))) ||
+    (kind !== 'castle' && value.footprint !== undefined)
+  ) {
     return undefined
   }
   return {
@@ -193,6 +221,9 @@ function parseSite(value: unknown, boardSize: BoardSize): Site | undefined {
     name: value.name,
     kind,
     position,
+    ...(footprint === undefined
+      ? {}
+      : { footprint: footprint as Position[] }),
     ownerId: value.ownerId as SiteOwnerId,
     ...(value.capitalFor === undefined ? {} : { capitalFor: value.capitalFor as FactionId }),
     ...(value.lastProducedTurn === undefined || !SITE_STATS[kind].canProduce
@@ -300,6 +331,12 @@ function parseGameState(value: unknown): StorageResult<GameState> {
   const parsedTiles = tiles as Tile[]
   const parsedUnits = units as Unit[]
   const parsedSites = sites as Site[]
+  const occupiedSiteEntries = parsedSites.flatMap((site) =>
+    getSiteOccupiedPositions(site).map((position) => ({
+      key: positionKey(position),
+      site,
+    })),
+  )
   const expectedPositionKeys = new Set(getAllHexPositions(boardSize).map(positionKey))
   if (
     !hasUniqueValues(parsedTiles.map((tile) => tile.id)) ||
@@ -308,7 +345,8 @@ function parseGameState(value: unknown): StorageResult<GameState> {
     !hasUniqueValues(parsedUnits.map((unit) => unit.id)) ||
     !hasUniqueValues(parsedUnits.map((unit) => positionKey(unit.position))) ||
     !hasUniqueValues(parsedSites.map((site) => site.id)) ||
-    !hasUniqueValues(parsedSites.map((site) => positionKey(site.position)))
+    !hasUniqueValues(parsedSites.map((site) => positionKey(site.position))) ||
+    !hasUniqueValues(occupiedSiteEntries.map(({ key }) => key))
   ) {
     return failure('invalidData', '중복되거나 올바르지 않은 지도 좌표가 있습니다.')
   }
@@ -337,15 +375,23 @@ function parseGameState(value: unknown): StorageResult<GameState> {
     units: parsedUnits,
     sites: parsedSites,
   }
-  const siteById = new Map(parsedSites.map((site) => [site.id, site]))
+  const siteIdByPosition = new Map(
+    occupiedSiteEntries.map(({ key, site }) => [key, site.id]),
+  )
   const tilesMatchSites = parsedTiles.every((tile) => {
-    if (!tile.siteId) return true
-    const site = siteById.get(tile.siteId)
-    return Boolean(site && positionsEqual(site.position, tile.position))
+    const expectedSiteId = siteIdByPosition.get(positionKey(tile.position))
+    return tile.siteId === expectedSiteId
   })
   const sitesMatchTiles = parsedSites.every((site) => {
-    const tile = parsedTiles.find((candidate) => positionsEqual(candidate.position, site.position))
-    return tile?.siteId === site.id
+    return getSiteOccupiedPositions(site).every((position) => {
+      const tile = parsedTiles.find((candidate) =>
+        positionsEqual(candidate.position, position),
+      )
+      return (
+        tile?.siteId === site.id &&
+        TERRAIN_MOVEMENT_COST[tile.terrain] !== null
+      )
+    })
   })
   const unitsAreValid = parsedUnits.every((unit) => {
     const tile = parsedTiles.find((candidate) => positionsEqual(candidate.position, unit.position))

@@ -1,4 +1,5 @@
 import { getHexNeighbors, positionKey } from './hex'
+import { getSiteOccupiedPositions } from './siteFootprint'
 import type { FactionId, GameState, Position, Site, Tile, Unit } from './types'
 
 type TileIndex = ReadonlyMap<string, Tile>
@@ -52,7 +53,17 @@ export function getUnitIdIndex(state: GameState): UnitIndex {
 }
 
 export function getSitePositionIndex(state: GameState): SiteIndex {
-  return getOrCreateIndex(state.sites, sitePositionIndexCache)
+  const cached = sitePositionIndexCache.get(state.sites)
+  if (cached) return cached
+
+  const index = new Map<string, Site>()
+  for (const site of state.sites) {
+    for (const position of getSiteOccupiedPositions(site)) {
+      index.set(positionKey(position), site)
+    }
+  }
+  sitePositionIndexCache.set(state.sites, index)
+  return index
 }
 
 export function getSiteIdIndex(state: GameState): SiteIndex {

@@ -6,6 +6,7 @@ import {
   positionsEqual,
 } from './hex'
 import { MinPriorityQueue } from './priorityQueue'
+import { getSiteOccupiedPositions } from './siteFootprint'
 import {
   getSitePositionIndex,
   getTileIndex,
@@ -53,6 +54,7 @@ export const UNIT_TYPE_LABELS: Record<UnitType, string> = {
 
 export const SITE_STATS: Record<SiteType, SiteStats> = {
   stronghold: { income: 5, canProduce: true },
+  castle: { income: 5, canProduce: true },
   village: { income: 4, canProduce: false },
   farm: { income: 2, canProduce: false },
   mine: { income: 3, canProduce: false },
@@ -62,6 +64,7 @@ export const SITE_STATS: Record<SiteType, SiteStats> = {
 
 export const SITE_TYPE_LABELS: Record<SiteType, string> = {
   stronghold: '성',
+  castle: '성',
   village: '마을',
   farm: '농장',
   mine: '광산',
@@ -338,12 +341,16 @@ export function getDeployablePositions(
 ): Position[] {
   if (!SITE_STATS[site.kind].canProduce) return []
 
-  const candidates = [
-    { ...site.position },
-    ...getHexNeighbors(site.position, state.boardSize).sort(
-      (left, right) => left.r - right.r || left.q - right.q,
-    ),
-  ]
+  const candidatesByKey = new Map<string, Position>()
+  for (const occupiedPosition of getSiteOccupiedPositions(site)) {
+    candidatesByKey.set(positionKey(occupiedPosition), { ...occupiedPosition })
+    for (const neighbor of getHexNeighbors(occupiedPosition, state.boardSize)) {
+      candidatesByKey.set(positionKey(neighbor), neighbor)
+    }
+  }
+  const candidates = [...candidatesByKey.values()].sort(
+    (left, right) => left.r - right.r || left.q - right.q,
+  )
 
   return candidates.filter((position) => {
     const tile = getTileAt(state, position)

@@ -5,6 +5,7 @@ import {
   HEX_WIDTH,
   positionKey,
 } from '../game/hex'
+import { getSiteOccupiedPositions } from '../game/siteFootprint'
 import type { GameState, Terrain } from '../game/types'
 
 const TERRAIN_FILL: Record<Terrain, string> = {
@@ -143,15 +144,17 @@ function MinimapComponent({
   }, [state.tiles])
 
   const siteMarkers = useMemo(() => {
-    return state.sites.map((site) => {
-      const pixel = getHexPixelPosition(site.position)
-      return {
-        id: site.id,
-        ownerId: site.ownerId,
-        x: (pixel.x - layout.minimumX + HEX_WIDTH / 2) * layout.scale,
-        y: (pixel.y - layout.minimumY + HEX_HEIGHT / 2) * layout.scale,
-      }
-    })
+    return state.sites.flatMap((site) =>
+      getSiteOccupiedPositions(site).map((position) => {
+        const pixel = getHexPixelPosition(position)
+        return {
+          id: `${site.id}:${positionKey(position)}`,
+          ownerId: site.ownerId,
+          x: (pixel.x - layout.minimumX + HEX_WIDTH / 2) * layout.scale,
+          y: (pixel.y - layout.minimumY + HEX_HEIGHT / 2) * layout.scale,
+        }
+      }),
+    )
   }, [layout, state.sites])
 
   const unitMarkers = useMemo(() => {

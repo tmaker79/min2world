@@ -224,6 +224,7 @@ describe('sites', () => {
   it('uses the configured income and production rules', () => {
     expect(SITE_STATS).toEqual({
       stronghold: { income: 5, canProduce: true },
+      castle: { income: 5, canProduce: true },
       village: { income: 4, canProduce: false },
       farm: { income: 2, canProduce: false },
       mine: { income: 3, canProduce: false },

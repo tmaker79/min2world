@@ -1405,6 +1405,7 @@
 }
 
 .site-marker [data-site-icon='stronghold'],
+.site-marker [data-site-icon='castle'],
 .site-asset-preview [data-site-icon='stronghold'] {
   width: 68px;
   height: 66px;
@@ -1440,6 +1441,13 @@
   left: 50%;
   width: 128px;
   height: 128px;
+}
+
+.site-marker [data-site-icon='castle'] {
+  bottom: 50%;
+  width: 128px;
+  height: 128px;
+  transform: translate(-50%, 50%);
 }
 
 .site-asset-preview--castle [data-site-icon-variant='eastern'] {

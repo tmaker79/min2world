@@ -341,14 +341,25 @@ describe('procedural map generation', () => {
       expect(state.tiles.map((tile) => tile.terrain)).not.toContain('steppe')
       expect(state.sites).toHaveLength(8)
       expect(state.units).toHaveLength(6)
-      expect(state.sites.filter((site) => site.kind === 'stronghold')).toHaveLength(2)
+      const tilesByPosition = new Map(
+        state.tiles.map((tile) => [positionKey(tile.position), tile]),
+      )
+      expect(state.sites.filter((site) => site.kind === 'castle')).toHaveLength(2)
+      for (const castle of state.sites.filter(
+        (site) => site.kind === 'castle',
+      )) {
+        expect(castle.footprint).toHaveLength(4)
+        expect(
+          castle.footprint?.every(
+            (position) =>
+              tilesByPosition.get(positionKey(position))?.siteId === castle.id,
+          ),
+        ).toBe(true)
+      }
       expect(state.sites.filter((site) => site.kind === 'village')).toHaveLength(2)
       expect(state.sites.filter((site) => site.kind === 'farm')).toHaveLength(2)
       expect(state.sites.filter((site) => site.kind === 'mine')).toHaveLength(2)
       expect(state.sites.filter((site) => site.kind === 'city')).toHaveLength(0)
-      const tilesByPosition = new Map(
-        state.tiles.map((tile) => [positionKey(tile.position), tile]),
-      )
       expect(
         state.sites
           .filter((site) => site.kind === 'farm')

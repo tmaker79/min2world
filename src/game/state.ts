@@ -29,6 +29,7 @@ export function cloneGameState(
     sites: state.sites.map((site) => ({
       ...site,
       position: { ...site.position },
+      footprint: site.footprint?.map((position) => ({ ...position })),
     })),
   }
 }

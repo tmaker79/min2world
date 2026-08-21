@@ -1,4 +1,6 @@
 import type { SiteOwnerId, SiteType } from '../game/types'
+import westernCastleIcon from '../assets/sites/castle.png'
+import easternCastleIcon from '../assets/sites/castle-eastern.png'
 import westernCityIcon from '../assets/sites/city.png'
 import easternCityIcon from '../assets/sites/city-eastern-3tile-roofmatch.png'
 import westernFarmIcon from '../assets/sites/farm.png'
@@ -9,6 +11,7 @@ import easternVillageIcon from '../assets/sites/village-eastern.png'
 
 const EASTERN_SITE_ICONS: Record<SiteType, string> = {
   stronghold: westernStrongholdIcon,
+  castle: easternCastleIcon,
   village: easternVillageIcon,
   farm: westernFarmIcon,
   mine: westernMineIcon,
@@ -17,6 +20,7 @@ const EASTERN_SITE_ICONS: Record<SiteType, string> = {
 
 const WESTERN_SITE_ICONS: Record<SiteType, string> = {
   stronghold: westernStrongholdIcon,
+  castle: westernCastleIcon,
   village: westernVillageIcon,
   farm: westernFarmIcon,
   mine: westernMineIcon,
@@ -31,6 +35,7 @@ type SiteIconProps = {
 
 export function SiteIcon({ kind, ownerId, className }: SiteIconProps) {
   const usesWesternAsset =
+    ownerId === 'neutral' ||
     ownerId === 'f2' ||
     ownerId === 'enemy' ||
     kind === 'stronghold' ||

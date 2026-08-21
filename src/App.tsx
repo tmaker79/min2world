@@ -111,7 +111,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     (site) =>
       site.id === cityInfoSiteId &&
       site.ownerId === state.humanFactionId &&
-      site.kind === 'stronghold',
+      SITE_STATS[site.kind].canProduce,
   )
   const activeProductionUnitType =
     state.phase === 'playing' &&

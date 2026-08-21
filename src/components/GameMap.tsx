@@ -44,6 +44,7 @@ import type {
   Tile,
   Unit,
 } from '../game/types'
+import { getSiteOccupiedPositions } from '../game/siteFootprint'
 import { useMapViewport } from '../hooks/useMapViewport'
 import { SiteIcon } from './SiteIcon'
 import { hasTerrainImage, TerrainIcon } from './TerrainIcon'
@@ -187,6 +188,22 @@ function getOverlayStyle(
 ): CSSProperties {
   const pixel = getHexPixelPosition(position)
   return { left: pixel.x - minimumX, top: pixel.y - minimumY }
+}
+
+function getSiteOverlayStyle(
+  site: Site,
+  minimumX: number,
+  minimumY: number,
+): CSSProperties {
+  const pixels = getSiteOccupiedPositions(site).map(getHexPixelPosition)
+  return {
+    left:
+      pixels.reduce((total, pixel) => total + pixel.x, 0) / pixels.length -
+      minimumX,
+    top:
+      pixels.reduce((total, pixel) => total + pixel.y, 0) / pixels.length -
+      minimumY,
+  }
 }
 
 function movementCostLabel(terrain: Tile['terrain']) {
@@ -731,7 +748,9 @@ function GameMapComponent({
     if (!showSiteAssetPreview) return []
 
     const occupiedKeys = new Set([
-      ...state.sites.map((site) => positionKey(site.position)),
+      ...state.sites.flatMap((site) =>
+        getSiteOccupiedPositions(site).map(positionKey),
+      ),
       ...state.units.map((unit) => positionKey(unit.position)),
     ])
     const availableTiles = state.tiles
@@ -785,7 +804,7 @@ function GameMapComponent({
 
     const persistentPositions = [
       ...state.units.map((unit) => unit.position),
-      ...state.sites.map((site) => site.position),
+      ...state.sites.flatMap((site) => getSiteOccupiedPositions(site)),
       combatAnimation?.attackerPosition,
       combatAnimation?.defenderPosition,
       ...siteAssetPreviews.map((preview) => preview.position),
@@ -919,7 +938,7 @@ function GameMapComponent({
             key={site.id}
             site={site}
             selected={site.id === selectedSiteId}
-            style={getOverlayStyle(site.position, minimumX, minimumY)}
+            style={getSiteOverlayStyle(site, minimumX, minimumY)}
           />
         ))}
         {siteAssetPreviews.map((preview) => (

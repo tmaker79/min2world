@@ -14,7 +14,7 @@ export type Terrain =
 export type MapType = 'balanced' | 'plains' | 'mountainous' | 'forested'
 
 export const GAME_SCHEMA_VERSION = 8
-export const MAP_GENERATION_VERSION = 20
+export const MAP_GENERATION_VERSION = 21
 export const SUPPORTED_MAP_GENERATION_VERSIONS: readonly number[] = [
   5,
   6,
@@ -48,7 +48,13 @@ export type BoardSize = {
   rows: number
 }
 export type SiteOwnerId = FactionId | 'neutral'
-export type SiteType = 'stronghold' | 'village' | 'farm' | 'mine' | 'city'
+export type SiteType =
+  | 'stronghold'
+  | 'village'
+  | 'farm'
+  | 'mine'
+  | 'city'
+  | 'castle'
 export type UnitType = 'infantry' | 'cavalry' | 'archer' | 'spearman'
 export type GamePhase = 'playing' | 'victory' | 'defeat'
 
@@ -91,6 +97,7 @@ export type Site = {
   name: string
   kind: SiteType
   position: Position
+  footprint?: Position[]
   ownerId: SiteOwnerId
   capitalFor?: FactionId
   lastProducedTurn?: number

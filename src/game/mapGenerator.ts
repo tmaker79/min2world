@@ -10,6 +10,11 @@ import {
 import { MinPriorityQueue } from './priorityQueue'
 import { UNIT_MAX_HP, UNIT_STATS } from './rules'
 import {
+  findCastleFootprint,
+  getSiteOccupiedPositions,
+  isValidCastleFootprint,
+} from './siteFootprint'
+import {
   FOREST_TERRAIN_VARIANT_COUNT,
   GAME_SCHEMA_VERSION,
   MAP_GENERATION_VERSION,
@@ -362,6 +367,7 @@ function getConnectedKeys(
 function chooseNeutralSites(
   tiles: Tile[],
   capitals: Record<FactionId, Position>,
+  castleFootprints: Record<FactionId, Position[]>,
   random: () => number,
   boardSize: BoardSize,
   factionCount: FactionCount,
@@ -371,7 +377,9 @@ function chooseNeutralSites(
   const tilesByPosition = new Map(
     tiles.map((tile) => [positionKey(tile.position), tile]),
   )
-  const chosen: Position[] = factionIds.map((factionId) => capitals[factionId])
+  const chosen: Position[] = factionIds.flatMap(
+    (factionId) => castleFootprints[factionId],
+  )
   const sites: Array<{ kind: SiteType; position: Position }> = []
   const candidates = shuffled(
     tiles
@@ -454,11 +462,48 @@ export function validateGeneratedMap(state: GameState): string[] {
 
   const tileKeys = state.tiles.map((tile) => positionKey(tile.position))
   const siteKeys = state.sites.map((site) => positionKey(site.position))
+  const occupiedSiteEntries = state.sites.flatMap((site) =>
+    getSiteOccupiedPositions(site).map((position) => ({
+      key: positionKey(position),
+      site,
+    })),
+  )
   const tilesByPosition = new Map(
     state.tiles.map((tile) => [positionKey(tile.position), tile]),
   )
   if (new Set(tileKeys).size !== tileKeys.length) issues.push('duplicateTiles')
   if (new Set(siteKeys).size !== siteKeys.length) issues.push('duplicateSites')
+  if (
+    new Set(occupiedSiteEntries.map(({ key }) => key)).size !==
+    occupiedSiteEntries.length
+  ) {
+    issues.push('overlappingSites')
+  }
+  if (
+    state.sites.some(
+      (site) =>
+        site.kind === 'castle' &&
+        (!site.footprint ||
+          !isValidCastleFootprint(
+            site.position,
+            site.footprint,
+            state.boardSize,
+          )),
+    )
+  ) {
+    issues.push('castleFootprint')
+  }
+  const siteIdByPosition = new Map(
+    occupiedSiteEntries.map(({ key, site }) => [key, site.id]),
+  )
+  if (
+    state.tiles.some(
+      (tile) =>
+        tile.siteId !== siteIdByPosition.get(positionKey(tile.position)),
+    )
+  ) {
+    issues.push('siteReferences')
+  }
   if (
     state.sites.some(
       (site) =>
@@ -550,21 +595,25 @@ export function validateGeneratedMap(state: GameState): string[] {
 
 function createSites(
   capitals: Record<FactionId, Position>,
+  castleFootprints: Record<FactionId, Position[]>,
   neutrals: Site[],
   factionCount: FactionCount,
 ): Site[] {
   const names: Partial<Record<FactionId, string>> = {
-    f1: '청색 성채',
-    f2: '적색 요새',
-    f3: '황금 성채',
-    f4: '자색 성채',
+    f1: '청색 성',
+    f2: '적색 성',
+    f3: '황금 성',
+    f4: '자색 성',
   }
   return [
     ...getFactionIds(factionCount).map((factionId) => ({
-      id: `site-${factionId}-stronghold`,
+      id: `site-${factionId}-castle`,
       name: names[factionId] ?? factionId,
-      kind: 'stronghold' as const,
+      kind: 'castle' as const,
       position: { ...capitals[factionId] },
+      footprint: castleFootprints[factionId].map((position) => ({
+        ...position,
+      })),
       ownerId: factionId,
       capitalFor: factionId,
     })),
@@ -574,6 +623,7 @@ function createSites(
 
 function createUnits(
   capitals: Record<FactionId, Position>,
+  castleFootprints: Record<FactionId, Position[]>,
   tiles: Tile[],
   boardSize: BoardSize,
   factionCount: FactionCount,
@@ -587,9 +637,25 @@ function createUnits(
   }
 
   return getFactionIds(factionCount).flatMap((factionId) => {
-    const positions = getHexNeighbors(capitals[factionId], boardSize)
+    const castleKeys = new Set(
+      castleFootprints[factionId].map(positionKey),
+    )
+    const positionsByKey = new Map<string, Position>()
+    for (const castlePosition of castleFootprints[factionId]) {
+      for (const neighbor of getHexNeighbors(castlePosition, boardSize)) {
+        const key = positionKey(neighbor)
+        if (!castleKeys.has(key)) positionsByKey.set(key, neighbor)
+      }
+    }
+    const positions = [...positionsByKey.values()]
       .filter((position) => passable.has(positionKey(position)))
-      .sort((left, right) => left.r - right.r || left.q - right.q)
+      .sort(
+        (left, right) =>
+          getHexDistance(left, capitals[factionId]) -
+            getHexDistance(right, capitals[factionId]) ||
+          left.r - right.r ||
+          left.q - right.q,
+      )
       .slice(0, STARTING_UNIT_TYPES.length)
     if (positions.length !== STARTING_UNIT_TYPES.length) return []
     return STARTING_UNIT_TYPES.map((type, index) => ({
@@ -723,6 +789,23 @@ function buildCandidate(
   const climateOffset = (random() - 0.5) * 0.04
   const capitals = chooseCapitals(random, boardSize, factionCount)
   if (!capitals) return undefined
+  const castleFootprints = Object.fromEntries(
+    getFactionIds(factionCount).map((factionId) => [
+      factionId,
+      findCastleFootprint(capitals[factionId], boardSize),
+    ]),
+  ) as Partial<Record<FactionId, Position[]>>
+  if (
+    getFactionIds(factionCount).some(
+      (factionId) => !castleFootprints[factionId],
+    )
+  ) {
+    return undefined
+  }
+  const completeCastleFootprints = castleFootprints as Record<
+    FactionId,
+    Position[]
+  >
   const tiles: Tile[] = positions.map((position) => ({
     id: `tile-${position.q}-${position.r}`,
     position: { ...position },
@@ -765,14 +848,24 @@ function buildCandidate(
   const neutralSites = chooseNeutralSites(
     tiles,
     capitals,
+    completeCastleFootprints,
     random,
     boardSize,
     factionCount,
   )
   if (!neutralSites) return undefined
-  const sites = createSites(capitals, neutralSites, factionCount)
+  const sites = createSites(
+    capitals,
+    completeCastleFootprints,
+    neutralSites,
+    factionCount,
+  )
   const siteIdsByPosition = new Map(
-    sites.map((site) => [positionKey(site.position), site.id]),
+    sites.flatMap((site) =>
+      getSiteOccupiedPositions(site).map(
+        (position) => [positionKey(position), site.id] as const,
+      ),
+    ),
   )
   for (const tile of tiles) {
     tile.siteId = siteIdsByPosition.get(positionKey(tile.position))
@@ -799,7 +892,13 @@ function buildCandidate(
       enemy: 0,
     },
     tiles,
-    units: createUnits(capitals, tiles, boardSize, factionCount),
+    units: createUnits(
+      capitals,
+      completeCastleFootprints,
+      tiles,
+      boardSize,
+      factionCount,
+    ),
     sites,
   }
 

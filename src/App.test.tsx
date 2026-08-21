@@ -313,7 +313,7 @@ describe('Milestone 07 UI', () => {
     const user = userEvent.setup()
     const state = createInitialGameState('ui-production')
     const stronghold = state.sites.find(
-      (site) => site.ownerId === 'player' && site.kind === 'stronghold',
+      (site) => site.ownerId === 'player' && site.kind === 'castle',
     )!
     const { container } = renderApp(state)
 
@@ -376,7 +376,7 @@ describe('Milestone 07 UI', () => {
     const user = userEvent.setup()
     const state = createInitialGameState('ui-production-cancel')
     const stronghold = state.sites.find(
-      (site) => site.ownerId === 'player' && site.kind === 'stronghold',
+      (site) => site.ownerId === 'player' && site.kind === 'castle',
     )!
     const { container } = renderApp(state)
     const strongholdTile = container.querySelector<HTMLButtonElement>(
@@ -403,7 +403,7 @@ describe('Milestone 07 UI', () => {
     const user = userEvent.setup()
     const initial = createInitialGameState('ui-stack-select')
     const stronghold = initial.sites.find(
-      (site) => site.ownerId === 'player' && site.kind === 'stronghold',
+      (site) => site.ownerId === 'player' && site.kind === 'castle',
     )!
     const stacked: Unit = {
       id: 'stacked',
