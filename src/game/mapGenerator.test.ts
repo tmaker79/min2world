@@ -474,7 +474,7 @@ describe('procedural map generation', () => {
       expect(state.tiles.map((tile) => tile.terrain)).not.toContain('road')
       expect(state.tiles.map((tile) => tile.terrain)).not.toContain('grassland')
       expect(state.tiles.map((tile) => tile.terrain)).not.toContain('steppe')
-      expect(state.sites).toHaveLength(12)
+      expect(state.sites).toHaveLength(8)
       expect(state.units).toHaveLength(6)
       const tilesByPosition = new Map(
         state.tiles.map((tile) => [positionKey(tile.position), tile]),
@@ -491,8 +491,8 @@ describe('procedural map generation', () => {
           ),
         ).toBe(true)
       }
-      expect(state.sites.filter((site) => site.kind === 'outpost')).toHaveLength(2)
-      expect(state.sites.filter((site) => site.kind === 'village')).toHaveLength(2)
+      expect(state.sites.filter((site) => site.kind === 'outpost')).toHaveLength(0)
+      expect(state.sites.filter((site) => site.kind === 'village')).toHaveLength(0)
       expect(state.sites.filter((site) => site.kind === 'farm')).toHaveLength(2)
       expect(state.sites.filter((site) => site.kind === 'mine')).toHaveLength(2)
       expect(state.sites.filter((site) => site.kind === 'blacksmith')).toHaveLength(2)
@@ -533,10 +533,10 @@ describe('procedural map generation', () => {
       delete state.sites.find((site) => site.kind === 'castle')!.hp
     }],
     ['wrong fortified max hp', (state: ReturnType<typeof generateGameState>) => {
-      state.sites.find((site) => site.kind === 'outpost')!.maxHp = 1
+      state.sites.find((site) => site.kind === 'castle')!.maxHp = 1
     }],
     ['nonfortified hp', (state: ReturnType<typeof generateGameState>) => {
-      state.sites.find((site) => site.kind === 'village')!.hp = 1
+      state.sites.find((site) => site.kind === 'farm')!.hp = 1
     }],
   ])('reports generated site hp invariant violations: %s', (_, mutate) => {
     const state = generateGameState('invalid-generated-site-hp')
@@ -567,9 +567,9 @@ describe('procedural map generation', () => {
     expect(validateGeneratedMap(state)).toEqual([])
     expect(state.tiles).toHaveLength(boardSize.columns * boardSize.rows)
     expect(state.factionOrder).toHaveLength(factionCount)
-    expect(state.sites).toHaveLength(factionCount * 6)
+    expect(state.sites).toHaveLength(factionCount * 4)
     expect(state.sites.filter((site) => site.capitalFor)).toHaveLength(factionCount)
-    for (const kind of ['outpost', 'village', 'farm', 'mine', 'blacksmith'] as const) {
+    for (const kind of ['farm', 'mine', 'blacksmith'] as const) {
       expect(
         state.sites.filter(
           (site) => site.ownerId === 'neutral' && site.kind === kind,

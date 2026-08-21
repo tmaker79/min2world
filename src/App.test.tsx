@@ -49,7 +49,7 @@ describe('Milestone 07 UI', () => {
     expect(tiles.length).toBeLessThanOrEqual(HEX_TILE_COUNT)
     expect([...tiles].every((tile) => tile.type === 'button' && !tile.disabled)).toBe(true)
     expect(container.querySelector('.app-chrome__seed')).toHaveTextContent('ui-seed')
-    expect(container.querySelectorAll('.site-marker')).toHaveLength(12)
+    expect(container.querySelectorAll('.site-marker')).toHaveLength(8)
     expect(container.querySelectorAll('.unit-token')).toHaveLength(6)
     expect(container.querySelector('.map-layer--terrain .map-tile')).toBeInTheDocument()
     expect(container.querySelector('.map-layer--sites .site-marker')).toBeInTheDocument()
@@ -497,7 +497,9 @@ describe('Milestone 07 UI', () => {
   it('reports missing footprint space for settlement development', async () => {
     const user = userEvent.setup()
     const state = createInitialGameState('ui-development-space')
-    const village = state.sites.find((site) => site.kind === 'village')!
+    const village = state.sites.find((site) => site.kind === 'farm')!
+    village.kind = 'village'
+    delete village.level
     village.ownerId = state.humanFactionId
     state.sites = [village]
     state.units = []
@@ -524,7 +526,9 @@ describe('Milestone 07 UI', () => {
   it('previews a selected footprint, develops on confirmation, and cancels with Escape', async () => {
     const user = userEvent.setup()
     const state = createInitialGameState('ui-development-footprint')
-    const village = state.sites.find((site) => site.kind === 'village')!
+    const village = state.sites.find((site) => site.kind === 'farm')!
+    village.kind = 'village'
+    delete village.level
     village.ownerId = state.humanFactionId
     state.sites = [village]
     state.units = []

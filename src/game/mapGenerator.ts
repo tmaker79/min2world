@@ -49,8 +49,6 @@ const STANDARD_CAPITAL_DISTANCE = 18
 const STANDARD_CAPITAL_DISTANCE_REFERENCE_COLUMNS = 42
 const OASIS_FEATURE_THRESHOLD = 0.95
 const NEUTRAL_SITE_TYPES: readonly SiteType[] = [
-  'outpost',
-  'village',
   'farm',
   'mine',
   'blacksmith',
@@ -524,7 +522,7 @@ function chooseNeutralSites(
 
   return sites.map(({ kind, position }, index) => ({
     id: `site-${kind}-${index + 1}`,
-    name: `${kind === 'outpost' ? '중립 전초기지' : kind === 'village' ? '중립 마을' : kind === 'farm' ? '중립 농장' : kind === 'mine' ? '중립 광산' : '중립 대장간'} ${Math.floor(index / NEUTRAL_SITE_TYPES.length) + 1}`,
+    name: `${kind === 'farm' ? '중립 농장' : kind === 'mine' ? '중립 광산' : '중립 대장간'} ${Math.floor(index / NEUTRAL_SITE_TYPES.length) + 1}`,
     kind,
     position: { ...position },
     ownerId: 'neutral',

@@ -352,8 +352,8 @@ describe('sites', () => {
 
     const state = createInitialGameState('sites')
     const playerCapital = state.sites.find((site) => site.capitalFor === 'player')!
-    const village = state.sites.find((site) => site.kind === 'village')!
     const farm = state.sites.find((site) => site.kind === 'farm')!
+    const village = { ...farm, kind: 'village' as const, level: undefined }
     expect(getFactionIncome(state, 'player')).toBe(7)
     expect(getDeployablePositions(state, playerCapital).length).toBeGreaterThan(0)
     expect(getDeployablePositions(state, village)).toEqual([])
