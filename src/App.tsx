@@ -97,6 +97,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     type: 'status' | 'error'
     message: string
   }>()
+  const [activeMoveUnitId, setActiveMoveUnitId] = useState<string>()
   const [openChromeMenu, setOpenChromeMenu] = useState<ChromeMenuId | null>(null)
   const [mapScrollElement, setMapScrollElement] = useState<HTMLDivElement | null>(
     null,
@@ -183,6 +184,16 @@ function GameApp({ initialState }: { initialState: GameState }) {
     () => new Set(reachablePositions.map(positionKey)),
     [reachablePositions],
   )
+  const canEnterMoveMode =
+    Boolean(selectedUnit) &&
+    state.phase === 'playing' &&
+    state.activeFactionId === state.humanFactionId &&
+    !activeCombat &&
+    !activeSiteAttack &&
+    !activeProductionUnitType &&
+    reachablePositions.length > 0
+  const isMoveMode =
+    canEnterMoveMode && activeMoveUnitId === selectedUnit?.id
   const attackableUnits = useMemo(
     () => getSelectedUnitAttackableUnits(state),
     [state],
@@ -269,6 +280,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
       const result = resolveCombat(state, attacker, defender)
       setCombatPhase('attack')
       setSiteAttackAnnouncement(undefined)
+      setActiveMoveUnitId(undefined)
       setProductionUnitType(undefined)
       setActiveSiteTab(undefined)
       setDevelopmentFootprintIndex(0)
@@ -301,6 +313,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
       const damage = beforeHp - result.siteHp
       const captured = result.siteHp === 0
       setCombatPhase('attack')
+      setActiveMoveUnitId(undefined)
       setProductionUnitType(undefined)
       setActiveSiteTab(undefined)
       setDevelopmentFootprintIndex(0)
@@ -380,6 +393,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
 
     setActiveCombat(undefined)
     setCombatPhase('attack')
+    setActiveMoveUnitId(undefined)
     setProductionUnitType(undefined)
     setActiveSiteTab(undefined)
     setDevelopmentFootprintIndex(0)
@@ -517,9 +531,12 @@ function GameApp({ initialState }: { initialState: GameState }) {
 
       if (
         event.key === 'Escape' &&
-        (activeProductionUnitType || activeSiteTab === 'development')
+        (isMoveMode ||
+          activeProductionUnitType ||
+          activeSiteTab === 'development')
       ) {
         event.preventDefault()
+        setActiveMoveUnitId(undefined)
         setProductionUnitType(undefined)
         setProductionFeedback(undefined)
         setActiveSiteTab(undefined)
@@ -535,12 +552,14 @@ function GameApp({ initialState }: { initialState: GameState }) {
         event.altKey ||
         event.metaKey ||
         isEditing ||
-        isInteractive
+        isInteractive ||
+        isMoveMode
       ) {
         return
       }
 
       event.preventDefault()
+      setActiveMoveUnitId(undefined)
       setProductionUnitType(undefined)
       setActiveSiteTab(undefined)
       setDevelopmentFootprintIndex(0)
@@ -555,6 +574,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     activeSiteAttack,
     activeProductionUnitType,
     activeSiteTab,
+    isMoveMode,
     state.activeFactionId,
     state.humanFactionId,
     state.phase,
@@ -570,6 +590,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
 
     if (state.activeFactionId !== state.humanFactionId) {
       if (site) {
+        setActiveMoveUnitId(undefined)
         setCityInfoSiteId(site.id)
         setActiveSiteTab(undefined)
         setDevelopmentFootprintIndex(0)
@@ -594,11 +615,26 @@ function GameApp({ initialState }: { initialState: GameState }) {
         unitType: activeProductionUnitType,
         destination: tile.position,
       })
+      setActiveMoveUnitId(undefined)
       setProductionUnitType(undefined)
       setActiveSiteTab(undefined)
       setDevelopmentFootprintIndex(0)
       setCityInfoSiteId(undefined)
       setProductionFeedback(undefined)
+      return
+    }
+
+    if (isMoveMode && selectedUnit) {
+      if (!reachableKeys.has(positionKey(tile.position))) {
+        return
+      }
+
+      dispatch({
+        type: 'unitMoved',
+        unitId: selectedUnit.id,
+        destination: tile.position,
+      })
+      setActiveMoveUnitId(undefined)
       return
     }
 
@@ -613,6 +649,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     }
 
     if (unit?.factionId === state.humanFactionId) {
+      setActiveMoveUnitId(undefined)
       if (selectedUnit?.id === unit.id && site) {
         dispatch({ type: 'selectionCleared' })
         if (
@@ -639,6 +676,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     }
 
     if (site) {
+      setActiveMoveUnitId(undefined)
       dispatch({ type: 'selectionCleared' })
       if (
         site.ownerId === state.humanFactionId &&
@@ -654,11 +692,12 @@ function GameApp({ initialState }: { initialState: GameState }) {
       return
     }
 
-    // Movement uses right-click; keep selection on accidental left-click.
+    // Keep selection on reachable cells until a movement command is active.
     if (selectedUnit && reachableKeys.has(positionKey(tile.position))) {
       return
     }
 
+    setActiveMoveUnitId(undefined)
     dispatch({ type: 'selectionCleared' })
     setCityInfoSiteId(undefined)
     setActiveSiteTab(undefined)
@@ -674,6 +713,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     deployableKeys,
     productionSite,
     reachableKeys,
+    isMoveMode,
     selectedUnit,
     startCombat,
     startSiteAttack,
@@ -702,6 +742,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
       unitId: selectedUnit.id,
       destination: tile.position,
     })
+    setActiveMoveUnitId(undefined)
   }, [
     activeCombat,
     activeSiteAttack,
@@ -743,6 +784,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     setActiveCombat(undefined)
     setActiveSiteAttack(undefined)
     setCombatPhase('attack')
+    setActiveMoveUnitId(undefined)
     setProductionUnitType(undefined)
     setActiveSiteTab(undefined)
     setDevelopmentFootprintIndex(0)
@@ -824,6 +866,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
                 Boolean(activeCombat || activeSiteAttack)
               }
               onEndTurn={() => {
+                setActiveMoveUnitId(undefined)
                 setProductionUnitType(undefined)
                 setActiveSiteTab(undefined)
                 setDevelopmentFootprintIndex(0)
@@ -861,6 +904,26 @@ function GameApp({ initialState }: { initialState: GameState }) {
                     setProductionUnitType(undefined)
                     setProductionFeedback(undefined)
                   }}
+                >
+                  취소 <kbd>Esc</kbd>
+                </button>
+              </section>
+            )}
+            {isMoveMode && selectedUnit && (
+              <section
+                className="deployment-bar movement-bar"
+                aria-label="부대 이동"
+              >
+                <div className="deployment-bar__copy">
+                  <strong>{selectedUnit.name} 이동</strong>
+                  <span className="deployment-bar__message" role="status">
+                    금색 타일을 선택하세요.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  aria-label="부대 이동 취소"
+                  onClick={() => setActiveMoveUnitId(undefined)}
                 >
                   취소 <kbd>Esc</kbd>
                 </button>
@@ -997,7 +1060,11 @@ function GameApp({ initialState }: { initialState: GameState }) {
                 {!activeProductionUnitType && selectedUnit && (
                   <InfoPanel
                     unit={selectedUnit}
-                    onClose={() => dispatch({ type: 'selectionCleared' })}
+                    canMove={canEnterMoveMode}
+                    moveMode={isMoveMode}
+                    onMoveModeChange={(active) =>
+                      setActiveMoveUnitId(active ? selectedUnit.id : undefined)
+                    }
                   />
                 )}
                 {activeProductionUnitType && (

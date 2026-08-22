@@ -264,8 +264,16 @@ describe('Milestone 07 UI', () => {
     expect(
       unitInfo.compareDocumentPosition(unitMenu) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
-    expect(screen.getByRole('button', { name: /요새화/ })).toBeDisabled()
-    expect(screen.getByRole('button', { name: /방어/ })).toBeDisabled()
+    expect(within(unitMenu).getByRole('button', { name: '이동' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
+    expect(within(unitMenu).getByRole('button', { name: '이동' })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: /요새화/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /방어/ })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: '부대 정보 닫기' }),
+    ).not.toBeInTheDocument()
     expect(screen.queryByText('미구현')).not.toBeInTheDocument()
     expect(container.querySelector('.map-stage')).not.toContainElement(
       unitInfo,
@@ -307,6 +315,73 @@ describe('Milestone 07 UI', () => {
       originKey,
     )
     expect(container.querySelectorAll('[data-reachable="true"]').length).toBeGreaterThan(0)
+  })
+
+  it('moves onto a reachable cell after entering move mode', async () => {
+    const user = userEvent.setup()
+    const state = createInitialGameState('ui-move-command')
+    const player = state.units.find((unit) => unit.factionId === 'player')!
+    const { container } = renderApp(state)
+    await user.click(container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(player.position)}"]`,
+    )!)
+    const destination = container.querySelector<HTMLButtonElement>('[data-reachable="true"]')!
+    const destinationKey = destination.dataset.coordinate
+    const unitMenu = screen.getByRole('toolbar', { name: '유닛 메뉴' })
+    const moveButton = within(unitMenu).getByRole('button', { name: '이동' })
+
+    await user.click(moveButton)
+    expect(moveButton).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByLabelText('부대 이동')).toHaveTextContent(
+      '금색 타일을 선택하세요.',
+    )
+
+    await user.click(destination)
+    expect(container.querySelector(`[data-unit-id="${player.id}"]`)).toHaveAttribute(
+      'data-coordinate',
+      destinationKey,
+    )
+    expect(screen.queryByLabelText('부대 이동')).not.toBeInTheDocument()
+    expect(moveButton).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('cancels move mode with Escape without clearing the unit selection', async () => {
+    const user = userEvent.setup()
+    const state = createInitialGameState('ui-move-command-cancel')
+    const player = state.units.find((unit) => unit.factionId === 'player')!
+    const { container } = renderApp(state)
+    const playerTile = container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(player.position)}"]`,
+    )!
+    await user.click(playerTile)
+    const moveButton = within(
+      screen.getByRole('toolbar', { name: '유닛 메뉴' }),
+    ).getByRole('button', { name: '이동' })
+    await user.click(moveButton)
+
+    await user.keyboard('{Escape}')
+
+    expect(screen.queryByLabelText('부대 이동')).not.toBeInTheDocument()
+    expect(moveButton).toHaveAttribute('aria-pressed', 'false')
+    expect(playerTile).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByLabelText('부대 정보')).toBeInTheDocument()
+  })
+
+  it('disables the move command when no reachable cells remain', () => {
+    const state = createInitialGameState('ui-move-command-disabled')
+    const player = state.units.find((unit) => unit.factionId === 'player')!
+    player.movementRemaining = 0
+    player.hasActed = true
+    state.selectedUnitId = player.id
+
+    renderApp(state)
+
+    expect(
+      within(screen.getByRole('toolbar', { name: '유닛 메뉴' })).getByRole(
+        'button',
+        { name: '이동' },
+      ),
+    ).toBeDisabled()
   })
 
   it('starts a deterministic game from a trimmed seed and validates empty input', async () => {

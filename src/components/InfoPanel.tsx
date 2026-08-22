@@ -8,10 +8,17 @@ import { UnitIcon } from './UnitIcon'
 
 type InfoPanelProps = {
   unit: Unit
-  onClose: () => void
+  canMove: boolean
+  moveMode: boolean
+  onMoveModeChange: (active: boolean) => void
 }
 
-export function InfoPanel({ unit, onClose }: InfoPanelProps) {
+export function InfoPanel({
+  unit,
+  canMove,
+  moveMode,
+  onMoveModeChange,
+}: InfoPanelProps) {
   const stats = UNIT_STATS[unit.type]
 
   return (
@@ -56,19 +63,14 @@ export function InfoPanel({ unit, onClose }: InfoPanelProps) {
       </section>
 
       <div className="city-card__menu" role="toolbar" aria-label="유닛 메뉴">
-        <button type="button" disabled title="준비 중인 기능입니다.">
-          요새화
-        </button>
-        <button type="button" disabled title="준비 중인 기능입니다.">
-          방어
-        </button>
         <button
           type="button"
-          className="city-card__close"
-          aria-label="부대 정보 닫기"
-          onClick={onClose}
+          aria-pressed={moveMode}
+          disabled={!canMove}
+          title={canMove ? '이동할 타일을 선택합니다.' : '이동 가능한 타일이 없습니다.'}
+          onClick={() => onMoveModeChange(!moveMode)}
         >
-          ×
+          이동
         </button>
       </div>
     </div>

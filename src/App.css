@@ -468,6 +468,15 @@
   color: #ffaaa1;
 }
 
+.movement-bar {
+  background: linear-gradient(90deg, rgba(78, 65, 31, 0.98), rgba(48, 43, 28, 0.98));
+  border-color: rgba(240, 208, 118, 0.58);
+}
+
+.movement-bar .deployment-bar__copy strong {
+  color: #f0d076;
+}
+
 .deployment-bar button {
   min-height: 28px;
   margin-left: auto;
@@ -484,6 +493,10 @@
 
 .deployment-bar button:hover {
   border-color: rgba(88, 211, 189, 0.8);
+}
+
+.movement-bar button:hover {
+  border-color: rgba(240, 208, 118, 0.84);
 }
 
 .deployment-bar kbd {
@@ -854,6 +867,12 @@
   color: #172029;
   background: #56d7c2;
   border-color: #56d7c2;
+}
+
+.city-card__menu button[aria-pressed='true'] {
+  color: #172029;
+  background: #f0d076;
+  border-color: #f0d076;
 }
 
 .city-card__menu button:disabled {
