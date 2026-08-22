@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { useMapPan } from './useMapPan'
+import { MAP_KEYBOARD_PAN_STEP_PX, useMapPan } from './useMapPan'
 import { useMapZoom } from './useMapZoom'
 
 function createScrollElement() {
@@ -25,6 +25,10 @@ function createScrollElement() {
   element.setPointerCapture = vi.fn()
   element.releasePointerCapture = vi.fn()
   element.hasPointerCapture = vi.fn(() => true)
+  element.scrollBy = vi.fn((options: ScrollToOptions) => {
+    scrollLeft += options.left ?? 0
+    scrollTop += options.top ?? 0
+  }) as typeof element.scrollBy
   document.body.appendChild(element)
   return element
 }
@@ -214,5 +218,60 @@ describe('useMapPan', () => {
     act(() => vi.runAllTimers())
     expect(result.current.current).toBe(false)
     vi.useRealTimers()
+  })
+
+  it('pans the map with arrow keys and clears tile focus', () => {
+    const element = createScrollElement()
+    renderHook(() => useMapPan(element))
+    const focusedTile = document.createElement('button')
+    focusedTile.className = 'map-tile'
+    document.body.appendChild(focusedTile)
+    focusedTile.focus()
+
+    act(() => {
+      focusedTile.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'ArrowRight',
+          bubbles: true,
+          cancelable: true,
+        }),
+      )
+      focusedTile.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'ArrowDown',
+          bubbles: true,
+          cancelable: true,
+        }),
+      )
+    })
+
+    expect(element.scrollLeft).toBe(40 + MAP_KEYBOARD_PAN_STEP_PX)
+    expect(element.scrollTop).toBe(60 + MAP_KEYBOARD_PAN_STEP_PX)
+    expect(element.scrollBy).toHaveBeenLastCalledWith({
+      left: 0,
+      top: MAP_KEYBOARD_PAN_STEP_PX,
+      behavior: 'smooth',
+    })
+    expect(document.activeElement).not.toBe(focusedTile)
+  })
+
+  it('leaves arrow keys available while editing a form control', () => {
+    const element = createScrollElement()
+    renderHook(() => useMapPan(element))
+    const input = document.createElement('input')
+    document.body.appendChild(input)
+
+    act(() => {
+      input.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'ArrowRight',
+          bubbles: true,
+          cancelable: true,
+        }),
+      )
+    })
+
+    expect(element.scrollLeft).toBe(40)
+    expect(element.scrollTop).toBe(60)
   })
 })
