@@ -2,6 +2,7 @@ import { act, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   clampMapZoom,
+  fitMapZoom,
   MAP_ZOOM_DEFAULT,
   MAP_ZOOM_LEVELS,
   MAP_ZOOM_MAX,
@@ -103,6 +104,12 @@ describe('map zoom helpers', () => {
     expect(zoomedOut).toEqual([...MAP_ZOOM_LEVELS].reverse())
   })
 
+  it('selects the largest discrete zoom level that fits the viewport', () => {
+    expect(fitMapZoom(400, 300, 800, 600)).toBe(0.5)
+    expect(fitMapZoom(500, 600, 400, 400)).toBe(1.25)
+    expect(fitMapZoom(100, 100, 1000, 1000)).toBe(MAP_ZOOM_MIN)
+  })
+
   it('keeps the content point under the cursor stable', () => {
     expect(zoomScrollOffset(100, 50, 1, 2)).toBe(250)
     expect(zoomScrollOffset(250, 50, 2, 1)).toBe(100)
@@ -192,6 +199,26 @@ describe('useMapZoom', () => {
     })
     expect(result.current.zoom).toBeCloseTo(MAP_ZOOM_MIN)
     expect(result.current.canZoomOut).toBe(false)
+  })
+
+  it('fits and centers map content in the viewport', () => {
+    const element = createScrollElement()
+    const mapContent = document.createElement('div')
+    mapContent.className = 'map-zoom-shell'
+    Object.defineProperties(mapContent, {
+      offsetWidth: { configurable: true, value: 800 },
+      offsetHeight: { configurable: true, value: 400 },
+      offsetLeft: { configurable: true, value: 12 },
+      offsetTop: { configurable: true, value: 8 },
+    })
+    element.appendChild(mapContent)
+    const { result } = renderHook(() => useMapZoom(element))
+
+    act(() => result.current.fitToViewport())
+
+    expect(result.current.zoom).toBe(0.5)
+    expect(element.scrollLeft).toBeCloseTo(12)
+    expect(element.scrollTop).toBe(0)
   })
 
   it('prevents the default wheel scroll behavior', () => {

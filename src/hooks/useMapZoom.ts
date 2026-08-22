@@ -28,6 +28,31 @@ export function clampMapZoom(zoom: number): number {
   return Math.min(MAP_ZOOM_MAX, Math.max(MAP_ZOOM_MIN, zoom))
 }
 
+export function fitMapZoom(
+  viewportWidth: number,
+  viewportHeight: number,
+  contentWidth: number,
+  contentHeight: number,
+): number {
+  if (
+    viewportWidth <= 0 ||
+    viewportHeight <= 0 ||
+    contentWidth <= 0 ||
+    contentHeight <= 0
+  ) {
+    return MAP_ZOOM_DEFAULT
+  }
+
+  const limit = Math.min(
+    viewportWidth / contentWidth,
+    viewportHeight / contentHeight,
+  )
+  return (
+    [...MAP_ZOOM_LEVELS].reverse().find((level) => level <= limit) ??
+    MAP_ZOOM_MIN
+  )
+}
+
 export function nextMapZoom(current: number, deltaY: number): number {
   if (deltaY === 0) return clampMapZoom(current)
 
@@ -75,6 +100,7 @@ export function useMapZoom(
   const scrollElementRef = useRef(scrollElement)
   const pendingScrollRef = useRef<{ left: number; top: number } | null>(null)
   const stepZoomRef = useRef<(deltaY: number) => void>(() => undefined)
+  const fitZoomRef = useRef<() => void>(() => undefined)
   const internalGestureStateRef = useRef<MapGestureState>({ pinching: false })
   const internalClickSuppressRef = useRef(false)
   const gestureStateRef =
@@ -188,6 +214,34 @@ export function useMapZoom(
         scrollElement.clientWidth / 2,
         scrollElement.clientHeight / 2,
       )
+    }
+
+    fitZoomRef.current = () => {
+      const oldZoom = zoomRef.current
+      const mapContent =
+        scrollElement.querySelector<HTMLElement>('.map-zoom-shell')
+      if (!mapContent) return
+
+      const contentWidth = mapContent.offsetWidth / oldZoom
+      const contentHeight = mapContent.offsetHeight / oldZoom
+      const newZoom = fitMapZoom(
+        Math.max(0, scrollElement.clientWidth - 24),
+        Math.max(0, scrollElement.clientHeight - 16),
+        contentWidth,
+        contentHeight,
+      )
+      commitZoom(newZoom, {
+        left: Math.max(
+          0,
+          mapContent.offsetLeft +
+            (contentWidth * newZoom - scrollElement.clientWidth) / 2,
+        ),
+        top: Math.max(
+          0,
+          mapContent.offsetTop +
+            (contentHeight * newZoom - scrollElement.clientHeight) / 2,
+        ),
+      })
     }
 
     const handleWheel = (event: WheelEvent) => {
@@ -309,6 +363,7 @@ export function useMapZoom(
     return () => {
       window.clearTimeout(clearSuppressTimer)
       stepZoomRef.current = () => undefined
+      fitZoomRef.current = () => undefined
       gestureState.pinching = false
       clickSuppressRef.current = false
       scrollElement.removeEventListener('wheel', handleWheel)
@@ -323,6 +378,7 @@ export function useMapZoom(
     zoom,
     zoomIn: () => stepZoomRef.current(-1),
     zoomOut: () => stepZoomRef.current(1),
+    fitToViewport: () => fitZoomRef.current(),
     canZoomIn: zoom < MAP_ZOOM_MAX,
     canZoomOut: zoom > MAP_ZOOM_MIN,
   }

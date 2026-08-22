@@ -177,13 +177,31 @@ function MinimapComponent({
     }
 
     const updateViewport = () => {
+      const mapContent =
+        scrollElement.querySelector<HTMLElement>('.map-zoom-shell')
+      if (!mapContent) return
+
+      const contentLeft = mapContent.offsetLeft
+      const contentTop = mapContent.offsetTop
+      const contentWidth = mapContent.offsetWidth
+      const contentHeight = mapContent.offsetHeight
+      const left = Math.max(0, scrollElement.scrollLeft - contentLeft)
+      const top = Math.max(0, scrollElement.scrollTop - contentTop)
+      const right = Math.min(
+        contentWidth,
+        scrollElement.scrollLeft + scrollElement.clientWidth - contentLeft,
+      )
+      const bottom = Math.min(
+        contentHeight,
+        scrollElement.scrollTop + scrollElement.clientHeight - contentTop,
+      )
       setViewport({
-        left: scrollElement.scrollLeft,
-        top: scrollElement.scrollTop,
-        width: scrollElement.clientWidth,
-        height: scrollElement.clientHeight,
-        contentWidth: scrollElement.scrollWidth,
-        contentHeight: scrollElement.scrollHeight,
+        left,
+        top,
+        width: Math.max(0, right - left),
+        height: Math.max(0, bottom - top),
+        contentWidth,
+        contentHeight,
       })
     }
 
@@ -191,9 +209,15 @@ function MinimapComponent({
     scrollElement.addEventListener('scroll', updateViewport, { passive: true })
     window.addEventListener('resize', updateViewport)
     const frame = window.requestAnimationFrame(updateViewport)
+    const resizeObserver =
+      typeof ResizeObserver === 'undefined'
+        ? undefined
+        : new ResizeObserver(updateViewport)
+    resizeObserver?.observe(scrollElement)
 
     return () => {
       window.cancelAnimationFrame(frame)
+      resizeObserver?.disconnect()
       scrollElement.removeEventListener('scroll', updateViewport)
       window.removeEventListener('resize', updateViewport)
     }
@@ -207,10 +231,17 @@ function MinimapComponent({
     const bounds = bodyRef.current.getBoundingClientRect()
     const ratioX = (clientX - bounds.left) / bounds.width
     const ratioY = (clientY - bounds.top) / bounds.height
+    const mapContent =
+      scrollElement.querySelector<HTMLElement>('.map-zoom-shell')
+    if (!mapContent) return
     const targetLeft =
-      ratioX * scrollElement.scrollWidth - scrollElement.clientWidth / 2
+      mapContent.offsetLeft +
+      ratioX * mapContent.offsetWidth -
+      scrollElement.clientWidth / 2
     const targetTop =
-      ratioY * scrollElement.scrollHeight - scrollElement.clientHeight / 2
+      mapContent.offsetTop +
+      ratioY * mapContent.offsetHeight -
+      scrollElement.clientHeight / 2
 
     scrollElement.scrollTo({
       left: Math.max(0, targetLeft),

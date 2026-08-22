@@ -40,6 +40,7 @@ import {
   resolveCombat,
   resolveSiteCombat,
   SITE_STATS,
+  TERRAIN_LABELS,
   UNIT_TYPE_LABELS,
   UNIT_STATS,
 } from './game/rules'
@@ -109,6 +110,10 @@ function GameApp({ initialState }: { initialState: GameState }) {
   const [activeMoveUnitId, setActiveMoveUnitId] = useState<string>()
   const [previewTileKey, setPreviewTileKey] = useState<string>()
   const [inspectedTileKey, setInspectedTileKey] = useState<string>()
+  const [mobileInfoExpanded, setMobileInfoExpanded] = useState(
+    Boolean(initialState.selectedUnitId),
+  )
+  const [mobileMinimapExpanded, setMobileMinimapExpanded] = useState(false)
   const [openChromeMenu, setOpenChromeMenu] = useState<ChromeMenuId | null>(null)
   const [mapScrollElement, setMapScrollElement] = useState<HTMLDivElement | null>(
     null,
@@ -124,6 +129,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     zoom: mapZoom,
     zoomIn,
     zoomOut,
+    fitToViewport,
     canZoomIn,
     canZoomOut,
   } = useMapZoom(mapScrollElement, mapGestureStateRef, mapDragMovedRef)
@@ -211,6 +217,15 @@ function GameApp({ initialState }: { initialState: GameState }) {
     [activeProductionUnitType, deployablePositions],
   )
   const selectedUnit = getSelectedUnit(state)
+  const mobileInfoLabel = activeProductionUnitType
+    ? `${UNIT_TYPE_LABELS[activeProductionUnitType]} 배치`
+    : cityInfoSite?.name ??
+      selectedUnit?.name ??
+      sidebarMapInfoUnit?.name ??
+      sidebarMapInfoSite?.name ??
+      (sidebarMapInfoTile
+        ? TERRAIN_LABELS[sidebarMapInfoTile.terrain]
+        : '선택 정보')
   const playerCapital = state.sites.find(
     (site) => site.capitalFor === state.humanFactionId,
   )
@@ -439,6 +454,8 @@ function GameApp({ initialState }: { initialState: GameState }) {
     setCityInfoSiteId(undefined)
     setPreviewTileKey(undefined)
     setInspectedTileKey(undefined)
+    setMobileInfoExpanded(false)
+    setMobileMinimapExpanded(false)
     setProductionSiteId(
       result.value.gameState.sites.find(
         (site) =>
@@ -607,6 +624,8 @@ function GameApp({ initialState }: { initialState: GameState }) {
       setCityInfoSiteId(undefined)
       setPreviewTileKey(undefined)
       setInspectedTileKey(undefined)
+      setMobileInfoExpanded(false)
+      setMobileMinimapExpanded(false)
       dispatch({ type: 'turnEnded' })
     }
 
@@ -623,6 +642,11 @@ function GameApp({ initialState }: { initialState: GameState }) {
     state.phase,
   ])
 
+  const openMobileInfo = useCallback(() => {
+    setMobileInfoExpanded(true)
+    setMobileMinimapExpanded(false)
+  }, [])
+
   const handleTileClick = useCallback((tile: Tile) => {
     const unit = getUnitAt(state, tile.position)
     const site = getSiteAt(state, tile.position)
@@ -633,6 +657,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
 
     if (state.activeFactionId !== state.humanFactionId) {
       if (site) {
+        openMobileInfo()
         setActiveMoveUnitId(undefined)
         setInspectedTileKey(undefined)
         setCityInfoSiteId(site.id)
@@ -697,6 +722,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     }
 
     if (unit?.factionId === state.humanFactionId) {
+      openMobileInfo()
       setActiveMoveUnitId(undefined)
       setInspectedTileKey(undefined)
       if (selectedUnit?.id === unit.id && site) {
@@ -725,6 +751,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     }
 
     if (site) {
+      openMobileInfo()
       setActiveMoveUnitId(undefined)
       setInspectedTileKey(undefined)
       dispatch({ type: 'selectionCleared' })
@@ -748,6 +775,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     }
 
     setActiveMoveUnitId(undefined)
+    openMobileInfo()
     dispatch({ type: 'selectionCleared' })
     setCityInfoSiteId(undefined)
     setInspectedTileKey(positionKey(tile.position))
@@ -765,6 +793,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     productionSite,
     reachableKeys,
     isMoveMode,
+    openMobileInfo,
     selectedUnit,
     startCombat,
     startSiteAttack,
@@ -843,6 +872,8 @@ function GameApp({ initialState }: { initialState: GameState }) {
     setCityInfoSiteId(undefined)
     setPreviewTileKey(undefined)
     setInspectedTileKey(undefined)
+    setMobileInfoExpanded(false)
+    setMobileMinimapExpanded(false)
     setProductionFeedback(undefined)
     setSaveFeedback(undefined)
     setSeedInput(normalizedSeed)
@@ -927,6 +958,8 @@ function GameApp({ initialState }: { initialState: GameState }) {
                 setCityInfoSiteId(undefined)
                 setPreviewTileKey(undefined)
                 setInspectedTileKey(undefined)
+                setMobileInfoExpanded(false)
+                setMobileMinimapExpanded(false)
                 setProductionFeedback(undefined)
                 dispatch({ type: 'turnEnded' })
               }}
@@ -1049,17 +1082,69 @@ function GameApp({ initialState }: { initialState: GameState }) {
                 >
                   +
                 </button>
+                <button
+                  type="button"
+                  className="map-zoom-controls__fit"
+                  aria-label="지도를 화면에 맞춤"
+                  onClick={fitToViewport}
+                >
+                  맞춤
+                </button>
               </div>
             </div>
 
             <aside className="map-sidebar" aria-label="지도 사이드바">
-              <Minimap
-                state={state}
-                scrollElement={mapScrollElement}
-                zoom={mapZoom}
-              />
+              <div
+                className={`map-minimap-dock${
+                  mobileMinimapExpanded ? ' map-minimap-dock--expanded' : ''
+                }`}
+              >
+                <button
+                  type="button"
+                  className="map-minimap-dock__toggle"
+                  aria-expanded={mobileMinimapExpanded}
+                  aria-controls="mobile-minimap"
+                  onClick={() => {
+                    const expanded = !mobileMinimapExpanded
+                    setMobileMinimapExpanded(expanded)
+                    if (expanded) setMobileInfoExpanded(false)
+                  }}
+                >
+                  {mobileMinimapExpanded ? '미니맵 닫기' : '미니맵 열기'}
+                </button>
+                <div id="mobile-minimap" className="map-minimap-dock__body">
+                  <Minimap
+                    state={state}
+                    scrollElement={mapScrollElement}
+                    zoom={mapZoom}
+                  />
+                </div>
+              </div>
 
-              <section className="map-sidebar__selection" aria-label="선택 정보">
+              <section
+                className={`map-sidebar__selection mobile-info-sheet${
+                  mobileInfoExpanded ? ' mobile-info-sheet--expanded' : ''
+                }`}
+                aria-label="선택 정보"
+              >
+                <button
+                  type="button"
+                  className="mobile-info-sheet__toggle"
+                  aria-expanded={mobileInfoExpanded}
+                  aria-controls="mobile-info-sheet-body"
+                  onClick={() => {
+                    const expanded = !mobileInfoExpanded
+                    setMobileInfoExpanded(expanded)
+                    if (expanded) setMobileMinimapExpanded(false)
+                  }}
+                >
+                  <span className="mobile-info-sheet__handle" aria-hidden="true" />
+                  <span>{mobileInfoLabel}</span>
+                </button>
+                <div
+                  id="mobile-info-sheet-body"
+                  className="mobile-info-sheet__body"
+                >
                 {sidebarPreviewTile && sidebarMapInfoTile && (
                   <MapInfoPanel
                     tile={sidebarMapInfoTile}
@@ -1087,6 +1172,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
                     }}
                     onClose={() => {
                       setCityInfoSiteId(undefined)
+                      setMobileInfoExpanded(false)
                       setActiveSiteTab(undefined)
                       setDevelopmentFootprintIndex(0)
                       setProductionUnitType(undefined)
@@ -1117,6 +1203,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
                             return
                           }
                           setProductionUnitType(unitType)
+                          setMobileInfoExpanded(false)
                           setProductionFeedback(undefined)
                           dispatch({ type: 'selectionCleared' })
                         }}
@@ -1151,9 +1238,10 @@ function GameApp({ initialState }: { initialState: GameState }) {
                     unit={selectedUnit}
                     canMove={canEnterMoveMode}
                     moveMode={isMoveMode}
-                    onMoveModeChange={(active) =>
+                    onMoveModeChange={(active) => {
                       setActiveMoveUnitId(active ? selectedUnit.id : undefined)
-                    }
+                      if (active) setMobileInfoExpanded(false)
+                    }}
                   />
                 )}
                 {activeProductionUnitType && (
@@ -1184,6 +1272,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
                     <p>지도 타일을 가리키거나 선택하면 상세 정보가 표시됩니다.</p>
                   </div>
                 )}
+                </div>
               </section>
             </aside>
           </div>

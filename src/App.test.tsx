@@ -64,7 +64,10 @@ describe('Milestone 07 UI', () => {
     expect(screen.getByLabelText('선택 정보')).toHaveTextContent(
       '지도 타일을 가리키거나 선택하면 상세 정보가 표시됩니다.',
     )
-    expect(screen.queryByRole('button', { name: /미니맵 (접기|펼치기)/ })).not.toBeInTheDocument()
+    expect(container.querySelector('.map-minimap-dock__toggle')).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    )
     expect(screen.queryByLabelText('정보 패널')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('부대 정보')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '저장' })).toBeInTheDocument()
@@ -72,11 +75,20 @@ describe('Milestone 07 UI', () => {
     expect(screen.queryByRole('button', { name: '범례' })).not.toBeInTheDocument()
   }, 20_000)
 
-  it('keeps the minimap visible without a collapse control', () => {
-    renderApp()
+  it('toggles the mobile minimap dock accessibly', () => {
+    const { container } = renderApp()
 
     expect(screen.getByLabelText('미니맵')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /미니맵 (접기|펼치기)/ })).not.toBeInTheDocument()
+    const toggle = container.querySelector<HTMLButtonElement>(
+      '.map-minimap-dock__toggle',
+    )!
+    expect(toggle).toHaveTextContent('미니맵 열기')
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+
+    fireEvent.click(toggle)
+
+    expect(toggle).toHaveTextContent('미니맵 닫기')
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
   })
 
   it('shows accessible map zoom controls and updates their state', () => {
@@ -92,6 +104,7 @@ describe('Milestone 07 UI', () => {
 
     expect(zoomIn).toBeEnabled()
     expect(zoomOut).toBeEnabled()
+    expect(zoomControls.querySelector('.map-zoom-controls__fit')).toBeEnabled()
     expect(screen.getByLabelText('현재 지도 배율')).toHaveTextContent('100%')
 
     for (let step = 0; step < 5; step += 1) {
@@ -294,6 +307,9 @@ describe('Milestone 07 UI', () => {
     await user.click(container.querySelector<HTMLButtonElement>(
       `.map-tile[data-coordinate="${positionKey(player.position)}"]`,
     )!)
+    expect(
+      container.querySelector('.mobile-info-sheet__toggle'),
+    ).toHaveAttribute('aria-expanded', 'true')
     const destination = container.querySelector<HTMLButtonElement>('[data-reachable="true"]')!
     const destinationKey = destination.dataset.coordinate
 
@@ -338,6 +354,9 @@ describe('Milestone 07 UI', () => {
 
     await user.click(moveButton)
     expect(moveButton).toHaveAttribute('aria-pressed', 'true')
+    expect(
+      container.querySelector('.mobile-info-sheet__toggle'),
+    ).toHaveAttribute('aria-expanded', 'false')
     expect(screen.getByLabelText('부대 이동')).toHaveTextContent(
       '금색 타일을 선택하세요.',
     )
@@ -461,7 +480,7 @@ describe('Milestone 07 UI', () => {
     expect(
       cityInfo.compareDocumentPosition(cityMenu) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
-    expect(screen.getByText(stronghold.name)).toBeVisible()
+    expect(within(cityInfo).getByText(stronghold.name)).toBeVisible()
     expect(cityInfo).toHaveTextContent('체력120/120')
     expect(cityInfo).toHaveTextContent('방어력55')
     expect(screen.getByRole('tab', { name: /건설/ })).toBeDisabled()
@@ -478,6 +497,9 @@ describe('Milestone 07 UI', () => {
     expect(options).toHaveLength(4)
     await user.click(options[0])
 
+    expect(
+      container.querySelector('.mobile-info-sheet__toggle'),
+    ).toHaveAttribute('aria-expanded', 'false')
     expect(container.querySelector('.production-card')).toBeNull()
     const deploymentBar = screen.getByLabelText('부대 배치')
     expect(deploymentBar).toHaveTextContent(
