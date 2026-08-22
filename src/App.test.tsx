@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
@@ -62,7 +62,7 @@ describe('Milestone 07 UI', () => {
     expect(sidebar).toContainElement(minimap)
     expect(container.querySelector('.map-stage')).not.toContainElement(minimap)
     expect(screen.getByLabelText('선택 정보')).toHaveTextContent(
-      '유닛이나 거점을 선택하면 상세 정보가 표시됩니다.',
+      '지도 타일을 가리키거나 선택하면 상세 정보가 표시됩니다.',
     )
     expect(screen.queryByRole('button', { name: /미니맵 (접기|펼치기)/ })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('정보 패널')).not.toBeInTheDocument()
@@ -142,9 +142,8 @@ describe('Milestone 07 UI', () => {
     expect(mapScroll.scrollTop).toBe(233)
   })
 
-  it('shows a compact unit summary tooltip on hover without changing selection', async () => {
-    vi.useFakeTimers()
-    const state = createInitialGameState('ui-tooltip')
+  it('shows unit and terrain details as a sidebar preview on hover', () => {
+    const state = createInitialGameState('ui-sidebar-preview')
     const enemy = state.units.find((unit) => unit.factionId === 'enemy')!
     const enemyTile = state.tiles.find(
       (tile) => positionKey(tile.position) === positionKey(enemy.position),
@@ -157,40 +156,26 @@ describe('Milestone 07 UI', () => {
 
     fireEvent.mouseEnter(tile)
 
-    expect(document.querySelector(`[data-unit-tooltip="${enemy.id}"]`)).toBeNull()
-
-    act(() => {
-      vi.advanceTimersByTime(999)
-    })
-    expect(document.querySelector(`[data-unit-tooltip="${enemy.id}"]`)).toBeNull()
-
-    act(() => {
-      vi.advanceTimersByTime(1)
-    })
-    const tooltip = document.querySelector(
-      `[data-unit-tooltip="${enemy.id}"]`,
-    )!
-    expect(tooltip).toBeVisible()
-    expect(tooltip).toHaveTextContent(`붉은 제국 - ${enemy.name}`)
-    expect(tooltip).toHaveTextContent('숲')
-    expect(tooltip).toHaveTextContent('이동 비용')
-    expect(tooltip).toHaveTextContent('2')
-    expect(tooltip).toHaveTextContent('방어 보정치')
-    expect(tooltip).toHaveTextContent('+3')
-    expect(tooltip.querySelector('dl')).toBeInTheDocument()
-    expect(
-      [...tooltip.querySelectorAll('dt')].some(
-        (label) => label.textContent === '지형',
-      ),
-    ).toBe(false)
-    expect(tooltip).not.toHaveTextContent('체력')
-
+    const preview = screen.getByLabelText('지도 정보 미리보기')
+    expect(preview).toHaveTextContent(enemy.name)
+    expect(preview).toHaveTextContent('붉은 제국')
+    expect(preview).toHaveTextContent('체력')
+    expect(preview).toHaveTextContent('숲')
+    expect(preview).toHaveTextContent('이동 비용')
+    expect(preview).toHaveTextContent('2')
+    expect(preview).toHaveTextContent('방어 보정치')
+    expect(preview).toHaveTextContent('+3')
     expect(screen.queryByLabelText('부대 정보')).not.toBeInTheDocument()
-    vi.useRealTimers()
+
+    fireEvent.mouseLeave(tile)
+
+    expect(screen.queryByLabelText('지도 정보 미리보기')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('선택 정보')).toHaveTextContent(
+      '지도 타일을 가리키거나 선택하면 상세 정보가 표시됩니다.',
+    )
   })
 
-  it('shows terrain details in a tooltip while no unit is selected', async () => {
-    const user = userEvent.setup()
+  it('pins empty terrain details in the sidebar after a click', () => {
     const state = createInitialGameState('ui-terrain-info')
     const plain = state.tiles.find(
       (tile) =>
@@ -199,6 +184,11 @@ describe('Milestone 07 UI', () => {
           (unit) =>
             unit.position.q === tile.position.q &&
             unit.position.r === tile.position.r,
+        ) &&
+        !state.sites.some(
+          (site) =>
+            site.position.q === tile.position.q &&
+            site.position.r === tile.position.r,
         ),
     )!
     const { container } = renderApp(state)
@@ -206,28 +196,29 @@ describe('Milestone 07 UI', () => {
       `.map-tile[data-coordinate="${positionKey(plain.position)}"]`,
     )!
 
-    await user.hover(tile)
+    fireEvent.click(tile)
 
-    const tooltip = await waitFor(() => {
-      const next = document.querySelector(
-        `[data-terrain-tooltip="${positionKey(plain.position)}"]`,
-      )
-      expect(next).toBeVisible()
-      return next
-    }, { timeout: 1500 })
-    expect(tooltip).toHaveTextContent('평지')
-    expect(tooltip).not.toHaveTextContent('좌표')
-    expect(tooltip).toHaveTextContent('이동 비용')
-    expect(tooltip).toHaveTextContent('1')
-    expect(tooltip).not.toHaveTextContent('방어 보정치')
-    expect(tooltip).not.toHaveTextContent('없음')
-
+    const info = screen.getByLabelText('타일 정보')
+    expect(info).toHaveTextContent('평지')
+    expect(info).toHaveTextContent('좌표')
+    expect(info).toHaveTextContent('이동 비용')
+    expect(info).toHaveTextContent('1')
+    expect(info).not.toHaveTextContent('방어 보정치')
+    expect(tile).toHaveClass('map-tile--inspected')
     expect(screen.queryByLabelText('부대 정보')).not.toBeInTheDocument()
+
+    const enemy = state.units.find((unit) => unit.factionId === 'enemy')!
+    const enemyTile = container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(enemy.position)}"]`,
+    )!
+    fireEvent.mouseEnter(enemyTile)
+
+    expect(screen.queryByLabelText('지도 정보 미리보기')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('타일 정보')).toHaveTextContent('평지')
   })
 
-  it('suppresses all tooltips while choosing an attack target', () => {
-    vi.useFakeTimers()
-    const initial = createInitialGameState('ui-attack-target-tooltip')
+  it('keeps selected unit information while hovering an attack target', () => {
+    const initial = createInitialGameState('ui-attack-target-preview')
     const attacker: Unit = {
       ...initial.units.find((unit) => unit.factionId === 'player')!,
       id: 'tooltip-archer',
@@ -246,24 +237,15 @@ describe('Milestone 07 UI', () => {
       units: [attacker, defender],
     }
     const { container } = renderApp(state)
-    const terrainTile = container.querySelector<HTMLButtonElement>(
-      `[data-coordinate="${positionKey({ q: 0, r: 1 })}"]`,
-    )!
     const targetTile = container.querySelector<HTMLButtonElement>(
       `[data-coordinate="${positionKey(defender.position)}"]`,
     )!
 
-    fireEvent.mouseEnter(terrainTile)
-    act(() => vi.advanceTimersByTime(1000))
-    expect(document.querySelector('[data-terrain-tooltip]')).toBeNull()
+    expect(screen.getByLabelText('부대 정보')).toHaveTextContent(attacker.name)
 
-    fireEvent.mouseLeave(terrainTile)
     fireEvent.mouseEnter(targetTile)
-    act(() => vi.advanceTimersByTime(1000))
-    expect(
-      document.querySelector(`[data-unit-tooltip="${defender.id}"]`),
-    ).toBeNull()
-    vi.useRealTimers()
+    expect(screen.getByLabelText('부대 정보')).toHaveTextContent(attacker.name)
+    expect(screen.queryByLabelText('지도 정보 미리보기')).not.toBeInTheDocument()
   })
 
   it('selects a unit with keyboard Enter and exposes reachable hexes', async () => {
@@ -366,7 +348,12 @@ describe('Milestone 07 UI', () => {
       destinationKey,
     )
     expect(screen.queryByLabelText('부대 이동')).not.toBeInTheDocument()
-    expect(moveButton).toHaveAttribute('aria-pressed', 'false')
+    expect(
+      within(screen.getByRole('toolbar', { name: '유닛 메뉴' })).getByRole(
+        'button',
+        { name: '이동' },
+      ),
+    ).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('cancels move mode with Escape without clearing the unit selection', async () => {
@@ -509,7 +496,7 @@ describe('Milestone 07 UI', () => {
     expect(screen.queryByLabelText('부대 배치')).not.toBeInTheDocument()
     expect(container.querySelector('.production-card')).toBeNull()
     expect(screen.getByLabelText('선택 정보')).toHaveTextContent(
-      '유닛이나 거점을 선택하면 상세 정보가 표시됩니다.',
+      '지도 타일을 가리키거나 선택하면 상세 정보가 표시됩니다.',
     )
     expect(container.querySelector('.map-tile[aria-pressed="true"]')).toBeNull()
     expect(container.querySelector('[data-site-selected="true"]')).toBeNull()
@@ -786,7 +773,7 @@ describe('Milestone 07 UI', () => {
     )!
 
     expect(capitalMarker).toHaveAttribute('data-health', '1/120')
-    expect(capitalMarker).toHaveAttribute('title', expect.stringContaining('체력 1/120'))
+    expect(capitalMarker).toHaveAccessibleName(expect.stringContaining('체력 1/120'))
     expect(target).toHaveClass('map-tile--attackable-site')
     expect(target).toHaveAttribute('data-attackable-site', 'true')
 

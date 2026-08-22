@@ -19,6 +19,7 @@ import type {
 } from './components/GameMap'
 import { InfoPanel } from './components/InfoPanel'
 import { Legend } from './components/Legend'
+import { MapInfoPanel } from './components/MapInfoPanel'
 import { Minimap } from './components/Minimap'
 import { ProductionPanel } from './components/ProductionPanel'
 import { SavePanel } from './components/SavePanel'
@@ -106,6 +107,8 @@ function GameApp({ initialState }: { initialState: GameState }) {
     message: string
   }>()
   const [activeMoveUnitId, setActiveMoveUnitId] = useState<string>()
+  const [previewTileKey, setPreviewTileKey] = useState<string>()
+  const [inspectedTileKey, setInspectedTileKey] = useState<string>()
   const [openChromeMenu, setOpenChromeMenu] = useState<ChromeMenuId | null>(null)
   const [mapScrollElement, setMapScrollElement] = useState<HTMLDivElement | null>(
     null,
@@ -142,6 +145,12 @@ function GameApp({ initialState }: { initialState: GameState }) {
     (site) => site.id === availableProductionSiteId,
   )
   const cityInfoSite = state.sites.find((site) => site.id === cityInfoSiteId)
+  const previewTile = state.tiles.find(
+    (tile) => positionKey(tile.position) === previewTileKey,
+  )
+  const inspectedTile = state.tiles.find(
+    (tile) => positionKey(tile.position) === inspectedTileKey,
+  )
   const developmentFootprints = useMemo(
     () =>
       cityInfoSite && activeSiteTab === 'development'
@@ -174,6 +183,21 @@ function GameApp({ initialState }: { initialState: GameState }) {
     !activeCombat
       ? productionUnitType
       : undefined
+  const canPreviewMapInfo =
+    !activeProductionUnitType &&
+    !activeCombat &&
+    !activeSiteAttack &&
+    !cityInfoSite &&
+    !state.selectedUnitId &&
+    !inspectedTile
+  const sidebarPreviewTile = canPreviewMapInfo ? previewTile : undefined
+  const sidebarMapInfoTile = sidebarPreviewTile ?? inspectedTile
+  const sidebarMapInfoUnit = sidebarMapInfoTile
+    ? getUnitAt(state, sidebarMapInfoTile.position)
+    : undefined
+  const sidebarMapInfoSite = sidebarMapInfoTile
+    ? getSiteAt(state, sidebarMapInfoTile.position)
+    : undefined
   const deployablePositions = useMemo(
     () =>
       productionSite ? getDeployablePositions(state, productionSite) : [],
@@ -413,6 +437,8 @@ function GameApp({ initialState }: { initialState: GameState }) {
     setActiveSiteTab(undefined)
     setDevelopmentFootprintIndex(0)
     setCityInfoSiteId(undefined)
+    setPreviewTileKey(undefined)
+    setInspectedTileKey(undefined)
     setProductionSiteId(
       result.value.gameState.sites.find(
         (site) =>
@@ -579,6 +605,8 @@ function GameApp({ initialState }: { initialState: GameState }) {
       setActiveSiteTab(undefined)
       setDevelopmentFootprintIndex(0)
       setCityInfoSiteId(undefined)
+      setPreviewTileKey(undefined)
+      setInspectedTileKey(undefined)
       dispatch({ type: 'turnEnded' })
     }
 
@@ -606,6 +634,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     if (state.activeFactionId !== state.humanFactionId) {
       if (site) {
         setActiveMoveUnitId(undefined)
+        setInspectedTileKey(undefined)
         setCityInfoSiteId(site.id)
         setActiveSiteTab(undefined)
         setDevelopmentFootprintIndex(0)
@@ -631,6 +660,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
         destination: tile.position,
       })
       setActiveMoveUnitId(undefined)
+      setInspectedTileKey(undefined)
       setProductionUnitType(undefined)
       setActiveSiteTab(undefined)
       setDevelopmentFootprintIndex(0)
@@ -650,21 +680,25 @@ function GameApp({ initialState }: { initialState: GameState }) {
         destination: tile.position,
       })
       setActiveMoveUnitId(undefined)
+      setInspectedTileKey(undefined)
       return
     }
 
     if (selectedUnit && unit && attackableIds.has(unit.id)) {
+      setInspectedTileKey(undefined)
       startCombat(selectedUnit.id, unit.id)
       return
     }
 
     if (selectedUnit && site && attackableSiteIds.has(site.id)) {
+      setInspectedTileKey(undefined)
       startSiteAttack(selectedUnit.id, site.id, tile.position)
       return
     }
 
     if (unit?.factionId === state.humanFactionId) {
       setActiveMoveUnitId(undefined)
+      setInspectedTileKey(undefined)
       if (selectedUnit?.id === unit.id && site) {
         dispatch({ type: 'selectionCleared' })
         if (
@@ -692,6 +726,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
 
     if (site) {
       setActiveMoveUnitId(undefined)
+      setInspectedTileKey(undefined)
       dispatch({ type: 'selectionCleared' })
       if (
         site.ownerId === state.humanFactionId &&
@@ -715,6 +750,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     setActiveMoveUnitId(undefined)
     dispatch({ type: 'selectionCleared' })
     setCityInfoSiteId(undefined)
+    setInspectedTileKey(positionKey(tile.position))
     setActiveSiteTab(undefined)
     setDevelopmentFootprintIndex(0)
     setProductionUnitType(undefined)
@@ -758,6 +794,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
       destination: tile.position,
     })
     setActiveMoveUnitId(undefined)
+    setInspectedTileKey(undefined)
   }, [
     activeCombat,
     activeSiteAttack,
@@ -804,6 +841,8 @@ function GameApp({ initialState }: { initialState: GameState }) {
     setActiveSiteTab(undefined)
     setDevelopmentFootprintIndex(0)
     setCityInfoSiteId(undefined)
+    setPreviewTileKey(undefined)
+    setInspectedTileKey(undefined)
     setProductionFeedback(undefined)
     setSaveFeedback(undefined)
     setSeedInput(normalizedSeed)
@@ -886,6 +925,8 @@ function GameApp({ initialState }: { initialState: GameState }) {
                 setActiveSiteTab(undefined)
                 setDevelopmentFootprintIndex(0)
                 setCityInfoSiteId(undefined)
+                setPreviewTileKey(undefined)
+                setInspectedTileKey(undefined)
                 setProductionFeedback(undefined)
                 dispatch({ type: 'turnEnded' })
               }}
@@ -966,6 +1007,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
                   }
                   zoneOfControlKeys={zoneOfControlKeys}
                   selectedSiteId={cityInfoSite?.id}
+                  inspectedTileKey={inspectedTileKey}
                   combatAnimation={
                     activeCombat
                       ? { ...activeCombat, phase: combatPhase }
@@ -982,6 +1024,9 @@ function GameApp({ initialState }: { initialState: GameState }) {
                   suppressClickRef={mapDragMovedRef}
                   onTileClick={handleTileClick}
                   onTileContextMenu={handleTileContextMenu}
+                  onPreviewTileChange={(tileKey) => {
+                    setPreviewTileKey(canPreviewMapInfo ? tileKey : undefined)
+                  }}
                 />
               </div>
               <div className="map-zoom-controls" aria-label="지도 확대/축소">
@@ -1015,7 +1060,15 @@ function GameApp({ initialState }: { initialState: GameState }) {
               />
 
               <section className="map-sidebar__selection" aria-label="선택 정보">
-                {!activeProductionUnitType && cityInfoSite && (
+                {sidebarPreviewTile && sidebarMapInfoTile && (
+                  <MapInfoPanel
+                    tile={sidebarMapInfoTile}
+                    unit={sidebarMapInfoUnit}
+                    site={sidebarMapInfoSite}
+                    preview
+                  />
+                )}
+                {!sidebarPreviewTile && !activeProductionUnitType && cityInfoSite && (
                   <CityPanel
                     site={cityInfoSite}
                     activeTab={activeSiteTab}
@@ -1093,7 +1146,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
                     )}
                   </CityPanel>
                 )}
-                {!activeProductionUnitType && selectedUnit && (
+                {!sidebarPreviewTile && !activeProductionUnitType && selectedUnit && (
                   <InfoPanel
                     unit={selectedUnit}
                     canMove={canEnterMoveMode}
@@ -1109,10 +1162,26 @@ function GameApp({ initialState }: { initialState: GameState }) {
                     <p>지도에서 청록색 배치 타일을 선택하세요.</p>
                   </div>
                 )}
-                {!activeProductionUnitType && !cityInfoSite && !selectedUnit && (
+                {!sidebarPreviewTile &&
+                  !activeProductionUnitType &&
+                  !cityInfoSite &&
+                  !selectedUnit &&
+                  inspectedTile &&
+                  sidebarMapInfoTile && (
+                    <MapInfoPanel
+                      tile={sidebarMapInfoTile}
+                      unit={sidebarMapInfoUnit}
+                      site={sidebarMapInfoSite}
+                    />
+                  )}
+                {!sidebarPreviewTile &&
+                  !activeProductionUnitType &&
+                  !cityInfoSite &&
+                  !selectedUnit &&
+                  !inspectedTile && (
                   <div className="empty-selection empty-selection--compact">
                     <span aria-hidden="true">◇</span>
-                    <p>유닛이나 거점을 선택하면 상세 정보가 표시됩니다.</p>
+                    <p>지도 타일을 가리키거나 선택하면 상세 정보가 표시됩니다.</p>
                   </div>
                 )}
               </section>
