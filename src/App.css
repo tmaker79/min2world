@@ -2758,13 +2758,28 @@
 }
 
 @media (max-width: 980px) {
+  .app-shell {
+    height: auto;
+  }
+
   .game-layout {
+    flex: 0 0 auto;
     grid-template-columns: 1fr;
+    grid-template-rows: auto;
+  }
+
+  .board-panel,
+  .board-workspace {
+    flex: 0 0 auto;
   }
 
   .board-workspace {
     grid-template-columns: 1fr;
     grid-template-rows: auto auto;
+  }
+
+  .map-stage {
+    height: auto;
   }
 
   .map-scroll {
@@ -2779,6 +2794,17 @@
     grid-template-columns: minmax(190px, 0.7fr) minmax(0, 1.3fr);
     grid-template-rows: auto;
     align-items: start;
+    overflow: visible;
+  }
+
+  .map-sidebar__selection,
+  .map-sidebar__selection .city-stack {
+    height: auto;
+    overflow: visible;
+  }
+
+  .map-sidebar__selection .city-stack {
+    grid-template-rows: auto;
   }
 }
 
@@ -2819,6 +2845,11 @@
 
   .board-panel {
     padding: 12px 10px;
+  }
+
+  .map-scroll {
+    padding-right: 168px;
+    padding-bottom: 80px;
   }
 
   .map-sidebar {
