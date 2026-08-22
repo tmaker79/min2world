@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from 'react'
 import { AppChrome } from './components/AppChrome'
 import type { ChromeMenuId } from './components/AppChrome'
 import { CityPanel } from './components/CityPanel'
@@ -47,6 +54,7 @@ import type { GameState, Tile, UnitType } from './game/types'
 import { useAiTurn } from './hooks/useAiTurn'
 import { useMapPan } from './hooks/useMapPan'
 import { useMapZoom } from './hooks/useMapZoom'
+import type { MapGestureState } from './hooks/useMapZoom'
 import {
   deleteSavedGame,
   inspectSavedGame,
@@ -102,13 +110,18 @@ function GameApp({ initialState }: { initialState: GameState }) {
   const [mapScrollElement, setMapScrollElement] = useState<HTMLDivElement | null>(
     null,
   )
-  const mapDragMovedRef = useMapPan(mapScrollElement)
+  const mapGestureStateRef = useRef<MapGestureState>({ pinching: false })
+  const mapDragMovedRef = useMapPan(mapScrollElement, mapGestureStateRef)
   const isCompactBoard =
     (state.boardSize.columns === BOARD_SIZE_PRESETS.tiny.columns &&
       state.boardSize.rows === BOARD_SIZE_PRESETS.tiny.rows) ||
     (state.boardSize.columns === BOARD_SIZE_PRESETS.small.columns &&
       state.boardSize.rows === BOARD_SIZE_PRESETS.small.rows)
-  const mapZoom = useMapZoom(mapScrollElement)
+  const mapZoom = useMapZoom(
+    mapScrollElement,
+    mapGestureStateRef,
+    mapDragMovedRef,
+  )
   const playerProductionSites = useMemo(
     () =>
       state.sites.filter(

@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useMapPan } from './useMapPan'
+import { useMapZoom } from './useMapZoom'
 
 function createScrollElement() {
   const element = document.createElement('div')
@@ -79,6 +80,138 @@ describe('useMapPan', () => {
     act(() => {
       vi.runAllTimers()
     })
+    expect(result.current.current).toBe(false)
+    vi.useRealTimers()
+  })
+
+  it('stops panning for the rest of a touch sequence once pinch begins', () => {
+    const element = createScrollElement()
+    const gestureStateRef = { current: { pinching: false } }
+    const { result } = renderHook(() =>
+      useMapPan(element, gestureStateRef),
+    )
+
+    act(() => {
+      element.dispatchEvent(
+        new PointerEvent('pointerdown', {
+          button: 0,
+          pointerType: 'touch',
+          isPrimary: true,
+          pointerId: 1,
+          clientX: 100,
+          clientY: 100,
+          bubbles: true,
+        }),
+      )
+      gestureStateRef.current.pinching = true
+      element.dispatchEvent(
+        new PointerEvent('pointermove', {
+          pointerType: 'touch',
+          pointerId: 1,
+          clientX: 130,
+          clientY: 80,
+          bubbles: true,
+          cancelable: true,
+        }),
+      )
+    })
+
+    expect(element.scrollLeft).toBe(40)
+    expect(element.scrollTop).toBe(60)
+    expect(result.current.current).toBe(true)
+
+    act(() => {
+      gestureStateRef.current.pinching = false
+      element.dispatchEvent(
+        new PointerEvent('pointermove', {
+          pointerType: 'touch',
+          pointerId: 1,
+          clientX: 160,
+          clientY: 60,
+          bubbles: true,
+        }),
+      )
+    })
+
+    expect(element.scrollLeft).toBe(40)
+    expect(element.scrollTop).toBe(60)
+  })
+
+  it('keeps the shared click guard active while pinch pointers remain', () => {
+    vi.useFakeTimers()
+    const element = createScrollElement()
+    const gestureStateRef = { current: { pinching: false } }
+    const { result } = renderHook(() => {
+      const clickGuardRef = useMapPan(element, gestureStateRef)
+      useMapZoom(element, gestureStateRef, clickGuardRef)
+      return clickGuardRef
+    })
+
+    act(() => {
+      element.dispatchEvent(
+        new PointerEvent('pointerdown', {
+          button: 0,
+          pointerType: 'touch',
+          isPrimary: true,
+          pointerId: 1,
+          clientX: 100,
+          clientY: 100,
+          bubbles: true,
+        }),
+      )
+      element.dispatchEvent(
+        new PointerEvent('pointermove', {
+          pointerType: 'touch',
+          pointerId: 1,
+          clientX: 120,
+          clientY: 90,
+          bubbles: true,
+          cancelable: true,
+        }),
+      )
+      element.dispatchEvent(
+        new PointerEvent('pointerdown', {
+          button: 0,
+          pointerType: 'touch',
+          isPrimary: false,
+          pointerId: 2,
+          clientX: 220,
+          clientY: 90,
+          bubbles: true,
+          cancelable: true,
+        }),
+      )
+      element.dispatchEvent(
+        new PointerEvent('pointerup', {
+          pointerType: 'touch',
+          isPrimary: true,
+          pointerId: 1,
+          clientX: 120,
+          clientY: 90,
+          bubbles: true,
+        }),
+      )
+    })
+
+    act(() => vi.runAllTimers())
+    expect(gestureStateRef.current.pinching).toBe(true)
+    expect(result.current.current).toBe(true)
+
+    act(() => {
+      element.dispatchEvent(
+        new PointerEvent('pointerup', {
+          pointerType: 'touch',
+          isPrimary: false,
+          pointerId: 2,
+          clientX: 220,
+          clientY: 90,
+          bubbles: true,
+        }),
+      )
+    })
+    expect(result.current.current).toBe(true)
+
+    act(() => vi.runAllTimers())
     expect(result.current.current).toBe(false)
     vi.useRealTimers()
   })

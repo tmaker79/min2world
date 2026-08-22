@@ -1,10 +1,17 @@
 import { useEffect, useRef } from 'react'
+import type { MapGestureState, MapGestureStateRef } from './useMapZoom'
 
 const DRAG_THRESHOLD_PX = 6
 
 /** Enables click-drag panning on a scroll container. Returns a ref that is true after a drag so click handlers can ignore it. */
-export function useMapPan(scrollElement: HTMLElement | null) {
+export function useMapPan(
+  scrollElement: HTMLElement | null,
+  sharedGestureStateRef?: MapGestureStateRef,
+) {
   const dragMovedRef = useRef(false)
+  const internalGestureStateRef = useRef<MapGestureState>({ pinching: false })
+  const gestureStateRef =
+    sharedGestureStateRef ?? internalGestureStateRef
 
   useEffect(() => {
     if (!scrollElement) {
@@ -24,6 +31,7 @@ export function useMapPan(scrollElement: HTMLElement | null) {
         return
       }
 
+      const endedDuringPinch = gestureStateRef.current.pinching
       pointerId = undefined
       scrollElement.classList.remove('map-scroll--panning')
 
@@ -34,19 +42,25 @@ export function useMapPan(scrollElement: HTMLElement | null) {
         scrollElement.releasePointerCapture(event.pointerId)
       }
 
-      if (panning) {
+      if (panning || endedDuringPinch) {
         dragMovedRef.current = true
         window.clearTimeout(clearTimer)
-        clearTimer = window.setTimeout(() => {
-          dragMovedRef.current = false
-        }, 0)
+        if (!endedDuringPinch) {
+          clearTimer = window.setTimeout(() => {
+            dragMovedRef.current = false
+          }, 0)
+        }
       }
 
       panning = false
     }
 
     const handlePointerDown = (event: PointerEvent) => {
-      if (event.button !== 0 || event.isPrimary === false) {
+      if (
+        event.button !== 0 ||
+        event.isPrimary === false ||
+        gestureStateRef.current.pinching
+      ) {
         return
       }
 
@@ -62,6 +76,16 @@ export function useMapPan(scrollElement: HTMLElement | null) {
 
     const handlePointerMove = (event: PointerEvent) => {
       if (pointerId !== event.pointerId) {
+        return
+      }
+
+      if (gestureStateRef.current.pinching) {
+        pointerId = undefined
+        panning = false
+        dragMovedRef.current = true
+        window.clearTimeout(clearTimer)
+        scrollElement.classList.remove('map-scroll--panning')
+        event.preventDefault()
         return
       }
 
@@ -99,7 +123,7 @@ export function useMapPan(scrollElement: HTMLElement | null) {
       scrollElement.removeEventListener('pointerup', endPan)
       scrollElement.removeEventListener('pointercancel', endPan)
     }
-  }, [scrollElement])
+  }, [gestureStateRef, scrollElement])
 
   return dragMovedRef
 }

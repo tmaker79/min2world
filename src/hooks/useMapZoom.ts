@@ -1,5 +1,22 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
+export type MapGestureState = {
+  pinching: boolean
+}
+
+export type MapGestureStateRef = {
+  current: MapGestureState
+}
+
+type ClickSuppressRef = {
+  current: boolean
+}
+
+type PointerPosition = {
+  x: number
+  y: number
+}
+
 export const MAP_ZOOM_DEFAULT = 1
 export const MAP_ZOOM_FACTOR = 1.1
 export const MAP_ZOOM_STEPS_PER_DIRECTION = 5
@@ -8,10 +25,23 @@ export const MAP_ZOOM_MIN =
 export const MAP_ZOOM_MAX =
   MAP_ZOOM_DEFAULT * MAP_ZOOM_FACTOR ** MAP_ZOOM_STEPS_PER_DIRECTION
 
+export function clampMapZoom(zoom: number): number {
+  return Math.min(MAP_ZOOM_MAX, Math.max(MAP_ZOOM_MIN, zoom))
+}
+
 export function nextMapZoom(current: number, deltaY: number): number {
   const next =
     deltaY < 0 ? current * MAP_ZOOM_FACTOR : current / MAP_ZOOM_FACTOR
-  return Math.min(MAP_ZOOM_MAX, Math.max(MAP_ZOOM_MIN, next))
+  return clampMapZoom(next)
+}
+
+export function pinchMapZoom(
+  startZoom: number,
+  startDistance: number,
+  currentDistance: number,
+): number {
+  if (startDistance <= 0) return clampMapZoom(startZoom)
+  return clampMapZoom(startZoom * (currentDistance / startDistance))
 }
 
 export function zoomScrollOffset(
@@ -23,12 +53,22 @@ export function zoomScrollOffset(
   return ((scroll + cursorOffset) / oldZoom) * newZoom - cursorOffset
 }
 
-/** Wheel zoom on a scroll container, keeping the cursor point stable. */
-export function useMapZoom(scrollElement: HTMLElement | null) {
+/** Wheel and touch-pinch zoom on a scroll container, keeping the gesture anchor stable. */
+export function useMapZoom(
+  scrollElement: HTMLElement | null,
+  sharedGestureStateRef?: MapGestureStateRef,
+  sharedClickSuppressRef?: ClickSuppressRef,
+) {
   const [zoom, setZoom] = useState(MAP_ZOOM_DEFAULT)
   const zoomRef = useRef(zoom)
   const scrollElementRef = useRef(scrollElement)
   const pendingScrollRef = useRef<{ left: number; top: number } | null>(null)
+  const internalGestureStateRef = useRef<MapGestureState>({ pinching: false })
+  const internalClickSuppressRef = useRef(false)
+  const gestureStateRef =
+    sharedGestureStateRef ?? internalGestureStateRef
+  const clickSuppressRef =
+    sharedClickSuppressRef ?? internalClickSuppressRef
 
   useEffect(() => {
     zoomRef.current = zoom
@@ -56,6 +96,52 @@ export function useMapZoom(scrollElement: HTMLElement | null) {
     }
 
     scrollElementRef.current = scrollElement
+    const gestureState = gestureStateRef.current
+
+    const touchPointers = new Map<number, PointerPosition>()
+    let pinchStart:
+      | {
+          distance: number
+          zoom: number
+          contentX: number
+          contentY: number
+        }
+      | undefined
+    let clearSuppressTimer: number | undefined
+
+    const pointerPair = () => {
+      const [first, second] = [...touchPointers.values()]
+      return first && second ? [first, second] as const : undefined
+    }
+
+    const midpoint = (
+      first: PointerPosition,
+      second: PointerPosition,
+    ) => ({
+      x: (first.x + second.x) / 2,
+      y: (first.y + second.y) / 2,
+    })
+
+    const distance = (
+      first: PointerPosition,
+      second: PointerPosition,
+    ) => Math.hypot(second.x - first.x, second.y - first.y)
+
+    const commitZoom = (
+      nextZoom: number,
+      nextScroll: { left: number; top: number },
+    ) => {
+      pendingScrollRef.current = nextScroll
+      if (nextZoom === zoomRef.current) {
+        pendingScrollRef.current = null
+        scrollElement.scrollLeft = nextScroll.left
+        scrollElement.scrollTop = nextScroll.top
+        return
+      }
+
+      zoomRef.current = nextZoom
+      setZoom(nextZoom)
+    }
 
     const handleWheel = (event: WheelEvent) => {
       event.preventDefault()
@@ -68,7 +154,7 @@ export function useMapZoom(scrollElement: HTMLElement | null) {
       const bounds = scrollElement.getBoundingClientRect()
       const cursorX = event.clientX - bounds.left
       const cursorY = event.clientY - bounds.top
-      pendingScrollRef.current = {
+      commitZoom(newZoom, {
         left: zoomScrollOffset(
           scrollElement.scrollLeft,
           cursorX,
@@ -81,13 +167,122 @@ export function useMapZoom(scrollElement: HTMLElement | null) {
           oldZoom,
           newZoom,
         ),
+      })
+    }
+
+    const beginPinch = () => {
+      const pair = pointerPair()
+      if (!pair) return
+
+      const bounds = scrollElement.getBoundingClientRect()
+      const center = midpoint(...pair)
+      const localX = center.x - bounds.left
+      const localY = center.y - bounds.top
+      const startZoom = zoomRef.current
+      pinchStart = {
+        distance: distance(...pair),
+        zoom: startZoom,
+        contentX: (scrollElement.scrollLeft + localX) / startZoom,
+        contentY: (scrollElement.scrollTop + localY) / startZoom,
       }
-      setZoom(newZoom)
+      gestureState.pinching = true
+      clickSuppressRef.current = true
+      window.clearTimeout(clearSuppressTimer)
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.pointerType !== 'touch') return
+
+      touchPointers.set(event.pointerId, {
+        x: event.clientX,
+        y: event.clientY,
+      })
+      if (typeof scrollElement.setPointerCapture === 'function') {
+        scrollElement.setPointerCapture(event.pointerId)
+      }
+      if (touchPointers.size === 2) {
+        event.preventDefault()
+        beginPinch()
+      }
+    }
+
+    const handlePointerMove = (event: PointerEvent) => {
+      if (
+        event.pointerType !== 'touch' ||
+        !touchPointers.has(event.pointerId)
+      ) {
+        return
+      }
+
+      touchPointers.set(event.pointerId, {
+        x: event.clientX,
+        y: event.clientY,
+      })
+      const pair = pointerPair()
+      if (!pinchStart || !pair) return
+
+      event.preventDefault()
+      clickSuppressRef.current = true
+      const bounds = scrollElement.getBoundingClientRect()
+      const center = midpoint(...pair)
+      const localX = center.x - bounds.left
+      const localY = center.y - bounds.top
+      const nextZoom = pinchMapZoom(
+        pinchStart.zoom,
+        pinchStart.distance,
+        distance(...pair),
+      )
+      commitZoom(nextZoom, {
+        left: pinchStart.contentX * nextZoom - localX,
+        top: pinchStart.contentY * nextZoom - localY,
+      })
+    }
+
+    const handlePointerEnd = (event: PointerEvent) => {
+      if (
+        event.pointerType !== 'touch' ||
+        !touchPointers.has(event.pointerId)
+      ) {
+        return
+      }
+
+      if (gestureState.pinching) {
+        clickSuppressRef.current = true
+      }
+      touchPointers.delete(event.pointerId)
+      pinchStart = undefined
+      if (
+        typeof scrollElement.hasPointerCapture === 'function' &&
+        scrollElement.hasPointerCapture(event.pointerId)
+      ) {
+        scrollElement.releasePointerCapture(event.pointerId)
+      }
+
+      if (touchPointers.size === 0) {
+        gestureState.pinching = false
+        window.clearTimeout(clearSuppressTimer)
+        clearSuppressTimer = window.setTimeout(() => {
+          clickSuppressRef.current = false
+        }, 0)
+      }
     }
 
     scrollElement.addEventListener('wheel', handleWheel, { passive: false })
-    return () => scrollElement.removeEventListener('wheel', handleWheel)
-  }, [scrollElement])
+    scrollElement.addEventListener('pointerdown', handlePointerDown)
+    scrollElement.addEventListener('pointermove', handlePointerMove)
+    scrollElement.addEventListener('pointerup', handlePointerEnd)
+    scrollElement.addEventListener('pointercancel', handlePointerEnd)
+    return () => {
+      window.clearTimeout(clearSuppressTimer)
+      gestureState.pinching = false
+      clickSuppressRef.current = false
+      scrollElement.removeEventListener('wheel', handleWheel)
+      scrollElement.removeEventListener('pointerdown', handlePointerDown)
+      scrollElement.removeEventListener('pointermove', handlePointerMove)
+      scrollElement.removeEventListener('pointerup', handlePointerEnd)
+      scrollElement.removeEventListener('pointercancel', handlePointerEnd)
+    }
+  }, [clickSuppressRef, gestureStateRef, scrollElement])
 
   return zoom
 }
