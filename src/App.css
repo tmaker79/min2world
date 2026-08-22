@@ -663,6 +663,53 @@
   border-radius: 8px;
 }
 
+.map-zoom-controls {
+  position: absolute;
+  z-index: 5;
+  right: 12px;
+  bottom: 12px;
+  display: grid;
+  grid-template-columns: 44px minmax(52px, auto) 44px;
+  align-items: center;
+  overflow: hidden;
+  background: rgba(10, 16, 20, 0.94);
+  border: 1px solid rgba(228, 185, 95, 0.42);
+  border-radius: 6px;
+}
+
+.map-zoom-controls button {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  color: var(--ink);
+  background: #18232a;
+  border: 0;
+  cursor: pointer;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.map-zoom-controls button:hover:not(:disabled) {
+  color: #172029;
+  background: #f0d076;
+}
+
+.map-zoom-controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
+.map-zoom-controls output {
+  display: grid;
+  min-width: 52px;
+  height: 44px;
+  place-items: center;
+  color: #f0d076;
+  border-inline: 1px solid rgba(169, 194, 204, 0.24);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
 .map-scroll {
   position: relative;
   z-index: 0;

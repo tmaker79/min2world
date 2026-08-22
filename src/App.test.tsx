@@ -79,6 +79,30 @@ describe('Milestone 07 UI', () => {
     expect(screen.queryByRole('button', { name: /미니맵 (접기|펼치기)/ })).not.toBeInTheDocument()
   })
 
+  it('shows accessible map zoom controls and updates their state', () => {
+    renderApp()
+
+    const zoomControls = screen.getByLabelText('지도 확대/축소')
+    const zoomIn = within(zoomControls).getByRole('button', {
+      name: '지도 확대',
+    })
+    const zoomOut = within(zoomControls).getByRole('button', {
+      name: '지도 축소',
+    })
+
+    expect(zoomIn).toBeEnabled()
+    expect(zoomOut).toBeEnabled()
+    expect(screen.getByLabelText('현재 지도 배율')).toHaveTextContent('100%')
+
+    for (let step = 0; step < 5; step += 1) {
+      fireEvent.click(zoomIn)
+    }
+
+    expect(screen.getByLabelText('현재 지도 배율')).toHaveTextContent('200%')
+    expect(zoomIn).toBeDisabled()
+    expect(zoomOut).toBeEnabled()
+  })
+
   it('centers the player capital when a game starts', () => {
     const frames: FrameRequestCallback[] = []
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {

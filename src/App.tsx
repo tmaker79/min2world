@@ -117,11 +117,13 @@ function GameApp({ initialState }: { initialState: GameState }) {
       state.boardSize.rows === BOARD_SIZE_PRESETS.tiny.rows) ||
     (state.boardSize.columns === BOARD_SIZE_PRESETS.small.columns &&
       state.boardSize.rows === BOARD_SIZE_PRESETS.small.rows)
-  const mapZoom = useMapZoom(
-    mapScrollElement,
-    mapGestureStateRef,
-    mapDragMovedRef,
-  )
+  const {
+    zoom: mapZoom,
+    zoomIn,
+    zoomOut,
+    canZoomIn,
+    canZoomOut,
+  } = useMapZoom(mapScrollElement, mapGestureStateRef, mapDragMovedRef)
   const playerProductionSites = useMemo(
     () =>
       state.sites.filter(
@@ -981,6 +983,27 @@ function GameApp({ initialState }: { initialState: GameState }) {
                   onTileClick={handleTileClick}
                   onTileContextMenu={handleTileContextMenu}
                 />
+              </div>
+              <div className="map-zoom-controls" aria-label="지도 확대/축소">
+                <button
+                  type="button"
+                  aria-label="지도 축소"
+                  disabled={!canZoomOut}
+                  onClick={zoomOut}
+                >
+                  −
+                </button>
+                <output aria-label="현재 지도 배율">
+                  {Math.round(mapZoom * 100)}%
+                </output>
+                <button
+                  type="button"
+                  aria-label="지도 확대"
+                  disabled={!canZoomIn}
+                  onClick={zoomIn}
+                >
+                  +
+                </button>
               </div>
             </div>
 

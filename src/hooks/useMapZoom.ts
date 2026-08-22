@@ -18,21 +18,32 @@ type PointerPosition = {
 }
 
 export const MAP_ZOOM_DEFAULT = 1
-export const MAP_ZOOM_FACTOR = 1.1
-export const MAP_ZOOM_STEPS_PER_DIRECTION = 5
-export const MAP_ZOOM_MIN =
-  MAP_ZOOM_DEFAULT / MAP_ZOOM_FACTOR ** MAP_ZOOM_STEPS_PER_DIRECTION
-export const MAP_ZOOM_MAX =
-  MAP_ZOOM_DEFAULT * MAP_ZOOM_FACTOR ** MAP_ZOOM_STEPS_PER_DIRECTION
+export const MAP_ZOOM_LEVELS = [
+  0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2,
+] as const
+export const MAP_ZOOM_MIN = MAP_ZOOM_LEVELS[0]
+export const MAP_ZOOM_MAX = MAP_ZOOM_LEVELS[MAP_ZOOM_LEVELS.length - 1]
 
 export function clampMapZoom(zoom: number): number {
   return Math.min(MAP_ZOOM_MAX, Math.max(MAP_ZOOM_MIN, zoom))
 }
 
 export function nextMapZoom(current: number, deltaY: number): number {
-  const next =
-    deltaY < 0 ? current * MAP_ZOOM_FACTOR : current / MAP_ZOOM_FACTOR
-  return clampMapZoom(next)
+  if (deltaY === 0) return clampMapZoom(current)
+
+  const epsilon = 0.000_001
+  if (deltaY < 0) {
+    return (
+      MAP_ZOOM_LEVELS.find((level) => level > current + epsilon) ??
+      MAP_ZOOM_MAX
+    )
+  }
+
+  return (
+    [...MAP_ZOOM_LEVELS]
+      .reverse()
+      .find((level) => level < current - epsilon) ?? MAP_ZOOM_MIN
+  )
 }
 
 export function pinchMapZoom(
@@ -63,6 +74,7 @@ export function useMapZoom(
   const zoomRef = useRef(zoom)
   const scrollElementRef = useRef(scrollElement)
   const pendingScrollRef = useRef<{ left: number; top: number } | null>(null)
+  const stepZoomRef = useRef<(deltaY: number) => void>(() => undefined)
   const internalGestureStateRef = useRef<MapGestureState>({ pinching: false })
   const internalClickSuppressRef = useRef(false)
   const gestureStateRef =
@@ -143,6 +155,41 @@ export function useMapZoom(
       setZoom(nextZoom)
     }
 
+    const zoomAtAnchor = (
+      oldZoom: number,
+      newZoom: number,
+      anchorX: number,
+      anchorY: number,
+    ) => {
+      commitZoom(newZoom, {
+        left: zoomScrollOffset(
+          scrollElement.scrollLeft,
+          anchorX,
+          oldZoom,
+          newZoom,
+        ),
+        top: zoomScrollOffset(
+          scrollElement.scrollTop,
+          anchorY,
+          oldZoom,
+          newZoom,
+        ),
+      })
+    }
+
+    stepZoomRef.current = (deltaY) => {
+      const oldZoom = zoomRef.current
+      const newZoom = nextMapZoom(oldZoom, deltaY)
+      if (newZoom === oldZoom) return
+
+      zoomAtAnchor(
+        oldZoom,
+        newZoom,
+        scrollElement.clientWidth / 2,
+        scrollElement.clientHeight / 2,
+      )
+    }
+
     const handleWheel = (event: WheelEvent) => {
       event.preventDefault()
       const oldZoom = zoomRef.current
@@ -154,20 +201,7 @@ export function useMapZoom(
       const bounds = scrollElement.getBoundingClientRect()
       const cursorX = event.clientX - bounds.left
       const cursorY = event.clientY - bounds.top
-      commitZoom(newZoom, {
-        left: zoomScrollOffset(
-          scrollElement.scrollLeft,
-          cursorX,
-          oldZoom,
-          newZoom,
-        ),
-        top: zoomScrollOffset(
-          scrollElement.scrollTop,
-          cursorY,
-          oldZoom,
-          newZoom,
-        ),
-      })
+      zoomAtAnchor(oldZoom, newZoom, cursorX, cursorY)
     }
 
     const beginPinch = () => {
@@ -274,6 +308,7 @@ export function useMapZoom(
     scrollElement.addEventListener('pointercancel', handlePointerEnd)
     return () => {
       window.clearTimeout(clearSuppressTimer)
+      stepZoomRef.current = () => undefined
       gestureState.pinching = false
       clickSuppressRef.current = false
       scrollElement.removeEventListener('wheel', handleWheel)
@@ -284,5 +319,11 @@ export function useMapZoom(
     }
   }, [clickSuppressRef, gestureStateRef, scrollElement])
 
-  return zoom
+  return {
+    zoom,
+    zoomIn: () => stepZoomRef.current(-1),
+    zoomOut: () => stepZoomRef.current(1),
+    canZoomIn: zoom < MAP_ZOOM_MAX,
+    canZoomOut: zoom > MAP_ZOOM_MIN,
+  }
 }

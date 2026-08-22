@@ -3,10 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   clampMapZoom,
   MAP_ZOOM_DEFAULT,
-  MAP_ZOOM_FACTOR,
+  MAP_ZOOM_LEVELS,
   MAP_ZOOM_MAX,
   MAP_ZOOM_MIN,
-  MAP_ZOOM_STEPS_PER_DIRECTION,
   nextMapZoom,
   pinchMapZoom,
   useMapZoom,
@@ -31,6 +30,14 @@ function createScrollElement() {
     set: (value: number) => {
       scrollTop = value
     },
+  })
+  Object.defineProperty(element, 'clientWidth', {
+    configurable: true,
+    value: 400,
+  })
+  Object.defineProperty(element, 'clientHeight', {
+    configurable: true,
+    value: 300,
   })
   element.getBoundingClientRect = () =>
     ({
@@ -75,25 +82,25 @@ function dispatchTouchPointer(
 
 describe('map zoom helpers', () => {
   it('zooms in and out and clamps to the configured range', () => {
-    expect(nextMapZoom(1, -100)).toBeCloseTo(MAP_ZOOM_FACTOR)
-    expect(nextMapZoom(1, 100)).toBeCloseTo(1 / MAP_ZOOM_FACTOR)
+    expect(nextMapZoom(1, -100)).toBe(1.1)
+    expect(nextMapZoom(1, 100)).toBe(0.9)
     expect(nextMapZoom(MAP_ZOOM_MAX, -100)).toBe(MAP_ZOOM_MAX)
     expect(nextMapZoom(MAP_ZOOM_MIN, 100)).toBe(MAP_ZOOM_MIN)
   })
 
-  it('limits zoom to five steps in either direction from the default', () => {
-    let zoomedIn = MAP_ZOOM_DEFAULT
-    let zoomedOut = MAP_ZOOM_DEFAULT
-
-    for (let step = 0; step < MAP_ZOOM_STEPS_PER_DIRECTION; step += 1) {
-      zoomedIn = nextMapZoom(zoomedIn, -100)
-      zoomedOut = nextMapZoom(zoomedOut, 100)
+  it('uses the configured discrete levels for wheel and button steps', () => {
+    const zoomedIn: number[] = [MAP_ZOOM_MIN]
+    while (zoomedIn.at(-1)! < MAP_ZOOM_MAX) {
+      zoomedIn.push(nextMapZoom(zoomedIn.at(-1)!, -100))
     }
 
-    expect(zoomedIn).toBeCloseTo(MAP_ZOOM_MAX)
-    expect(zoomedOut).toBeCloseTo(MAP_ZOOM_MIN)
-    expect(nextMapZoom(zoomedIn, -100)).toBe(MAP_ZOOM_MAX)
-    expect(nextMapZoom(zoomedOut, 100)).toBe(MAP_ZOOM_MIN)
+    const zoomedOut: number[] = [MAP_ZOOM_MAX]
+    while (zoomedOut.at(-1)! > MAP_ZOOM_MIN) {
+      zoomedOut.push(nextMapZoom(zoomedOut.at(-1)!, 100))
+    }
+
+    expect(zoomedIn).toEqual([...MAP_ZOOM_LEVELS])
+    expect(zoomedOut).toEqual([...MAP_ZOOM_LEVELS].reverse())
   })
 
   it('keeps the content point under the cursor stable', () => {
@@ -120,7 +127,7 @@ describe('useMapZoom', () => {
     const element = createScrollElement()
     const { result } = renderHook(() => useMapZoom(element))
 
-    expect(result.current).toBe(MAP_ZOOM_DEFAULT)
+    expect(result.current.zoom).toBe(MAP_ZOOM_DEFAULT)
 
     act(() => {
       element.dispatchEvent(
@@ -134,13 +141,57 @@ describe('useMapZoom', () => {
       )
     })
 
-    expect(result.current).toBeCloseTo(MAP_ZOOM_FACTOR)
+    expect(result.current.zoom).toBeCloseTo(1.1)
     expect(element.scrollLeft).toBeCloseTo(
-      zoomScrollOffset(100, 100, 1, MAP_ZOOM_FACTOR),
+      zoomScrollOffset(100, 100, 1, 1.1),
     )
     expect(element.scrollTop).toBeCloseTo(
-      zoomScrollOffset(80, 60, 1, MAP_ZOOM_FACTOR),
+      zoomScrollOffset(80, 60, 1, 1.1),
     )
+  })
+
+  it('steps button zoom around the viewport center and reports its limits', () => {
+    const element = createScrollElement()
+    const { result } = renderHook(() => useMapZoom(element))
+
+    expect(result.current.canZoomIn).toBe(true)
+    expect(result.current.canZoomOut).toBe(true)
+
+    act(() => result.current.zoomIn())
+
+    expect(result.current.zoom).toBeCloseTo(1.1)
+    expect(element.scrollLeft).toBeCloseTo(
+      zoomScrollOffset(100, 200, 1, 1.1),
+    )
+    expect(element.scrollTop).toBeCloseTo(
+      zoomScrollOffset(80, 150, 1, 1.1),
+    )
+
+    act(() => result.current.zoomOut())
+
+    expect(result.current.zoom).toBeCloseTo(MAP_ZOOM_DEFAULT)
+    expect(element.scrollLeft).toBeCloseTo(100)
+    expect(element.scrollTop).toBeCloseTo(80)
+
+    act(() => {
+      for (let step = 0; step < MAP_ZOOM_LEVELS.length; step += 1) {
+        result.current.zoomIn()
+      }
+    })
+    expect(result.current.zoom).toBeCloseTo(MAP_ZOOM_MAX)
+    expect(result.current.canZoomIn).toBe(false)
+
+    act(() => {
+      for (
+        let step = 0;
+        step < MAP_ZOOM_LEVELS.length;
+        step += 1
+      ) {
+        result.current.zoomOut()
+      }
+    })
+    expect(result.current.zoom).toBeCloseTo(MAP_ZOOM_MIN)
+    expect(result.current.canZoomOut).toBe(false)
   })
 
   it('prevents the default wheel scroll behavior', () => {
@@ -176,7 +227,7 @@ describe('useMapZoom', () => {
       dispatchTouchPointer(element, 'pointermove', 2, 260, 100, false)
     })
 
-    expect(result.current).toBeCloseTo(1.2)
+    expect(result.current.zoom).toBeCloseTo(1.2)
     expect(element.scrollLeft).toBeCloseTo(140)
     expect(element.scrollTop).toBeCloseTo(112)
     expect(gestureStateRef.current.pinching).toBe(true)
