@@ -40,7 +40,7 @@ describe('Milestone 07 UI', () => {
     expect(map.querySelector('.unit-token--f2')).toBeInTheDocument()
   })
 
-  it('renders visible keyboard-focusable pointy hex tiles and the current seed', () => {
+  it('renders visible keyboard-focusable pointy hex tiles without exposing the seed', () => {
     const { container } = renderApp()
     const map = screen.getByTestId('game-map')
     const tiles = map.querySelectorAll<HTMLButtonElement>('.map-tile')
@@ -48,7 +48,7 @@ describe('Milestone 07 UI', () => {
     expect(tiles.length).toBeGreaterThan(0)
     expect(tiles.length).toBeLessThanOrEqual(HEX_TILE_COUNT)
     expect([...tiles].every((tile) => tile.type === 'button' && !tile.disabled)).toBe(true)
-    expect(container.querySelector('.app-chrome__seed')).toHaveTextContent('ui-seed')
+    expect(screen.queryByLabelText('현재 seed')).not.toBeInTheDocument()
     expect(container.querySelectorAll('.site-marker')).toHaveLength(8)
     expect(container.querySelectorAll('.unit-token')).toHaveLength(6)
     expect(container.querySelector('.map-layer--terrain .map-tile')).toBeInTheDocument()
@@ -414,25 +414,19 @@ describe('Milestone 07 UI', () => {
     ).toBeDisabled()
   })
 
-  it('starts a deterministic game from a trimmed seed and validates empty input', async () => {
+  it('starts a new random map without exposing seed controls', async () => {
     const user = userEvent.setup()
-    const { container } = renderApp()
+    renderApp()
 
     await user.click(screen.getByRole('button', { name: '새 게임' }))
-    const input = container.querySelector<HTMLInputElement>('.seed-controls input')!
-    const submit = container.querySelector<HTMLButtonElement>(
-      '.seed-controls button[type="submit"]',
-    )!
+    expect(screen.queryByText('MAP SEED')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('현재 seed')).not.toBeInTheDocument()
 
-    await user.clear(input)
-    await user.click(submit)
-    expect(screen.getByRole('alert')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '새 지도로 시작' }))
 
-    await user.type(input, '  next-map  ')
-    await user.click(submit)
-    expect(container.querySelector('.app-chrome__seed')).toHaveTextContent('next-map')
-    expect(container.querySelectorAll('.map-tile').length).toBeLessThanOrEqual(
-      HEX_TILE_COUNT,
+    expect(screen.getByRole('button', { name: '새 게임' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
     )
   })
 
@@ -441,19 +435,16 @@ describe('Milestone 07 UI', () => {
     const state = createInitialGameState('progress')
     state.turn = 2
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
-    const { container } = renderApp(state)
+    renderApp(state)
 
     await user.click(screen.getByRole('button', { name: '새 게임' }))
-    const input = container.querySelector<HTMLInputElement>('.seed-controls input')!
-
-    await user.clear(input)
-    await user.type(input, 'blocked-seed')
-    await user.click(
-      container.querySelector<HTMLButtonElement>('.seed-controls button[type="submit"]')!,
-    )
+    await user.click(screen.getByRole('button', { name: '새 지도로 시작' }))
 
     expect(confirm).toHaveBeenCalledOnce()
-    expect(container.querySelector('.app-chrome__seed')).toHaveTextContent('progress')
+    expect(screen.getByRole('button', { name: '새 게임' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
   })
 
   it('opens city information before offering production from an owned stronghold', async () => {

@@ -49,10 +49,10 @@ export function GameResultPanel({
         </strong>
         <div className="result-panel__actions">
           <button type="button" onClick={onRestart} autoFocus>
-            같은 seed로 새 게임
+            같은 지도에서 다시 시작
           </button>
           <button type="button" onClick={onRandomRestart}>
-            무작위 지도
+            새 지도에서 시작
           </button>
         </div>
       </section>

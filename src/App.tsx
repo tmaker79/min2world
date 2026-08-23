@@ -27,7 +27,7 @@ import { StatusBar } from './components/StatusBar'
 import { StartScreen } from './components/StartScreen'
 import { createInitialGameState } from './game/initialState'
 import { BOARD_SIZE_PRESETS } from './game/hex'
-import { createRandomMapSeed, normalizeMapSeed } from './game/mapGenerator'
+import { createRandomMapSeed } from './game/mapGenerator'
 import { gameReducer } from './game/reducer'
 import { getSiteDevelopmentFootprints } from './game/siteDevelopment'
 import {
@@ -90,8 +90,6 @@ function GameApp({ initialState }: { initialState: GameState }) {
     type: 'status' | 'error'
     message: string
   }>()
-  const [seedInput, setSeedInput] = useState(state.mapSeed)
-  const [seedFeedback, setSeedFeedback] = useState<string>()
   const [productionSiteId, setProductionSiteId] = useState<string>(() =>
     state.sites.find(
       (site) =>
@@ -469,8 +467,6 @@ function GameApp({ initialState }: { initialState: GameState }) {
           SITE_STATS[site.kind].canProduce,
       )?.id ?? '',
     )
-    setSeedInput(result.value.gameState.mapSeed)
-    setSeedFeedback(undefined)
     dispatch({ type: 'gameLoaded', state: result.value.gameState })
     setSaveFeedback({ type: 'status', message: '저장된 게임을 불러왔습니다.' })
   }
@@ -856,11 +852,6 @@ function GameApp({ initialState }: { initialState: GameState }) {
     )
 
   const restartGame = (seed: string, confirmProgress: boolean) => {
-    const normalizedSeed = normalizeMapSeed(seed)
-    if (!normalizedSeed) {
-      setSeedFeedback('seed는 공백이 아닌 1~64자로 입력해 주세요.')
-      return false
-    }
     if (
       confirmProgress &&
       hasProgress &&
@@ -882,14 +873,12 @@ function GameApp({ initialState }: { initialState: GameState }) {
     setMobileMinimapExpanded(false)
     setProductionFeedback(undefined)
     setSaveFeedback(undefined)
-    setSeedInput(normalizedSeed)
-    setSeedFeedback(undefined)
     dispatch(
       state.humanFactionId === 'player'
-        ? { type: 'gameRestarted', seed: normalizedSeed }
+        ? { type: 'gameRestarted', seed }
         : {
             type: 'gameRestarted',
-            seed: normalizedSeed,
+            seed,
             boardSize: state.boardSize,
             factionCount: state.factionCount,
             humanFactionId: state.humanFactionId,
@@ -906,16 +895,8 @@ function GameApp({ initialState }: { initialState: GameState }) {
   return (
     <div className="app-shell">
       <AppChrome
-        mapSeed={state.mapSeed}
         openMenu={openChromeMenu}
         onOpenMenuChange={setOpenChromeMenu}
-        seedInput={seedInput}
-        seedFeedback={seedFeedback}
-        onSeedInputChange={(value) => {
-          setSeedInput(value)
-          setSeedFeedback(undefined)
-        }}
-        onSeedSubmit={() => restartGame(seedInput, true)}
         onRandomRestart={() => restartRandomGame(true)}
         savePanel={
           <SavePanel

@@ -4,26 +4,16 @@ import { NewGameMenu } from './NewGameMenu'
 export type ChromeMenuId = 'newGame' | 'save' | 'help'
 
 type AppChromeProps = {
-  mapSeed: string
   openMenu: ChromeMenuId | null
   onOpenMenuChange: (menu: ChromeMenuId | null) => void
-  seedInput: string
-  seedFeedback?: string
-  onSeedInputChange: (value: string) => void
-  onSeedSubmit: () => boolean
   onRandomRestart: () => boolean
   savePanel: ReactNode
   helpPanel: ReactNode
 }
 
 export function AppChrome({
-  mapSeed,
   openMenu,
   onOpenMenuChange,
-  seedInput,
-  seedFeedback,
-  onSeedInputChange,
-  onSeedSubmit,
   onRandomRestart,
   savePanel,
   helpPanel,
@@ -67,17 +57,10 @@ export function AppChrome({
       </div>
 
       <div className="app-chrome__meta" ref={metaRef}>
-        <output className="app-chrome__seed" aria-label="현재 seed">
-          seed {mapSeed}
-        </output>
         <NewGameMenu
           open={openMenu === 'newGame'}
           onToggle={() => toggleMenu('newGame')}
           onClose={() => onOpenMenuChange(null)}
-          seedInput={seedInput}
-          seedFeedback={seedFeedback}
-          onSeedInputChange={onSeedInputChange}
-          onSeedSubmit={onSeedSubmit}
           onRandomRestart={onRandomRestart}
         />
 

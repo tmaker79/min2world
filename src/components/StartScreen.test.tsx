@@ -15,9 +15,7 @@ describe('StartScreen', () => {
     expect(mapTypeSelect.querySelectorAll('option')).toHaveLength(4)
     expect(mapTypeSelect).toHaveValue('balanced')
     expect(screen.getByText('평지와 험지가 고르게 분포합니다.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '무작위 seed' })).toHaveClass(
-      'start-screen__seed-random',
-    )
+    expect(screen.queryByText('MAP SEED')).not.toBeInTheDocument()
 
     await user.selectOptions(
       screen.getByRole('combobox', { name: '지도 크기 선택' }),
@@ -32,6 +30,7 @@ describe('StartScreen', () => {
         boardSize: { columns: 41, rows: 29 },
         mapType: 'forested',
         factionCount: 2,
+        seed: expect.any(String),
       }),
     )
   })

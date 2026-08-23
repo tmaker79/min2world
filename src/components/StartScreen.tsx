@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { BOARD_SIZE_PRESETS } from '../game/hex'
-import { createRandomMapSeed, normalizeMapSeed } from '../game/mapGenerator'
+import { createRandomMapSeed } from '../game/mapGenerator'
 import type { BoardSize, FactionCount, FactionId, MapType } from '../game/types'
 
 type StartScreenProps = {
@@ -38,8 +38,6 @@ export function StartScreen({ onStart }: StartScreenProps) {
   const [sizeId, setSizeId] = useState<SizeOptionId>('tiny')
   const [humanFactionId, setHumanFactionId] = useState<FactionId>('f1')
   const [mapType, setMapType] = useState<MapType>('balanced')
-  const [seed, setSeed] = useState(createRandomMapSeed)
-  const [error, setError] = useState<string>()
   const mapTypeDescription = MAP_TYPE_OPTIONS.find(
     (option) => option.id === mapType,
   )?.description
@@ -99,47 +97,13 @@ export function StartScreen({ onStart }: StartScreenProps) {
           </select>
         </fieldset>
 
-        <div className="start-screen__seed">
-          <label htmlFor="start-map-seed">MAP SEED</label>
-          <div className="start-screen__seed-row">
-            <input
-              id="start-map-seed"
-              value={seed}
-              maxLength={64}
-              onChange={(event) => {
-                setSeed(event.target.value)
-                setError(undefined)
-              }}
-            />
-            <button
-              type="button"
-              className="start-screen__seed-random"
-              aria-label="무작위 seed"
-              title="무작위 seed"
-              onClick={() => {
-                setSeed(createRandomMapSeed())
-                setError(undefined)
-              }}
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M20 6v5h-5" />
-                <path d="M19 11a7 7 0 1 0 1 4" />
-              </svg>
-            </button>
-          </div>
-        </div>
         <div className="start-screen__actions">
           <button
             type="button"
             className="start-screen__start"
             onClick={() => {
-              const normalized = normalizeMapSeed(seed)
-              if (!normalized) {
-                setError('seed는 공백이 아닌 1~64자로 입력해 주세요.')
-                return
-              }
               onStart({
-                seed: normalized,
+                seed: createRandomMapSeed(),
                 boardSize: BOARD_SIZE_PRESETS[sizeId],
                 factionCount: ACTIVE_FACTION_COUNT,
                 humanFactionId,
@@ -151,7 +115,6 @@ export function StartScreen({ onStart }: StartScreenProps) {
             <span className="start-screen__start-arrow" aria-hidden="true">→</span>
           </button>
         </div>
-        {error && <p className="new-game-menu__error" role="alert">{error}</p>}
       </section>
     </main>
   )
