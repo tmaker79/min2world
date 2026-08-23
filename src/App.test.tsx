@@ -451,7 +451,7 @@ describe('Milestone 07 UI', () => {
     const user = userEvent.setup()
     const state = createInitialGameState('ui-production')
     const stronghold = state.sites.find(
-      (site) => site.ownerId === 'player' && site.kind === 'castle',
+      (site) => site.ownerId === 'player' && site.kind === 'city',
     )!
     const { container } = renderApp(state)
 
@@ -519,7 +519,7 @@ describe('Milestone 07 UI', () => {
     const user = userEvent.setup()
     const state = createInitialGameState('ui-production-cancel')
     const stronghold = state.sites.find(
-      (site) => site.ownerId === 'player' && site.kind === 'castle',
+      (site) => site.ownerId === 'player' && site.kind === 'city',
     )!
     const { container } = renderApp(state)
     const strongholdTile = container.querySelector<HTMLButtonElement>(
@@ -546,7 +546,7 @@ describe('Milestone 07 UI', () => {
     const user = userEvent.setup()
     const initial = createInitialGameState('ui-stack-select')
     const stronghold = initial.sites.find(
-      (site) => site.ownerId === 'player' && site.kind === 'castle',
+      (site) => site.ownerId === 'player' && site.kind === 'city',
     )!
     const stacked: Unit = {
       id: 'stacked',
@@ -623,7 +623,7 @@ describe('Milestone 07 UI', () => {
     const maxSite = maxState.sites.find(
       (candidate) =>
         candidate.ownerId === maxState.humanFactionId &&
-        candidate.kind === 'castle',
+        candidate.kind === 'city',
     )!
     const maximum = renderApp(maxState)
     await user.click(maximum.container.querySelector<HTMLButtonElement>(
@@ -694,11 +694,11 @@ describe('Milestone 07 UI', () => {
       'true',
     )
     await user.click(screen.getByRole('button', { name: '발전 확인' }))
-    expect(screen.getByLabelText('거점 정보')).toHaveTextContent('도시')
+    expect(screen.getByLabelText('거점 정보')).toHaveTextContent('소도시')
     expect(container.querySelector('[data-development-footprint="true"]')).toBeNull()
-    const cityMarker = container.querySelector<HTMLElement>('.site-marker--city')!
+    const cityMarker = container.querySelector<HTMLElement>('.site-marker--town')!
     expect(cityMarker).toHaveClass('site-marker--multi')
-    expect(cityMarker.querySelector('[data-site-icon="city"]')).toBeInTheDocument()
+    expect(cityMarker.querySelector('[data-site-icon="town"]')).toBeInTheDocument()
     expect(cityMarker.parentElement).toHaveStyle({
       width: '116px',
       height: '115.5px',
@@ -755,7 +755,7 @@ describe('Milestone 07 UI', () => {
     expect(screen.queryByRole('heading', { name: '저장 관리' })).not.toBeInTheDocument()
   })
 
-  it('shows fortified health and resolves a castle siege with damage feedback', () => {
+  it('shows fortified health and resolves a city siege with damage feedback', () => {
     vi.useFakeTimers()
     const initial = createInitialGameState('ui-victory')
     const capital = initial.sites.find((site) => site.capitalFor === 'enemy')!
@@ -821,7 +821,7 @@ describe('Milestone 07 UI', () => {
       hp: 100, maxHp: 100, movementRemaining: 2, hasActed: false,
     }
     const defender: Unit = {
-      id: 'castle-guard', name: 'castle guard', factionId: 'enemy', type: 'infantry',
+      id: 'city-guard', name: 'city guard', factionId: 'enemy', type: 'infantry',
       position: capital.position,
       hp: 100, maxHp: 100, movementRemaining: 2, hasActed: false,
     }

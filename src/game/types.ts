@@ -14,7 +14,7 @@ export type Terrain =
 
 export type MapType = 'balanced' | 'plains' | 'mountainous' | 'forested'
 
-export const GAME_SCHEMA_VERSION = 10
+export const GAME_SCHEMA_VERSION = 11
 export const MAP_GENERATION_VERSION = 24
 export const SUPPORTED_MAP_GENERATION_VERSIONS: readonly number[] = [
   5,
@@ -58,8 +58,8 @@ export type SiteType =
   | 'keep'
   | 'stronghold'
   | 'village'
+  | 'town'
   | 'city'
-  | 'castle'
   | 'farm'
   | 'mine'
   | 'blacksmith'

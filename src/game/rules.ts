@@ -58,20 +58,20 @@ export const SITE_STATS: Record<SiteType, SiteStats> = {
   keep: { income: 3, canProduce: true },
   stronghold: { income: 5, canProduce: true },
   village: { income: 3, canProduce: false },
-  city: { income: 5, canProduce: false },
-  castle: { income: 7, canProduce: true },
+  town: { income: 5, canProduce: false },
+  city: { income: 7, canProduce: true },
   farm: { income: 2, canProduce: false },
   mine: { income: 3, canProduce: false },
   blacksmith: { income: 2, canProduce: false },
 }
 
-export type FortifiedSiteKind = 'outpost' | 'keep' | 'stronghold' | 'castle'
+export type FortifiedSiteKind = 'outpost' | 'keep' | 'stronghold' | 'city'
 
 export const SITE_COMBAT_STATS: Record<FortifiedSiteKind, SiteCombatStats> = {
   outpost: { maxHp: 50, defense: 35 },
   keep: { maxHp: 75, defense: 42 },
   stronghold: { maxHp: 100, defense: 50 },
-  castle: { maxHp: 120, defense: 55 },
+  city: { maxHp: 120, defense: 55 },
 }
 
 export function isFortifiedSiteKind(
@@ -105,8 +105,8 @@ export const SITE_TYPE_LABELS: Record<SiteType, string> = {
   outpost: '전초기지',
   keep: '요새',
   stronghold: '성채',
-  castle: '성',
   village: '마을',
+  town: '소도시',
   farm: '농장',
   mine: '광산',
   city: '도시',
@@ -118,8 +118,8 @@ const PRODUCIBLE_UNIT_TYPES: Record<SiteType, readonly UnitType[]> = {
   keep: ['infantry', 'spearman', 'archer'],
   stronghold: UNIT_TYPES,
   village: [],
-  city: [],
-  castle: UNIT_TYPES,
+  town: [],
+  city: UNIT_TYPES,
   farm: [],
   mine: [],
   blacksmith: [],

@@ -4,11 +4,11 @@ import {
   isFortifiedSiteKind,
 } from './rules'
 import {
-  getCastleFootprintCandidates,
   getCityFootprintCandidates,
   getSiteOccupiedPositions,
-  isValidCastleFootprint,
+  getTownFootprintCandidates,
   isValidCityFootprint,
+  isValidTownFootprint,
   updateSiteFootprintTiles,
 } from './siteFootprint'
 import type { GameState, Position, Site, SiteType } from './types'
@@ -53,9 +53,9 @@ export function getSiteDevelopmentTarget(
     case 'keep':
       return { cost: 12, kind: 'stronghold' }
     case 'village':
-      return { cost: 10, kind: 'city' }
-    case 'city':
-      return { cost: 15, kind: 'castle' }
+      return { cost: 10, kind: 'town' }
+    case 'town':
+      return { cost: 15, kind: 'city' }
     case 'farm':
     case 'mine':
       if ((site.level ?? 1) === 1) {
@@ -74,7 +74,7 @@ export function getSiteDevelopmentTarget(
       }
       return undefined
     case 'stronghold':
-    case 'castle':
+    case 'city':
       return undefined
   }
 }
@@ -125,9 +125,9 @@ export function getSiteDevelopmentFootprints(
 
   const candidates =
     site.kind === 'village'
-      ? getCityFootprintCandidates(site.position, state.boardSize)
-      : site.kind === 'city'
-        ? getCastleFootprintCandidates(
+      ? getTownFootprintCandidates(site.position, state.boardSize)
+      : site.kind === 'town'
+        ? getCityFootprintCandidates(
             site.position,
             state.boardSize,
             getSiteOccupiedPositions(site),
@@ -169,13 +169,13 @@ export function canDevelopSite(
     return { ok: false, reason: 'insufficientResources' }
   }
 
-  const requiresFootprint = site.kind === 'village' || site.kind === 'city'
+  const requiresFootprint = site.kind === 'village' || site.kind === 'town'
   const selectedFootprint = footprint ?? getSiteOccupiedPositions(site)
   const isExpectedShape =
     site.kind === 'village'
-      ? isValidCityFootprint(site.position, selectedFootprint, state.boardSize)
-      : site.kind === 'city'
-        ? isValidCastleFootprint(site.position, selectedFootprint, state.boardSize)
+      ? isValidTownFootprint(site.position, selectedFootprint, state.boardSize)
+      : site.kind === 'town'
+        ? isValidCityFootprint(site.position, selectedFootprint, state.boardSize)
         : footprintsEqual(selectedFootprint, getSiteOccupiedPositions(site))
   const isCandidate = getSiteDevelopmentFootprints(state, site).some(
     (candidate) => footprintsEqual(candidate, selectedFootprint),
@@ -211,7 +211,7 @@ export function resolveSiteDevelopment(
   const targetMaxHp = getSiteMaxHp(target.kind)
   const currentMaxHp = getSiteMaxHp(site)
   const targetHp =
-    target.kind === 'castle'
+    target.kind === 'city'
       ? targetMaxHp
       : isFortifiedSiteKind(target.kind) && targetMaxHp && currentMaxHp
         ? Math.ceil(((site.hp ?? currentMaxHp) / currentMaxHp) * targetMaxHp)

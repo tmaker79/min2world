@@ -102,7 +102,7 @@ export function getZoneOfControlIndex(
         (site.kind !== 'outpost' &&
           site.kind !== 'keep' &&
           site.kind !== 'stronghold' &&
-          site.kind !== 'castle')
+          site.kind !== 'city')
       ) {
         continue
       }

@@ -351,7 +351,7 @@ function SiteMarker({
     <span className="map-overlay-cell" style={style}>
       <span
         className={`site-marker${
-          site.kind === 'city' || site.kind === 'castle'
+          site.kind === 'town' || site.kind === 'city'
             ? ' site-marker--multi'
             : ''
         } site-marker--${site.kind} site-marker--${site.ownerId}${

@@ -1,7 +1,7 @@
 import { isPositionOnBoard, positionKey } from './hex'
 import type { BoardSize, Position, Site, Tile } from './types'
 
-export const CASTLE_FOOTPRINT_OFFSETS: readonly (readonly Position[])[] = [
+export const CITY_FOOTPRINT_OFFSETS: readonly (readonly Position[])[] = [
   [
     { q: 0, r: 0 },
     { q: 1, r: 0 },
@@ -28,7 +28,7 @@ export const CASTLE_FOOTPRINT_OFFSETS: readonly (readonly Position[])[] = [
   ],
 ]
 
-const CITY_FOOTPRINT_OFFSETS: readonly (readonly Position[])[] = [
+const TOWN_FOOTPRINT_OFFSETS: readonly (readonly Position[])[] = [
   [
     { q: 0, r: 0 },
     { q: 1, r: 0 },
@@ -65,41 +65,41 @@ export function getSiteOccupiedPositions(site: Site): readonly Position[] {
   return site.footprint ?? [site.position]
 }
 
-export function getCityFootprintCandidates(
+export function getTownFootprintCandidates(
   anchor: Position,
   boardSize: BoardSize,
 ): Position[][] {
-  return CITY_FOOTPRINT_OFFSETS.map((offsets) => applyOffsets(anchor, offsets)).filter(
+  return TOWN_FOOTPRINT_OFFSETS.map((offsets) => applyOffsets(anchor, offsets)).filter(
     (positions) => positions.every((position) => isPositionOnBoard(position, boardSize)),
   )
 }
 
-export function getCastleFootprintCandidates(
+export function getCityFootprintCandidates(
   anchor: Position,
   boardSize: BoardSize,
-  cityFootprint?: readonly Position[],
+  townFootprint?: readonly Position[],
 ): Position[][] {
-  const cityKeys = cityFootprint
-    ? new Set(cityFootprint.map(positionKey))
+  const townKeys = townFootprint
+    ? new Set(townFootprint.map(positionKey))
     : undefined
-  return CASTLE_FOOTPRINT_OFFSETS.map((offsets) => applyOffsets(anchor, offsets)).filter(
+  return CITY_FOOTPRINT_OFFSETS.map((offsets) => applyOffsets(anchor, offsets)).filter(
     (positions) =>
       positions.every((position) => isPositionOnBoard(position, boardSize)) &&
-      (!cityKeys ||
-        [...cityKeys].every((key) =>
+      (!townKeys ||
+        [...townKeys].every((key) =>
           positions.some((position) => positionKey(position) === key),
         )),
   )
 }
 
-export function findCastleFootprint(
+export function findCityFootprint(
   anchor: Position,
   boardSize: BoardSize,
 ): Position[] | undefined {
-  return getCastleFootprintCandidates(anchor, boardSize)[0]
+  return getCityFootprintCandidates(anchor, boardSize)[0]
 }
 
-export function isValidCityFootprint(
+export function isValidTownFootprint(
   anchor: Position,
   footprint: readonly Position[],
   boardSize: BoardSize,
@@ -108,11 +108,11 @@ export function isValidCityFootprint(
     footprint.length === 3 &&
     new Set(footprint.map(positionKey)).size === footprint.length &&
     footprint.every((position) => isPositionOnBoard(position, boardSize)) &&
-    matchesFootprint(anchor, footprint, CITY_FOOTPRINT_OFFSETS)
+    matchesFootprint(anchor, footprint, TOWN_FOOTPRINT_OFFSETS)
   )
 }
 
-export function isValidCastleFootprint(
+export function isValidCityFootprint(
   anchor: Position,
   footprint: readonly Position[],
   boardSize: BoardSize,
@@ -125,7 +125,7 @@ export function isValidCastleFootprint(
     return false
   }
 
-  return matchesFootprint(anchor, footprint, CASTLE_FOOTPRINT_OFFSETS)
+  return matchesFootprint(anchor, footprint, CITY_FOOTPRINT_OFFSETS)
 }
 
 export function updateSiteFootprintTiles(

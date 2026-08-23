@@ -59,8 +59,8 @@ const SITE_ROLE_PRIORITY: Record<SiteType, number> = {
   keep: 0,
   stronghold: 0,
   village: 1,
+  town: 1,
   city: 1,
-  castle: 1,
   farm: 2,
   mine: 2,
   blacksmith: 2,
@@ -72,9 +72,9 @@ export function getAiSiteDevelopmentScore(
   const stage =
     site.kind === 'outpost' || site.kind === 'village'
       ? 1
-      : site.kind === 'keep' || site.kind === 'city'
+      : site.kind === 'keep' || site.kind === 'town'
         ? 2
-        : site.kind === 'stronghold' || site.kind === 'castle'
+        : site.kind === 'stronghold' || site.kind === 'city'
           ? 3
           : (site.level ?? 1)
 
@@ -438,12 +438,12 @@ function chooseDevelopment(
     )
     .map((site) => {
       const footprint =
-        site.kind === 'village' || site.kind === 'city'
+        site.kind === 'village' || site.kind === 'town'
           ? [...getSiteDevelopmentFootprints(state, site)].sort(
               compareFootprints,
             )[0]
           : undefined
-      if ((site.kind === 'village' || site.kind === 'city') && !footprint) {
+      if ((site.kind === 'village' || site.kind === 'town') && !footprint) {
         return undefined
       }
 

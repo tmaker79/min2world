@@ -34,17 +34,17 @@ describe('spatial indexes', () => {
   it('combines every owned fortified footprint zone and excludes neutral sites', () => {
     const initial = createInitialGameState('site-zoc')
     const footprint = [{ q: 0, r: 0 }, { q: 1, r: 0 }]
-    const castle: Site = {
-      id: 'castle',
-      name: 'Castle',
-      kind: 'castle',
+    const city: Site = {
+      id: 'city',
+      name: 'City',
+      kind: 'city',
       position: footprint[0],
       footprint,
       ownerId: 'enemy',
       hp: 120,
       maxHp: 120,
     }
-    const state = { ...initial, units: [], sites: [castle] }
+    const state = { ...initial, units: [], sites: [city] }
     const enemyZone = getZoneOfControlIndex(state, 'player')
 
     for (const occupiedPosition of footprint) {
@@ -55,7 +55,7 @@ describe('spatial indexes', () => {
     expect(getZoneOfControlIndex(state, 'enemy').size).toBe(0)
     expect(
       getZoneOfControlIndex(
-        { ...state, sites: [{ ...castle, ownerId: 'neutral' }] },
+        { ...state, sites: [{ ...city, ownerId: 'neutral' }] },
         'player',
       ).size,
     ).toBe(0)
@@ -81,7 +81,7 @@ describe('spatial indexes', () => {
       ),
     ).toBe(true)
     expect(
-      getHexNeighbors(castle.position, state.boardSize).every((position) =>
+      getHexNeighbors(city.position, state.boardSize).every((position) =>
         combined.has(positionKey(position)),
       ),
     ).toBe(true)

@@ -47,7 +47,7 @@
 - 지도 종류 선택: 균형, 평원, 산악, 삼림
 - 평지, 다리, 언덕, 숲, 산, 물, 사막, 사막 언덕, 오아시스, 툰드라, 툰드라 숲, 툰드라 산의 지형 12종
 - 일반 숲의 활엽수·침엽수 군락 변형과 지형별 래스터 타일
-- Outpost·Keep·Stronghold, Village·City·Castle, Farm·Mine·Blacksmith의 거점 9종
+- Outpost·Keep·Stronghold, Village·Town·City, Farm·Mine·Blacksmith의 거점 9종
 - 세력별 수도(성) 1개와 시작 유닛 3개(보병 2, 기병 1)
 - 보병, 기병, 궁병, 창병
 - 최대 체력 100, 근접/원거리 전투력과 병종 상성
@@ -57,7 +57,7 @@
 - 군사 거점 공성, 일반 거점 점령, 다세력 수도 점령 승패
 - 턴 종료 시 소유 거점 수입과 유닛 생산
 - 규칙 기반 AI 턴(활성 세력 순회)
-- localStorage 저장과 불러오기(스키마 10, 스키마 6~9 연쇄 마이그레이션)
+- localStorage 저장과 불러오기(스키마 11, 스키마 6~10 연쇄 마이그레이션)
 - 시작 화면·자동 무작위 지도·새 게임
 - 지도 휠 줌·드래그 팬·미니맵
 - 지형/유닛 사이드바 미리보기·고정 정보, 성·부대 정보창, 우클릭 이동
@@ -82,10 +82,10 @@
 | 분류 | 발전 단계 | 점유 범위 |
 | --- | --- | --- |
 | 군사·방어 | `Outpost` → `Keep` → `Stronghold` | 모두 1타일 |
-| 정착 | `Village` → `City` → `Castle` | Village 1타일, City 3타일, Castle 4타일 |
+| 정착 | `Village` → `Town` → `City` | Village 1타일, Town 3타일, City 4타일 |
 | 생산 특화 | `Farm`, `Mine`, `Blacksmith` | 종류를 유지하며 자체 개발 |
 
-Castle은 Stronghold의 상위 단계가 아니라 정착 계열의 최종 형태다. Village를 City로 발전시키면 기존 타일에 인접한 빈 2타일을 더해 위 1칸·아래 2칸의 삼각형 3타일을 사용한다. City를 Castle로 발전시키면 기존 City footprint에 빈 1타일을 더해 가로형 마름모 4타일을 완성한다. 수도 여부는 거점 종류와 별개로 `capitalFor`가 결정한다.
+City는 Stronghold의 상위 단계가 아니라 정착 계열의 최종 형태다. Village를 Town으로 발전시키면 기존 타일에 인접한 빈 2타일을 더해 위 1칸·아래 2칸의 삼각형 3타일을 사용한다. Town을 City로 발전시키면 기존 Town footprint에 빈 1타일을 더해 가로형 마름모 4타일을 완성한다. 수도 여부는 거점 종류와 별개로 `capitalFor`가 결정한다.
 
 군사 거점의 전투 수치는 다음과 같다.
 
@@ -94,9 +94,9 @@ Castle은 Stronghold의 상위 단계가 아니라 정착 계열의 최종 형�
 | Outpost | 50 | 35 |
 | Keep | 75 | 42 |
 | Stronghold | 100 | 50 |
-| Castle | 120 | 55 |
+| City | 120 | 55 |
 
-소유된 군사 거점은 전체 footprint의 인접 칸에 통제 구역을 만들지만 중립 거점은 만들지 않는다. 적 또는 중립 군사 거점에는 공성 공격을 사용하며 거점은 반격하지 않는다. HP가 0이 되면 즉시 공격 세력이 점령하고 최대 HP의 50%를 회복한다. `Outpost → Keep → Stronghold` 발전은 기존 HP 비율을 유지하고, `City → Castle`은 최대 HP로 시작한다.
+소유된 군사 거점은 전체 footprint의 인접 칸에 통제 구역을 만들지만 중립 거점은 만들지 않는다. 적 또는 중립 군사 거점에는 공성 공격을 사용하며 거점은 반격하지 않는다. HP가 0이 되면 즉시 공격 세력이 점령하고 최대 HP의 50%를 회복한다. `Outpost → Keep → Stronghold` 발전은 기존 HP 비율을 유지하고, `Town → City`는 최대 HP로 시작한다.
 
 새로운 아이디어는 백로그에 기록하고, 다음 마일스톤을 추가한 뒤에 구현한다.
 
@@ -187,8 +187,8 @@ type SiteType =
   | 'keep'
   | 'stronghold'
   | 'village'
+  | 'town'
   | 'city'
-  | 'castle'
   | 'farm'
   | 'mine'
   | 'blacksmith'
@@ -365,10 +365,10 @@ src/
 
 상세 기록: [Milestone 10](milestones/10-site-development.md)
 
-- Outpost → Keep → Stronghold와 Village → City → Castle 발전 계열
+- Outpost → Keep → Stronghold와 Village → Town → City 발전 계열
 - Farm·Mine·Blacksmith 1~3레벨 및 수입·생산 보조 효과
-- City 3칸·Castle 4칸 footprint 방향 선택과 지도 미리보기
-- 거점별 병종 해금, AI 발전, 군사 거점 공성, 스키마 10·맵 생성 버전 22
+- Town 3칸·City 4칸 footprint 방향 선택과 지도 미리보기
+- 거점별 병종 해금, AI 발전, 군사 거점 공성, 스키마 11·맵 생성 버전 22
 - 후속 맵 생성 버전 23에서 15×11 2인용 지도에 중앙 강과 두 다리를 추가
 - 맵 생성 버전 24에서 신규 중립 거점을 생산 특화 시설(Farm·Mine·Blacksmith)로 제한
 
@@ -416,8 +416,9 @@ localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지
 - 스키마 6은 `player`/`enemy`를 `f1`/`f2`로 바꾼 뒤 연쇄 마이그레이션한다.
 - 스키마 7은 기존 `city`(마을)를 `village`로, `village`(농장)를 `farm`으로 바꿔 불러온다.
 - 스키마 8 저장에 `mapType`이 없으면 기존 생성 방식인 `balanced`로 불러온다.
-- 스키마 8의 기존 거점은 종류와 Castle footprint를 보존하고 생산 특화 시설을 Lv.1로 채운 뒤 연쇄 마이그레이션한다.
+- 스키마 8의 기존 거점은 종류와 4타일 수도 footprint를 보존하고 생산 특화 시설을 Lv.1로 채운 뒤 연쇄 마이그레이션한다.
 - 스키마 9의 군사 거점은 종류별 최대 HP로 채워 스키마 10으로 불러온다.
+- 스키마 10의 `city`는 `town`, `castle`은 `city`로 바꿔 스키마 11로 불러온다.
 - 마이그레이션은 저장된 `mapGenerationVersion`을 바꾸지 않으며, 새 지도 생성 버전은 24를 사용한다.
 - 맵 생성 버전 5부터 현재 버전 24까지 저장된 타일을 재생성하지 않고 지원한다.
 - JSON을 읽은 뒤 필요한 필드와 값의 범위를 검증한다.
@@ -471,7 +472,7 @@ localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지
 
 다음 구현 목표는 [Milestone 11: 거점 내정](milestones/11-city-administration.md)이다.
 
-Milestone 10에서 군사·방어 계열 `Outpost → Keep → Stronghold`, 정착 계열 `Village → City → Castle`, 생산 특화 시설 `Farm`·`Mine`·`Blacksmith`를 구현했다. Milestone 11에서는 발전한 거점에 건물 슬롯과 생산 대기열을 추가한다.
+Milestone 10에서 군사·방어 계열 `Outpost → Keep → Stronghold`, 정착 계열 `Village → Town → City`, 생산 특화 시설 `Farm`·`Mine`·`Blacksmith`를 구현했다. Milestone 11에서는 발전한 거점에 건물 슬롯과 생산 대기열을 추가한다.
 
 가변 지도·다세력·HUD까지 반영한 현재 기준 시나리오는 다음과 같다.
 

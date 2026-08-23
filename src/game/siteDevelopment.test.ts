@@ -39,7 +39,7 @@ describe('site development', () => {
     expect(getSiteDevelopmentCost(developmentState('outpost').sites[0])).toBe(8)
     expect(getSiteDevelopmentCost(developmentState('keep').sites[0])).toBe(12)
     expect(getSiteDevelopmentCost(developmentState('village').sites[0])).toBe(10)
-    expect(getSiteDevelopmentCost(developmentState('city').sites[0])).toBe(15)
+    expect(getSiteDevelopmentCost(developmentState('town').sites[0])).toBe(15)
     expect(getSiteDevelopmentCost(developmentState('farm').sites[0])).toBe(6)
     expect(
       getSiteDevelopmentCost(
@@ -53,7 +53,7 @@ describe('site development', () => {
     ).toBeUndefined()
   })
 
-  it('preserves military-site health ratios and fully heals a new castle', () => {
+  it('preserves military-site health ratios and fully heals a new city', () => {
     const outpost = developmentState('outpost', { hp: 25, maxHp: 50 })
     const keep = resolveSiteDevelopment(outpost, 'site-1')
     expect(keep.sites[0]).toMatchObject({
@@ -73,27 +73,27 @@ describe('site development', () => {
     })
 
     const village = developmentState('village', { hp: 10, maxHp: 20 })
-    const cityFootprint = getSiteDevelopmentFootprints(village, 'site-1')[0]
-    const city = resolveSiteDevelopment(village, 'site-1', cityFootprint)
-    expect(city.sites[0]).not.toHaveProperty('hp')
-    expect(city.sites[0]).not.toHaveProperty('maxHp')
+    const townFootprint = getSiteDevelopmentFootprints(village, 'site-1')[0]
+    const town = resolveSiteDevelopment(village, 'site-1', townFootprint)
+    expect(town.sites[0]).not.toHaveProperty('hp')
+    expect(town.sites[0]).not.toHaveProperty('maxHp')
 
-    const castleState = { ...city, turn: city.turn + 1 }
-    const castleFootprint =
-      getSiteDevelopmentFootprints(castleState, 'site-1')[0]
-    const castle = resolveSiteDevelopment(
-      castleState,
+    const cityState = { ...town, turn: town.turn + 1 }
+    const cityFootprint =
+      getSiteDevelopmentFootprints(cityState, 'site-1')[0]
+    const city = resolveSiteDevelopment(
+      cityState,
       'site-1',
-      castleFootprint,
+      cityFootprint,
     )
-    expect(castle.sites[0]).toMatchObject({
-      kind: 'castle',
+    expect(city.sites[0]).toMatchObject({
+      kind: 'city',
       hp: 120,
       maxHp: 120,
     })
   })
 
-  it('returns every available city footprint and rejects blocked new cells', () => {
+  it('returns every available town footprint and rejects blocked new cells', () => {
     const state = developmentState()
     const candidates = getSiteDevelopmentFootprints(state, 'site-1')
     expect(candidates).toHaveLength(2)
@@ -143,7 +143,7 @@ describe('site development', () => {
     const developed = result.sites[0]
 
     expect(developed).toMatchObject({
-      kind: 'city',
+      kind: 'town',
       footprint,
       lastDevelopedTurn: state.turn,
     })
@@ -161,20 +161,20 @@ describe('site development', () => {
     ).toBe(true)
   })
 
-  it('only offers castle footprints that contain the existing city', () => {
+  it('only offers city footprints that contain the existing town', () => {
     const village = developmentState()
-    const cityFootprint = getSiteDevelopmentFootprints(village, 'site-1')[0]
-    const city = resolveSiteDevelopment(village, 'site-1', cityFootprint)
+    const townFootprint = getSiteDevelopmentFootprints(village, 'site-1')[0]
+    const town = resolveSiteDevelopment(village, 'site-1', townFootprint)
     const nextTurn = {
-      ...city,
-      turn: city.turn + 1,
+      ...town,
+      turn: town.turn + 1,
     }
     const candidates = getSiteDevelopmentFootprints(nextTurn, 'site-1')
 
     expect(candidates.length).toBeGreaterThan(0)
     expect(
       candidates.every((candidate) =>
-        cityFootprint.every((position) =>
+        townFootprint.every((position) =>
           candidate.some(
             (occupied) =>
               occupied.q === position.q && occupied.r === position.r,
@@ -183,7 +183,7 @@ describe('site development', () => {
       ),
     ).toBe(true)
     expect(resolveSiteDevelopment(nextTurn, 'site-1', candidates[0]).sites[0].kind).toBe(
-      'castle',
+      'city',
     )
   })
 

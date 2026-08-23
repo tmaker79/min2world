@@ -15,10 +15,10 @@ import {
   UNIT_STATS,
 } from './rules'
 import {
-  findCastleFootprint,
+  findCityFootprint,
   getSiteOccupiedPositions,
-  isValidCastleFootprint,
   isValidCityFootprint,
+  isValidTownFootprint,
 } from './siteFootprint'
 import {
   FOREST_TERRAIN_VARIANT_COUNT,
@@ -404,7 +404,7 @@ function chooseCapitals(
       factionCount === 2 ? [position, opposite(position, boardSize)] : [position]
     return capitalPositions.every((capitalPosition) => {
       if (reservedKeys.has(positionKey(capitalPosition))) return false
-      const footprint = findCastleFootprint(capitalPosition, boardSize)
+      const footprint = findCityFootprint(capitalPosition, boardSize)
       return (
         footprint !== undefined &&
         footprint.every(
@@ -477,7 +477,7 @@ function getConnectedKeys(
 function chooseNeutralSites(
   tiles: Tile[],
   capitals: Record<FactionId, Position>,
-  castleFootprints: Record<FactionId, Position[]>,
+  cityFootprints: Record<FactionId, Position[]>,
   random: () => number,
   boardSize: BoardSize,
   factionCount: FactionCount,
@@ -489,7 +489,7 @@ function chooseNeutralSites(
     tiles.map((tile) => [positionKey(tile.position), tile]),
   )
   const chosen: Position[] = factionIds.flatMap(
-    (factionId) => castleFootprints[factionId],
+    (factionId) => cityFootprints[factionId],
   )
   const sites: Array<{ kind: SiteType; position: Position }> = []
   const candidates = shuffled(
@@ -600,20 +600,6 @@ export function validateGeneratedMap(state: GameState): string[] {
   if (
     state.sites.some(
       (site) =>
-        site.kind === 'castle' &&
-        (!site.footprint ||
-          !isValidCastleFootprint(
-            site.position,
-            site.footprint,
-            state.boardSize,
-          )),
-    )
-  ) {
-    issues.push('castleFootprint')
-  }
-  if (
-    state.sites.some(
-      (site) =>
         site.kind === 'city' &&
         (!site.footprint ||
           !isValidCityFootprint(
@@ -624,6 +610,20 @@ export function validateGeneratedMap(state: GameState): string[] {
     )
   ) {
     issues.push('cityFootprint')
+  }
+  if (
+    state.sites.some(
+      (site) =>
+        site.kind === 'town' &&
+        (!site.footprint ||
+          !isValidTownFootprint(
+            site.position,
+            site.footprint,
+            state.boardSize,
+          )),
+    )
+  ) {
+    issues.push('townFootprint')
   }
   const specialKinds: readonly SiteType[] = ['farm', 'mine', 'blacksmith']
   if (
@@ -803,25 +803,25 @@ export function validateGeneratedMap(state: GameState): string[] {
 
 function createSites(
   capitals: Record<FactionId, Position>,
-  castleFootprints: Record<FactionId, Position[]>,
+  cityFootprints: Record<FactionId, Position[]>,
   neutrals: Site[],
   factionCount: FactionCount,
 ): Site[] {
   const names: Partial<Record<FactionId, string>> = {
-    f1: '청색 성',
-    f2: '적색 성',
-    f3: '황금 성',
-    f4: '자색 성',
+    f1: '청색 도시',
+    f2: '적색 도시',
+    f3: '황금 도시',
+    f4: '자색 도시',
   }
   return [
     ...getFactionIds(factionCount).map((factionId) => {
-      const maxHp = getSiteMaxHp('castle')!
+      const maxHp = getSiteMaxHp('city')!
       return {
-        id: `site-${factionId}-castle`,
+        id: `site-${factionId}-city`,
         name: names[factionId] ?? factionId,
-        kind: 'castle' as const,
+        kind: 'city' as const,
         position: { ...capitals[factionId] },
-        footprint: castleFootprints[factionId].map((position) => ({
+        footprint: cityFootprints[factionId].map((position) => ({
           ...position,
         })),
         ownerId: factionId,
@@ -836,7 +836,7 @@ function createSites(
 
 function createUnits(
   capitals: Record<FactionId, Position>,
-  castleFootprints: Record<FactionId, Position[]>,
+  cityFootprints: Record<FactionId, Position[]>,
   tiles: Tile[],
   boardSize: BoardSize,
   factionCount: FactionCount,
@@ -851,14 +851,14 @@ function createUnits(
   }
 
   return getFactionIds(factionCount).flatMap((factionId) => {
-    const castleKeys = new Set(
-      castleFootprints[factionId].map(positionKey),
+    const cityKeys = new Set(
+      cityFootprints[factionId].map(positionKey),
     )
     const positionsByKey = new Map<string, Position>()
-    for (const castlePosition of castleFootprints[factionId]) {
-      for (const neighbor of getHexNeighbors(castlePosition, boardSize)) {
+    for (const cityPosition of cityFootprints[factionId]) {
+      for (const neighbor of getHexNeighbors(cityPosition, boardSize)) {
         const key = positionKey(neighbor)
-        if (!castleKeys.has(key)) positionsByKey.set(key, neighbor)
+        if (!cityKeys.has(key)) positionsByKey.set(key, neighbor)
       }
     }
     const positions = [...positionsByKey.values()]
@@ -1019,20 +1019,20 @@ function buildCandidate(
     placementExcludedKeys,
   )
   if (!capitals) return undefined
-  const castleFootprints = Object.fromEntries(
+  const cityFootprints = Object.fromEntries(
     getFactionIds(factionCount).map((factionId) => [
       factionId,
-      findCastleFootprint(capitals[factionId], boardSize),
+      findCityFootprint(capitals[factionId], boardSize),
     ]),
   ) as Partial<Record<FactionId, Position[]>>
   if (
     getFactionIds(factionCount).some(
-      (factionId) => !castleFootprints[factionId],
+      (factionId) => !cityFootprints[factionId],
     )
   ) {
     return undefined
   }
-  const completeCastleFootprints = castleFootprints as Record<
+  const completeCityFootprints = cityFootprints as Record<
     FactionId,
     Position[]
   >
@@ -1082,7 +1082,7 @@ function buildCandidate(
   const neutralSites = chooseNeutralSites(
     tiles,
     capitals,
-    completeCastleFootprints,
+    completeCityFootprints,
     random,
     boardSize,
     factionCount,
@@ -1091,7 +1091,7 @@ function buildCandidate(
   if (!neutralSites) return undefined
   const sites = createSites(
     capitals,
-    completeCastleFootprints,
+    completeCityFootprints,
     neutralSites,
     factionCount,
   )
@@ -1129,7 +1129,7 @@ function buildCandidate(
     tiles,
     units: createUnits(
       capitals,
-      completeCastleFootprints,
+      completeCityFootprints,
       tiles,
       boardSize,
       factionCount,

@@ -9,8 +9,8 @@ import {
 import { cloneGameState } from '../game/state'
 import {
   getSiteOccupiedPositions,
-  isValidCastleFootprint,
   isValidCityFootprint,
+  isValidTownFootprint,
 } from '../game/siteFootprint'
 import {
   getSiteMaxHp,
@@ -83,11 +83,11 @@ const SITE_TYPES = new Set<SiteType>([
   'keep',
   'stronghold',
   'village',
+  'town',
   'farm',
   'mine',
   'blacksmith',
   'city',
-  'castle',
 ])
 const MAP_TYPES = new Set<MapType>(['balanced', 'plains', 'mountainous', 'forested'])
 
@@ -217,10 +217,18 @@ function parseSite(value: unknown, boardSize: BoardSize): Site | undefined {
     !position ||
     (value.capitalFor !== undefined &&
       kind !== 'stronghold' &&
-      kind !== 'castle') ||
+      kind !== 'city') ||
     (requiresLevel
       ? !isIntegerInRange(value.level, 1, 3)
       : value.level !== undefined) ||
+    (kind === 'town' &&
+      (!footprint ||
+        footprint.some((candidate) => !candidate) ||
+        !isValidTownFootprint(
+          position,
+          footprint as Position[],
+          boardSize,
+        ))) ||
     (kind === 'city' &&
       (!footprint ||
         footprint.some((candidate) => !candidate) ||
@@ -229,15 +237,7 @@ function parseSite(value: unknown, boardSize: BoardSize): Site | undefined {
           footprint as Position[],
           boardSize,
         ))) ||
-    (kind === 'castle' &&
-      (!footprint ||
-        footprint.some((candidate) => !candidate) ||
-        !isValidCastleFootprint(
-          position,
-          footprint as Position[],
-          boardSize,
-        ))) ||
-    (kind !== 'city' && kind !== 'castle' && value.footprint !== undefined) ||
+    (kind !== 'town' && kind !== 'city' && value.footprint !== undefined) ||
     (fortified
       ? value.maxHp !== expectedMaxHp ||
         !isIntegerInRange(value.hp, 1, expectedMaxHp)
@@ -585,11 +585,16 @@ function readSavedGame(storage?: StorageLike): StorageResult<SavedGame> {
   const siteCombatRecord = parsed as Record<string, unknown>
   if (siteCombatRecord.schemaVersion === 9 && isRecord(siteCombatRecord.gameState)) {
     const legacyState = siteCombatRecord.gameState
+    const legacyMaxHp: Record<string, number> = {
+      outpost: 50,
+      keep: 75,
+      stronghold: 100,
+      castle: 120,
+    }
     const migrateSite = (site: unknown) => {
       if (!isRecord(site) || typeof site.kind !== 'string') return site
-      const kind = site.kind as SiteType
-      if (!SITE_TYPES.has(kind) || !isFortifiedSiteKind(kind)) return site
-      const maxHp = getSiteMaxHp(kind)!
+      const maxHp = legacyMaxHp[site.kind]
+      if (!maxHp) return site
       return {
         ...site,
         hp: maxHp,
@@ -602,6 +607,46 @@ function readSavedGame(storage?: StorageLike): StorageResult<SavedGame> {
       gameState: {
         ...legacyState,
         schemaVersion: 10,
+        sites: Array.isArray(legacyState.sites)
+          ? legacyState.sites.map(migrateSite)
+          : legacyState.sites,
+      },
+    }
+  }
+  const settlementNamesRecord = parsed as Record<string, unknown>
+  if (
+    settlementNamesRecord.schemaVersion === 10 &&
+    isRecord(settlementNamesRecord.gameState)
+  ) {
+    const legacyState = settlementNamesRecord.gameState
+    const capitalNames: Record<string, string> = {
+      '청색 성': '청색 도시',
+      '적색 성': '적색 도시',
+      '황금 성': '황금 도시',
+      '자색 성': '자색 도시',
+    }
+    const migrateSite = (site: unknown) => {
+      if (!isRecord(site)) return site
+      return {
+        ...site,
+        kind:
+          site.kind === 'castle'
+            ? 'city'
+            : site.kind === 'city'
+              ? 'town'
+              : site.kind,
+        name:
+          site.kind === 'castle' && typeof site.name === 'string'
+            ? (capitalNames[site.name] ?? site.name)
+            : site.name,
+      }
+    }
+    parsed = {
+      ...settlementNamesRecord,
+      schemaVersion: 11,
+      gameState: {
+        ...legacyState,
+        schemaVersion: 11,
         sites: Array.isArray(legacyState.sites)
           ? legacyState.sites.map(migrateSite)
           : legacyState.sites,

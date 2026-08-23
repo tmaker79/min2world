@@ -1,8 +1,6 @@
 import type { SiteOwnerId, SiteType } from '../game/types'
-import westernCastleIcon from '../assets/sites/castle.png'
-import easternCastleIcon from '../assets/sites/castle-eastern.png'
 import westernCityIcon from '../assets/sites/city.png'
-import easternCityIcon from '../assets/sites/city-eastern-3tile-roofmatch.png'
+import easternCityIcon from '../assets/sites/city-eastern.png'
 import westernFarmIcon from '../assets/sites/farm.png'
 import westernFarmLevel2Icon from '../assets/sites/farm-level-2.png'
 import westernFarmLevel3Icon from '../assets/sites/farm-level-3.png'
@@ -15,6 +13,8 @@ import smithyIcon from '../assets/sites/smithy.png'
 import smithyLevel2Icon from '../assets/sites/smithy-level-2.png'
 import smithyLevel3Icon from '../assets/sites/smithy-level-3.png'
 import westernStrongholdIcon from '../assets/sites/stronghold.png'
+import westernTownIcon from '../assets/sites/town.png'
+import easternTownIcon from '../assets/sites/town-eastern-3tile-roofmatch.png'
 import westernVillageIcon from '../assets/sites/village.png'
 import easternVillageIcon from '../assets/sites/village-eastern.png'
 
@@ -22,8 +22,8 @@ const EASTERN_SITE_ICONS: Record<SiteType, string> = {
   outpost: outpostIcon,
   keep: keepIcon,
   stronghold: westernStrongholdIcon,
-  castle: easternCastleIcon,
   village: easternVillageIcon,
+  town: easternTownIcon,
   farm: westernFarmIcon,
   mine: westernMineIcon,
   city: easternCityIcon,
@@ -34,8 +34,8 @@ const WESTERN_SITE_ICONS: Record<SiteType, string> = {
   outpost: outpostIcon,
   keep: keepIcon,
   stronghold: westernStrongholdIcon,
-  castle: westernCastleIcon,
   village: westernVillageIcon,
+  town: westernTownIcon,
   farm: westernFarmIcon,
   mine: westernMineIcon,
   city: westernCityIcon,

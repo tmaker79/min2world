@@ -155,7 +155,7 @@ describe('hex-map AI', () => {
     }
     const capital = enemySite(initial, {
       id: 'player-capital', ownerId: 'player', capitalFor: 'player',
-      kind: 'castle', position: { q: 3, r: 0 },
+      kind: 'city', position: { q: 3, r: 0 },
       footprint: [{ q: 3, r: 0 }, { q: 4, r: 0 }],
       hp: 120, maxHp: 120,
     })

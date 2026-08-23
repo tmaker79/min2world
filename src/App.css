@@ -1430,7 +1430,7 @@
 }
 
 .site-marker [data-site-icon='stronghold'],
-.site-marker [data-site-icon='castle'],
+.site-marker [data-site-icon='city'],
 .site-asset-preview [data-site-icon='stronghold'] {
   width: 68px;
   height: 66px;
@@ -1459,7 +1459,7 @@
   display: block;
 }
 
-.site-asset-preview--castle [data-site-icon='castle'] {
+.site-asset-preview--city [data-site-icon='city'] {
   position: absolute;
   z-index: 1;
   top: 50%;
@@ -1468,25 +1468,25 @@
   height: 128px;
 }
 
-.site-marker [data-site-icon='castle'] {
+.site-marker [data-site-icon='city'] {
   top: 50%;
   bottom: auto;
   width: 128px;
   height: 128px;
 }
 
-.site-marker [data-site-icon='castle'][data-site-icon-variant='eastern'],
-.site-asset-preview--castle [data-site-icon-variant='eastern'] {
+.site-marker [data-site-icon='city'][data-site-icon-variant='eastern'],
+.site-asset-preview--city [data-site-icon-variant='eastern'] {
   transform: translate(calc(-50% - 2px), calc(-50% - 4px));
 }
 
-.site-marker [data-site-icon='castle'][data-site-icon-variant='western'],
-.site-asset-preview--castle [data-site-icon-variant='western'] {
+.site-marker [data-site-icon='city'][data-site-icon-variant='western'],
+.site-asset-preview--city [data-site-icon-variant='western'] {
   transform: translate(-50%, calc(-50% + 4px));
 }
 
-.site-marker [data-site-icon='city'],
-.site-asset-preview--city [data-site-icon='city'] {
+.site-marker [data-site-icon='town'],
+.site-asset-preview--town [data-site-icon='town'] {
   position: absolute;
   z-index: 1;
   top: 50%;
@@ -1497,12 +1497,12 @@
   transform: translate(-50%, -50%);
 }
 
-.site-marker--city .site-banner {
+.site-marker--town .site-banner {
   top: calc(50% - 34px);
   left: calc(50% - 34px);
 }
 
-.site-marker--castle .site-banner {
+.site-marker--city .site-banner {
   top: calc(50% - 52px);
   left: calc(50% - 52px);
 }

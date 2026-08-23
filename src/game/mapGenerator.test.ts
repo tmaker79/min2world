@@ -479,15 +479,15 @@ describe('procedural map generation', () => {
       const tilesByPosition = new Map(
         state.tiles.map((tile) => [positionKey(tile.position), tile]),
       )
-      expect(state.sites.filter((site) => site.kind === 'castle')).toHaveLength(2)
-      for (const castle of state.sites.filter(
-        (site) => site.kind === 'castle',
+      expect(state.sites.filter((site) => site.kind === 'city')).toHaveLength(2)
+      for (const city of state.sites.filter(
+        (site) => site.kind === 'city',
       )) {
-        expect(castle.footprint).toHaveLength(4)
+        expect(city.footprint).toHaveLength(4)
         expect(
-          castle.footprint?.every(
+          city.footprint?.every(
             (position) =>
-              tilesByPosition.get(positionKey(position))?.siteId === castle.id,
+              tilesByPosition.get(positionKey(position))?.siteId === city.id,
           ),
         ).toBe(true)
       }
@@ -496,7 +496,7 @@ describe('procedural map generation', () => {
       expect(state.sites.filter((site) => site.kind === 'farm')).toHaveLength(2)
       expect(state.sites.filter((site) => site.kind === 'mine')).toHaveLength(2)
       expect(state.sites.filter((site) => site.kind === 'blacksmith')).toHaveLength(2)
-      expect(state.sites.filter((site) => site.kind === 'city')).toHaveLength(0)
+      expect(state.sites.filter((site) => site.kind === 'town')).toHaveLength(0)
       expect(
         state.sites.every((site) =>
           isFortifiedSiteKind(site.kind)
@@ -530,10 +530,10 @@ describe('procedural map generation', () => {
 
   it.each([
     ['missing fortified hp', (state: ReturnType<typeof generateGameState>) => {
-      delete state.sites.find((site) => site.kind === 'castle')!.hp
+      delete state.sites.find((site) => site.kind === 'city')!.hp
     }],
     ['wrong fortified max hp', (state: ReturnType<typeof generateGameState>) => {
-      state.sites.find((site) => site.kind === 'castle')!.maxHp = 1
+      state.sites.find((site) => site.kind === 'city')!.maxHp = 1
     }],
     ['nonfortified hp', (state: ReturnType<typeof generateGameState>) => {
       state.sites.find((site) => site.kind === 'farm')!.hp = 1

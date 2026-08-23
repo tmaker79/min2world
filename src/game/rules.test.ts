@@ -145,7 +145,7 @@ describe('hex movement rules', () => {
     const fortified: Site = {
       id: 'fort',
       name: 'Fort',
-      kind: 'castle',
+      kind: 'city',
       position: { q: 2, r: 0 },
       footprint: [{ q: 1, r: 0 }, { q: 2, r: 0 }],
       ownerId: 'neutral',
@@ -313,26 +313,26 @@ describe('hex combat rules', () => {
   it('attacks a fortified site through any footprint cell even when a unit occupies it', () => {
     const archer = unit('p1', 'player', 'archer', { q: 0, r: 0 })
     const blocker = unit('e1', 'enemy', 'infantry', { q: 2, r: 0 })
-    const castle: Site = {
-      id: 'castle',
-      name: 'Castle',
-      kind: 'castle',
+    const city: Site = {
+      id: 'city',
+      name: 'City',
+      kind: 'city',
       position: { q: 3, r: 0 },
       footprint: [{ q: 3, r: 0 }, { q: 2, r: 0 }],
       ownerId: 'enemy',
       hp: 120,
       maxHp: 120,
     }
-    const state = { ...rulesState([archer, blocker]), sites: [castle] }
+    const state = { ...rulesState([archer, blocker]), sites: [city] }
 
-    expect(getAttackableSites(state, archer)).toEqual([castle])
+    expect(getAttackableSites(state, archer)).toEqual([city])
     expect(getAttackableUnits(state, archer)).toEqual([blocker])
     expect(
       getAttackableSites(
-        { ...state, sites: [{ ...castle, ownerId: 'neutral' }] },
+        { ...state, sites: [{ ...city, ownerId: 'neutral' }] },
         archer,
       ).map((site) => site.id),
-    ).toEqual([castle.id])
+    ).toEqual([city.id])
   })
 })
 
@@ -343,8 +343,8 @@ describe('sites', () => {
       keep: { income: 3, canProduce: true },
       stronghold: { income: 5, canProduce: true },
       village: { income: 3, canProduce: false },
-      city: { income: 5, canProduce: false },
-      castle: { income: 7, canProduce: true },
+      town: { income: 5, canProduce: false },
+      city: { income: 7, canProduce: true },
       farm: { income: 2, canProduce: false },
       mine: { income: 3, canProduce: false },
       blacksmith: { income: 2, canProduce: false },
@@ -406,18 +406,18 @@ describe('sites', () => {
   })
 
   it('captures a non-fortified multi-tile site only at its anchor', () => {
-    const city: Site = {
-      id: 'city',
-      name: 'City',
-      kind: 'city',
+    const town: Site = {
+      id: 'town',
+      name: 'Town',
+      kind: 'town',
       position: { q: 0, r: 0 },
       footprint: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 1, r: -1 }],
       ownerId: 'neutral',
     }
 
-    expect(captureSiteAt([city], { q: 1, r: 0 }, 'player')).toEqual([city])
+    expect(captureSiteAt([town], { q: 1, r: 0 }, 'player')).toEqual([town])
     expect(
-      captureSiteAt([city], city.position, 'player')[0].ownerId,
+      captureSiteAt([town], town.position, 'player')[0].ownerId,
     ).toBe('player')
   })
 })
