@@ -119,7 +119,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     null,
   )
   const mapGestureStateRef = useRef<MapGestureState>({ pinching: false })
-  const mapDragMovedRef = useMapPan(mapScrollElement, mapGestureStateRef)
+  const mapDragMovedRef = useRef(false)
   const isCompactBoard =
     (state.boardSize.columns === BOARD_SIZE_PRESETS.tiny.columns &&
       state.boardSize.rows === BOARD_SIZE_PRESETS.tiny.rows) ||
@@ -133,6 +133,12 @@ function GameApp({ initialState }: { initialState: GameState }) {
     canZoomIn,
     canZoomOut,
   } = useMapZoom(mapScrollElement, mapGestureStateRef, mapDragMovedRef)
+  useMapPan(
+    mapScrollElement,
+    mapGestureStateRef,
+    mapZoom,
+    mapDragMovedRef,
+  )
   const playerProductionSites = useMemo(
     () =>
       state.sites.filter(

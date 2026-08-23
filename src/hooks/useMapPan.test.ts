@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { MAP_KEYBOARD_PAN_STEP_PX, useMapPan } from './useMapPan'
+import { useMapPan } from './useMapPan'
 import { useMapZoom } from './useMapZoom'
 
 function createScrollElement() {
@@ -33,8 +33,30 @@ function createScrollElement() {
   return element
 }
 
+function mockAnimationFrames() {
+  let nextId = 0
+  const callbacks = new Map<number, FrameRequestCallback>()
+  vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+    nextId += 1
+    callbacks.set(nextId, callback)
+    return nextId
+  })
+  vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((id) => {
+    callbacks.delete(id)
+  })
+
+  return {
+    run(time: number) {
+      const pending = [...callbacks.values()]
+      callbacks.clear()
+      pending.forEach((callback) => callback(time))
+    },
+  }
+}
+
 describe('useMapPan', () => {
   afterEach(() => {
+    vi.restoreAllMocks()
     document.body.replaceChildren()
   })
 
@@ -221,6 +243,7 @@ describe('useMapPan', () => {
   })
 
   it('pans the map with arrow keys and clears tile focus', () => {
+    const frames = mockAnimationFrames()
     const element = createScrollElement()
     renderHook(() => useMapPan(element))
     const focusedTile = document.createElement('button')
@@ -236,23 +259,54 @@ describe('useMapPan', () => {
           cancelable: true,
         }),
       )
-      focusedTile.dispatchEvent(
-        new KeyboardEvent('keydown', {
-          key: 'ArrowDown',
-          bubbles: true,
-          cancelable: true,
-        }),
-      )
+      frames.run(0)
+      frames.run(16)
     })
 
-    expect(element.scrollLeft).toBe(40 + MAP_KEYBOARD_PAN_STEP_PX)
-    expect(element.scrollTop).toBe(60 + MAP_KEYBOARD_PAN_STEP_PX)
+    expect(element.scrollLeft).toBeGreaterThan(40)
+    expect(element.scrollTop).toBe(60)
     expect(element.scrollBy).toHaveBeenLastCalledWith({
-      left: 0,
-      top: MAP_KEYBOARD_PAN_STEP_PX,
-      behavior: 'smooth',
+      left: expect.any(Number),
+      top: 0,
+      behavior: 'auto',
     })
     expect(document.activeElement).not.toBe(focusedTile)
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowRight' }))
+      frames.run(32)
+      frames.run(48)
+    })
+  })
+
+  it('scales keyboard panning by zoom to preserve map distance', () => {
+    const runAtZoom = (zoom: number) => {
+      const frames = mockAnimationFrames()
+      const element = createScrollElement()
+      const { unmount } = renderHook(() =>
+        useMapPan(element, undefined, zoom),
+      )
+
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }))
+        frames.run(0)
+        frames.run(16)
+      })
+      const distance = element.scrollLeft - 40
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowRight' }))
+      })
+      unmount()
+      return distance
+    }
+
+    const distanceAtOneHundredPercent = runAtZoom(1)
+    vi.restoreAllMocks()
+    const distanceAtTwoHundredPercent = runAtZoom(2)
+
+    expect(distanceAtTwoHundredPercent).toBeCloseTo(
+      distanceAtOneHundredPercent * 2,
+    )
   })
 
   it('leaves arrow keys available while editing a form control', () => {
