@@ -1299,10 +1299,6 @@
   background: #365172;
 }
 
-.map-tile--water {
-  cursor: not-allowed;
-}
-
 .map-tile:hover:not(.map-tile--water):not(.map-tile--mountain):not(.map-tile--tundraMountain) {
   filter: brightness(1.08);
 }
