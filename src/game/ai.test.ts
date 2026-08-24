@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   chooseAiAction,
+  chooseAiDecision,
   compareAiSiteDevelopmentCandidates,
+  getAiUnitCap,
 } from './ai'
 import { getHexDistance } from './hex'
 import { createInitialGameState } from './initialState'
@@ -109,7 +111,7 @@ describe('hex-map AI', () => {
     })
   })
 
-  it('orders attackable sites by enemy capital, hp, then stable id', () => {
+  it('orders attackable sites by immediate capture, damage, then stable id', () => {
     const initial = enemyTurn('ai-site-order')
     const attacker: Unit = {
       id: 'enemy-archer', name: 'archer', factionId: 'enemy', type: 'archer',
@@ -128,7 +130,7 @@ describe('hex-map AI', () => {
     }
 
     expect(chooseAiAction(state)).toEqual({
-      type: 'siteAttacked', attackerId: attacker.id, siteId: capital.id,
+      type: 'siteAttacked', attackerId: attacker.id, siteId: low.id,
     })
 
     const equalHpSites = [
@@ -140,7 +142,7 @@ describe('hex-map AI', () => {
       ...state,
       sites: [...equalHpSites, enemyIncomeSite(initial)],
     })).toEqual({
-      type: 'siteAttacked', attackerId: attacker.id, siteId: 'm-lowest',
+      type: 'siteAttacked', attackerId: attacker.id, siteId: 'a-site',
     })
     expect(chooseAiAction({
       ...state,
@@ -443,7 +445,7 @@ describe('hex-map AI', () => {
       ])
     expect(chooseAiAction({ ...initial, sites })).toMatchObject({
       type: 'siteDeveloped',
-      siteId: 'a-outpost',
+      siteId: 'z-village',
     })
   })
 
@@ -510,7 +512,7 @@ describe('hex-map AI', () => {
     })
   })
 
-  it('constructs a granary in a peaceful City after unit actions', () => {
+  it('chooses the highest-income efficient building in a peaceful City', () => {
     const initial = economyState('ai-city-construction')
     const city = initial.sites.find(
       (site) => site.ownerId === 'enemy' && site.kind === 'city',
@@ -524,7 +526,7 @@ describe('hex-map AI', () => {
     expect(chooseAiAction(state)).toEqual({
       type: 'constructionStarted',
       siteId: city.id,
-      buildingId: 'granary',
+      buildingId: 'market',
     })
   })
 
@@ -556,5 +558,338 @@ describe('hex-map AI', () => {
       siteId: city.id,
       buildingId: 'wall',
     })
+  })
+
+  it('selects the globally best attacker instead of keeping the selected unit', () => {
+    const initial = economyState('ai-global-attack')
+    const selected: Unit = {
+      id: 'a-selected', name: 'selected', factionId: 'enemy', type: 'infantry',
+      position: { q: 0, r: 0 }, hp: 100, maxHp: 100,
+      movementRemaining: 2, hasActed: false,
+    }
+    const finisher: Unit = {
+      id: 'z-finisher', name: 'finisher', factionId: 'enemy', type: 'archer',
+      position: { q: 5, r: 0 }, hp: 100, maxHp: 100,
+      movementRemaining: 2, hasActed: false,
+    }
+    const sturdyTarget: Unit = {
+      id: 'player-sturdy', name: 'sturdy', factionId: 'player', type: 'infantry',
+      position: { q: 1, r: 0 }, hp: 100, maxHp: 100,
+      movementRemaining: 0, hasActed: true,
+    }
+    const weakTarget: Unit = {
+      id: 'player-weak', name: 'weak', factionId: 'player', type: 'infantry',
+      position: { q: 6, r: 0 }, hp: 1, maxHp: 100,
+      movementRemaining: 0, hasActed: true,
+    }
+    const state = {
+      ...initial,
+      selectedUnitId: selected.id,
+      units: [selected, finisher, sturdyTarget, weakTarget],
+      sites: [enemyIncomeSite(initial)],
+    }
+
+    expect(chooseAiDecision(state)).toEqual({
+      action: { type: 'unitSelected', unitId: finisher.id },
+      reason: 'immediateAttack',
+    })
+  })
+
+  it('avoids a suicidal attack that cannot remove the target', () => {
+    const initial = economyState('ai-avoid-suicide')
+    const attacker: Unit = {
+      id: 'enemy-low', name: 'low', factionId: 'enemy', type: 'infantry',
+      position: { q: 0, r: 0 }, hp: 1, maxHp: 100,
+      movementRemaining: 2, hasActed: false,
+    }
+    const defender: Unit = {
+      id: 'player-cavalry', name: 'cavalry', factionId: 'player', type: 'cavalry',
+      position: { q: 1, r: 0 }, hp: 100, maxHp: 100,
+      movementRemaining: 0, hasActed: true,
+    }
+    const state = {
+      ...initial,
+      selectedUnitId: attacker.id,
+      units: [attacker, defender],
+      sites: [enemyIncomeSite(initial)],
+    }
+
+    expect(chooseAiAction(state)?.type).not.toBe('unitAttacked')
+  })
+
+  it('prioritizes an immediate enemy capital capture over a unit kill', () => {
+    const initial = economyState('ai-capital-capture-first')
+    const siege: Unit = {
+      id: 'a-siege', name: 'siege', factionId: 'enemy', type: 'archer',
+      position: { q: 0, r: 0 }, hp: 100, maxHp: 100,
+      movementRemaining: 2, hasActed: false,
+    }
+    const finisher: Unit = {
+      id: 'b-finisher', name: 'finisher', factionId: 'enemy', type: 'archer',
+      position: { q: 5, r: 0 }, hp: 100, maxHp: 100,
+      movementRemaining: 2, hasActed: false,
+    }
+    const target: Unit = {
+      id: 'player-weak', name: 'weak', factionId: 'player', type: 'infantry',
+      position: { q: 6, r: 0 }, hp: 1, maxHp: 100,
+      movementRemaining: 0, hasActed: true,
+    }
+    const capital = enemySite(initial, {
+      id: 'player-capital', ownerId: 'player', capitalFor: 'player',
+      kind: 'city', position: { q: 1, r: 0 }, footprint: [{ q: 1, r: 0 }],
+      hp: 1, maxHp: 120,
+    })
+    const state = {
+      ...initial,
+      selectedUnitId: siege.id,
+      units: [siege, finisher, target],
+      sites: [capital, enemyIncomeSite(initial)],
+    }
+
+    expect(chooseAiAction(state)).toEqual({
+      type: 'siteAttacked', attackerId: siege.id, siteId: capital.id,
+    })
+  })
+
+  it('selects the closest available unit when its capital is threatened', () => {
+    const initial = economyState('ai-capital-defense')
+    const capital = enemySite(initial, {
+      id: 'enemy-capital', ownerId: 'enemy', capitalFor: 'enemy',
+      kind: 'city', position: { q: 0, r: 0 }, footprint: [{ q: 0, r: 0 }],
+      hp: 120, maxHp: 120,
+    })
+    const threat: Unit = {
+      id: 'player-threat', name: 'threat', factionId: 'player', type: 'infantry',
+      position: { q: 2, r: 0 }, hp: 100, maxHp: 100,
+      movementRemaining: 0, hasActed: true,
+    }
+    const near: Unit = {
+      id: 'z-near', name: 'near', factionId: 'enemy', type: 'infantry',
+      position: { q: 5, r: 0 }, hp: 100, maxHp: 100,
+      movementRemaining: 2, hasActed: false,
+    }
+    const far: Unit = {
+      id: 'a-far', name: 'far', factionId: 'enemy', type: 'infantry',
+      position: { q: 9, r: 0 }, hp: 100, maxHp: 100,
+      movementRemaining: 2, hasActed: false,
+    }
+    const state = {
+      ...initial,
+      units: [far, near, threat],
+      sites: [capital],
+    }
+
+    expect(chooseAiDecision(state)).toEqual({
+      action: { type: 'unitSelected', unitId: near.id },
+      reason: 'capitalDefense',
+    })
+  })
+
+  it('captures a reachable neutral Mine before advancing on a distant capital at low income', () => {
+    const initial = economyState('ai-economic-expansion')
+    const unit: Unit = {
+      id: 'enemy-cavalry', name: 'cavalry', factionId: 'enemy', type: 'cavalry',
+      position: { q: 0, r: 0 }, hp: 100, maxHp: 100,
+      movementRemaining: 4, hasActed: false,
+    }
+    const mine = enemySite(initial, {
+      id: 'neutral-mine', ownerId: 'neutral', kind: 'mine',
+      position: { q: 3, r: 0 }, capitalFor: undefined,
+    })
+    const capital = enemySite(initial, {
+      id: 'player-capital', ownerId: 'player', capitalFor: 'player',
+      kind: 'city', position: { q: 8, r: 0 }, footprint: [{ q: 8, r: 0 }],
+      hp: 120, maxHp: 120,
+    })
+    const state = {
+      ...initial,
+      selectedUnitId: unit.id,
+      units: [unit],
+      sites: [enemySite(initial, { capitalFor: undefined }), mine, capital],
+    }
+
+    expect(chooseAiDecision(state)).toEqual({
+      action: { type: 'unitMoved', unitId: unit.id, destination: mine.position },
+      reason: 'tacticalMove',
+    })
+  })
+
+  it('falls back to another enemy capital when the first has no map position', () => {
+    const initial = economyState('ai-multiple-capitals')
+    const unit: Unit = {
+      id: 'enemy-unit', name: 'unit', factionId: 'enemy', type: 'infantry',
+      position: { q: 0, r: 0 }, hp: 100, maxHp: 100,
+      movementRemaining: 2, hasActed: false,
+    }
+    const unreachable = enemySite(initial, {
+      id: 'a-capital', ownerId: 'player', capitalFor: 'player',
+      kind: 'city', position: { q: 99, r: 99 }, footprint: [{ q: 99, r: 99 }],
+      hp: 120, maxHp: 120,
+    })
+    const reachable = enemySite(initial, {
+      id: 'z-capital', ownerId: 'f1', capitalFor: 'f1',
+      kind: 'city', position: { q: 4, r: 0 }, footprint: [{ q: 4, r: 0 }],
+      hp: 120, maxHp: 120,
+    })
+    const state = {
+      ...initial,
+      selectedUnitId: unit.id,
+      units: [unit],
+      sites: [enemyIncomeSite(initial), unreachable, reachable],
+    }
+    const action = chooseAiAction(state)
+
+    expect(action?.type).toBe('unitMoved')
+    if (action?.type === 'unitMoved') {
+      expect(getHexDistance(action.destination, reachable.position)).toBeLessThan(
+        getHexDistance(unit.position, reachable.position),
+      )
+    }
+  })
+
+  it('calculates the AI unit cap from military infrastructure', () => {
+    const initial = economyState('ai-unit-cap')
+    const sites = [
+      enemySite(initial, { id: 'city', kind: 'city', buildings: ['barracks'] }),
+      enemySite(initial, { id: 'keep', kind: 'keep' }),
+      enemySite(initial, { id: 'stronghold', kind: 'stronghold' }),
+      enemySite(initial, { id: 'outpost', kind: 'outpost' }),
+    ]
+
+    expect(getAiUnitCap({ ...initial, sites }, 'enemy')).toBe(8)
+  })
+
+  it('prefers a defensive hill when two archer firing positions are available', () => {
+    const initial = economyState('ai-defensive-terrain')
+    const archer: Unit = {
+      id: 'enemy-archer', name: 'archer', factionId: 'enemy', type: 'archer',
+      position: { q: 0, r: 0 }, hp: 100, maxHp: 100,
+      movementRemaining: 3, hasActed: false,
+    }
+    const capital = enemySite(initial, {
+      id: 'player-capital', ownerId: 'player', capitalFor: 'player',
+      kind: 'city', position: { q: 3, r: 0 }, footprint: [{ q: 3, r: 0 }],
+      hp: 120, maxHp: 120,
+    })
+    const state = {
+      ...initial,
+      selectedUnitId: archer.id,
+      units: [archer],
+      sites: [enemyIncomeSite(initial), capital],
+      tiles: initial.tiles.map((tile) => ({
+        ...tile,
+        terrain:
+          tile.position.q === 1 && tile.position.r === 0
+            ? ('hill' as const)
+            : ('plain' as const),
+      })),
+    }
+
+    expect(chooseAiAction(state)).toEqual({
+      type: 'unitMoved', unitId: archer.id, destination: { q: 1, r: 0 },
+    })
+  })
+
+  it('avoids an exposed advance tile when it creates no immediate attack', () => {
+    const initial = economyState('ai-exposure')
+    const infantry: Unit = {
+      id: 'enemy-infantry', name: 'infantry', factionId: 'enemy', type: 'infantry',
+      position: { q: 0, r: 0 }, hp: 100, maxHp: 100,
+      movementRemaining: 2, hasActed: false,
+    }
+    const enemyArcher: Unit = {
+      id: 'player-archer', name: 'archer', factionId: 'player', type: 'archer',
+      position: { q: 3, r: 0 }, hp: 100, maxHp: 100,
+      movementRemaining: 0, hasActed: true,
+    }
+    const capital = enemySite(initial, {
+      id: 'player-capital', ownerId: 'player', capitalFor: 'player',
+      kind: 'city', position: { q: 7, r: 0 }, footprint: [{ q: 7, r: 0 }],
+      hp: 120, maxHp: 120,
+    })
+    const state = {
+      ...initial,
+      selectedUnitId: infantry.id,
+      units: [infantry, enemyArcher],
+      sites: [enemyIncomeSite(initial), capital],
+    }
+    const action = chooseAiAction(state)
+
+    expect(action?.type).toBe('unitMoved')
+    if (action?.type === 'unitMoved') {
+      expect(getHexDistance(action.destination, enemyArcher.position)).toBeGreaterThan(2)
+    }
+  })
+
+  it('invests in a barracks before income buildings when at the unit cap', () => {
+    const initial = economyState('ai-cap-investment')
+    const city = enemySite(initial, {
+      id: 'enemy-city', kind: 'city', buildings: [],
+      footprint: [{ q: 10, r: 0 }], position: { q: 10, r: 0 },
+      hp: 120, maxHp: 120,
+    })
+    const units: Unit[] = [0, 1, 2, 3].map((index) => ({
+      id: `enemy-${index}`, name: `unit ${index}`, factionId: 'enemy',
+      type: 'infantry', position: { q: index, r: 0 }, hp: 100, maxHp: 100,
+      movementRemaining: 0, hasActed: true,
+    }))
+    const state = {
+      ...initial,
+      resources: { ...initial.resources, enemy: 100 },
+      sites: [city],
+      units,
+    }
+
+    expect(chooseAiAction(state)).toEqual({
+      type: 'constructionStarted', siteId: city.id, buildingId: 'barracks',
+    })
+  })
+
+  it('uses a completed barracks cap slot without creating an upkeep deficit', () => {
+    const initial = economyState('ai-barracks-production')
+    const city = enemySite(initial, {
+      id: 'enemy-city', kind: 'city', buildings: ['barracks'],
+      footprint: [{ q: 10, r: 0 }], position: { q: 10, r: 0 },
+      hp: 120, maxHp: 120, lastDevelopedTurn: initial.turn,
+    })
+    const units: Unit[] = [0, 1, 2, 3].map((index) => ({
+      id: `enemy-${index}`, name: `unit ${index}`, factionId: 'enemy',
+      type: 'infantry', position: { q: index, r: 0 }, hp: 100, maxHp: 100,
+      movementRemaining: 0, hasActed: true,
+    }))
+    const state = {
+      ...initial,
+      resources: { ...initial.resources, enemy: 100 },
+      sites: [city],
+      units,
+    }
+
+    expect(chooseAiAction(state)?.type).toBe('unitProduced')
+  })
+
+  it('returns deterministic decisions and keeps the action wrapper compatible', () => {
+    const state = enemyTurn('ai-decision-determinism')
+    const first = chooseAiDecision(state)
+
+    expect(chooseAiDecision(state)).toEqual(first)
+    expect(chooseAiAction(state)).toEqual(first?.action)
+  })
+
+  it('finishes a complete AI turn within a finite action bound', () => {
+    let state = enemyTurn('ai-finite-turn')
+    let actions = 0
+    while (
+      state.phase === 'playing' &&
+      state.activeFactionId === 'enemy' &&
+      actions < 100
+    ) {
+      const action = chooseAiAction(state)
+      expect(action).toBeDefined()
+      state = gameReducer(state, action!)
+      actions += 1
+    }
+
+    expect(actions).toBeLessThan(100)
+    expect(state.activeFactionId).not.toBe('enemy')
   })
 })

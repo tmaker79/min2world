@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Dispatch } from 'react'
-import { chooseAiAction } from '../game/ai'
+import { chooseAiDecision } from '../game/ai'
 import { getHexDistance } from '../game/hex'
 import {
   getSiteMaxHp,
@@ -141,9 +141,15 @@ export function useAiTurn({
       return
     }
 
-    const action = chooseAiAction(state, state.activeFactionId)
-    if (!action) {
+    const decision = chooseAiDecision(state, state.activeFactionId)
+    if (!decision) {
       return
+    }
+    const action = decision.action
+    if (import.meta.env.DEV && import.meta.env.MODE !== 'test') {
+      console.debug(
+        `[AI] ${state.activeFactionId} ${decision.reason} ${action.type}`,
+      )
     }
 
     const reducedMotion = window.matchMedia?.(

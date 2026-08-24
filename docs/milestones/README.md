@@ -16,8 +16,8 @@
 | [10](10-site-development.md) | 역할별 거점 발전 | 완료 |
 | [11](11-city-administration.md) | 도시 내정 (City 전용 건물, 대기열) | 완료 |
 | [12](12-upkeep.md) | 유지비 | 완료 |
-| [13](13-ai-refinement.md) | AI 고도화 | 다음 목표 |
-| [14](14-settlement-construction.md) | 거점 건설 (개척자·건설자) | 예정 |
+| [13](13-ai-refinement.md) | AI 고도화 | 완료 |
+| [14](14-settlement-construction.md) | 거점 건설 (개척자·건설자) | 다음 목표 |
 | [15](15-supply-and-morale.md) | 보급, 사기 | 예정 |
 | [16](16-site-expansion.md) | 거점 확장 (농장과 인접 농지) | 예정 |
 

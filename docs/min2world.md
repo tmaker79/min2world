@@ -401,6 +401,14 @@ src/
 - 플레이어 무환불 해산과 적자 AI의 행동 전 반복 해산
 - 저장 스키마 12 유지: 경제 요약은 저장하지 않는 파생 정보
 
+### Milestone 13: AI 고도화
+
+- 전체 미행동 유닛의 전투 결과 예측과 수도 점령·방어 우선순위
+- 중립 경제 거점, 다중 수도와 대체 공격 목표 탐색
+- 적 노출도·방어 지형·병종별 거리를 반영한 전술 이동
+- 통합 투자 평가와 AI 병력 상한·생산 후 비적자 정책
+- 저장 상태 없이 같은 상태에서 같은 액션과 결정 이유를 반환하는 결정론
+
 ## 8. 테스트 전략
 
 전략 게임은 화면보다 규칙 회귀가 큰 위험이므로 게임 규칙을 우선 테스트한다.
@@ -489,8 +497,8 @@ localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지
 | [10](milestones/10-site-development.md) | 역할별 거점 발전 | 완료 |
 | [11](milestones/11-city-administration.md) | City 전용 건물·대기열 | 완료 |
 | [12](milestones/12-upkeep.md) | 유지비(소프트 제약) | 완료 |
-| [13](milestones/13-ai-refinement.md) | 경제를 보는 AI | 다음 목표 |
-| [14](milestones/14-settlement-construction.md) | 개척자·건설자의 신규 거점 건설 | 예정 |
+| [13](milestones/13-ai-refinement.md) | 경제를 보는 AI | 완료 |
+| [14](milestones/14-settlement-construction.md) | 개척자·건설자의 신규 거점 건설 | 다음 목표 |
 | [15](milestones/15-supply-and-morale.md) | 보급·사기(라이트) | 예정 |
 | [16](milestones/16-site-expansion.md) | 농장 본체와 인접 농지 확장 | 예정 |
 
@@ -502,9 +510,9 @@ localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지
 
 ## 12. 현재 개발 목표
 
-다음 구현 목표는 [Milestone 13: AI 고도화](milestones/13-ai-refinement.md)다.
+다음 구현 목표는 [Milestone 14: 거점 건설](milestones/14-settlement-construction.md)이다.
 
-Milestone 11에서 City에 슬롯 제한 없는 건물 7종과 도시당 하나의 건설 대기열을 추가했다. Milestone 12에서는 병종별 유지비, 턴 정산, 예상 경제 예약액, 플레이어 해산과 적자 AI의 선제 해산을 연결했다. 이후 생산·경제·인구·보급·사기·연구 시스템은 이 내정 기반 위에서 단계적으로 확장한다.
+Milestone 11에서 City에 슬롯 제한 없는 건물 7종과 도시당 하나의 건설 대기열을 추가했다. Milestone 12에서는 병종별 유지비와 적자 해산을 연결했고, Milestone 13에서는 전투·방어·경제 확장·투자·병력 상한을 함께 판단하는 결정론적 AI로 확장했다. 이후 신규 거점·보급·사기 시스템은 이 기반 위에서 단계적으로 추가한다.
 
 가변 지도·다세력·HUD까지 반영한 현재 기준 시나리오는 다음과 같다.
 
