@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
-import { NewGameMenu } from './NewGameMenu'
+import { RestartMenu } from './RestartMenu'
 
-export type ChromeMenuId = 'newGame' | 'save' | 'help'
+export type ChromeMenuId = 'restart' | 'save' | 'help'
 
 type AppChromeProps = {
   openMenu: ChromeMenuId | null
@@ -57,9 +57,9 @@ export function AppChrome({
       </div>
 
       <div className="app-chrome__meta" ref={metaRef}>
-        <NewGameMenu
-          open={openMenu === 'newGame'}
-          onToggle={() => toggleMenu('newGame')}
+        <RestartMenu
+          open={openMenu === 'restart'}
+          onToggle={() => toggleMenu('restart')}
           onClose={() => onOpenMenuChange(null)}
           onRandomRestart={onRandomRestart}
         />
@@ -68,11 +68,20 @@ export function AppChrome({
           <button
             type="button"
             className="app-chrome__button"
+            aria-label="저장"
+            title="저장"
             aria-expanded={openMenu === 'save'}
             aria-controls={saveId}
             onClick={() => toggleMenu('save')}
           >
-            저장
+            <svg
+              className="app-chrome__icon"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path d="M5 3h12l4 4v14H3V5a2 2 0 0 1 2-2Z" />
+              <path d="M7 3v6h10V3M7 21v-8h10v8" />
+            </svg>
           </button>
           {openMenu === 'save' && (
             <div id={saveId} className="chrome-menu__panel">
@@ -85,11 +94,21 @@ export function AppChrome({
           <button
             type="button"
             className="app-chrome__button"
+            aria-label="도움말"
+            title="도움말"
             aria-expanded={openMenu === 'help'}
             aria-controls={helpId}
             onClick={() => toggleMenu('help')}
           >
-            도움말
+            <svg
+              className="app-chrome__icon"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="9" />
+              <path d="M9.6 9a2.6 2.6 0 1 1 3.7 2.35C12.4 11.8 12 12.4 12 13.4" />
+              <path d="M12 17h.01" />
+            </svg>
           </button>
           {openMenu === 'help' && (
             <div

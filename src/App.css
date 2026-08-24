@@ -213,17 +213,35 @@
 }
 
 .app-chrome__button {
-  padding: 8px 12px;
+  display: grid;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  place-items: center;
   color: var(--ink);
   background: #18232a;
   border: 1px solid var(--panel-border);
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.72rem;
-  font-weight: 800;
+}
+
+.app-chrome__icon {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
 }
 
 .app-chrome__button:hover:not(:disabled) {
+  color: #f0d076;
+  border-color: rgba(228, 185, 95, 0.55);
+}
+
+.app-chrome__button[aria-expanded='true'] {
+  color: #f0d076;
   border-color: rgba(228, 185, 95, 0.55);
 }
 
@@ -297,20 +315,20 @@
   font-size: 1rem;
 }
 
-.new-game-menu__panel p {
+.restart-menu__panel p {
   margin: 0;
   color: var(--muted);
   font-size: 0.75rem;
   line-height: 1.5;
 }
 
-.new-game-menu__actions {
+.restart-menu__actions {
   display: grid;
   grid-template-columns: 1fr;
   gap: 7px;
 }
 
-.new-game-menu__actions button {
+.restart-menu__actions button {
   padding: 9px 10px;
   color: #172029;
   background: linear-gradient(135deg, #edc86e, #c99b43);
@@ -2972,9 +2990,6 @@
 
   .app-chrome__button {
     min-height: 40px;
-    padding-inline: 7px;
-    white-space: nowrap;
-    font-size: 0.68rem;
   }
 
   .status-bar {

@@ -70,8 +70,16 @@ describe('Milestone 07 UI', () => {
     )
     expect(screen.queryByLabelText('정보 패널')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('부대 정보')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '저장' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '도움말' })).toBeInTheDocument()
+    const restartButton = screen.getByRole('button', { name: '재시작' })
+    const saveButton = screen.getByRole('button', { name: '저장' })
+    const helpButton = screen.getByRole('button', { name: '도움말' })
+    expect(restartButton).toHaveAttribute('title', '재시작')
+    expect(saveButton).toHaveAttribute('title', '저장')
+    expect(helpButton).toHaveAttribute('title', '도움말')
+    for (const button of [restartButton, saveButton, helpButton]) {
+      expect(button).toHaveTextContent('')
+      expect(button.querySelector('.app-chrome__icon')).toBeInTheDocument()
+    }
     expect(screen.queryByRole('button', { name: '범례' })).not.toBeInTheDocument()
   }, 20_000)
 
@@ -447,13 +455,13 @@ describe('Milestone 07 UI', () => {
     const user = userEvent.setup()
     renderApp()
 
-    await user.click(screen.getByRole('button', { name: '새 게임' }))
+    await user.click(screen.getByRole('button', { name: '재시작' }))
     expect(screen.queryByText('MAP SEED')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('현재 seed')).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: '새 지도로 시작' }))
+    await user.click(screen.getByRole('button', { name: '새 랜덤 지도로 재시작' }))
 
-    expect(screen.getByRole('button', { name: '새 게임' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: '재시작' })).toHaveAttribute(
       'aria-expanded',
       'false',
     )
@@ -466,11 +474,11 @@ describe('Milestone 07 UI', () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
     renderApp(state)
 
-    await user.click(screen.getByRole('button', { name: '새 게임' }))
-    await user.click(screen.getByRole('button', { name: '새 지도로 시작' }))
+    await user.click(screen.getByRole('button', { name: '재시작' }))
+    await user.click(screen.getByRole('button', { name: '새 랜덤 지도로 재시작' }))
 
     expect(confirm).toHaveBeenCalledOnce()
-    expect(screen.getByRole('button', { name: '새 게임' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: '재시작' })).toHaveAttribute(
       'aria-expanded',
       'true',
     )

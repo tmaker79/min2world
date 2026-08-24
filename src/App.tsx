@@ -874,7 +874,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     if (
       confirmProgress &&
       hasProgress &&
-      !window.confirm('현재 진행을 중단하고 새 지도를 시작할까요?')
+      !window.confirm('현재 진행을 중단하고 새 랜덤 지도로 재시작할까요?')
     ) {
       return false
     }
@@ -935,7 +935,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
             <h2 id="help-heading">작전 지침</h2>
             <ol>
               <li>푸른 유닛을 선택해 금색 칸으로 이동하거나 붉은 적을 공격합니다.</li>
-              <li>아군 성을 선택해 생산하고, 상단 메뉴에서 새 지도·저장을 엽니다.</li>
+              <li>아군 성을 선택해 생산하고, 상단 메뉴에서 재시작·저장을 엽니다.</li>
               <li>모든 행동 후 턴을 종료합니다. 상세 규칙은 README를 참고하세요.</li>
             </ol>
             <Legend embedded />

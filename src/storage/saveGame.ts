@@ -727,7 +727,7 @@ function readSavedGame(storage?: StorageLike): StorageResult<SavedGame> {
     return failure(
       'unsupportedVersion',
       normalizedRecord.schemaVersion === 4 || normalizedRecord.schemaVersion === 5
-        ? '이전 사각 지도 저장은 지원되지 않습니다. 새 게임을 시작해 주세요.'
+        ? '이전 사각 지도 저장은 지원되지 않습니다. 새 랜덤 지도로 재시작해 주세요.'
         : '현재 버전에서 지원하지 않는 저장 데이터입니다.',
     )
   }

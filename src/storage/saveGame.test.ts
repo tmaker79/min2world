@@ -537,7 +537,7 @@ describe('saved games', () => {
     expect(result.ok).toBe(false)
     if (!result.ok) {
       expect(result.code).toBe('unsupportedVersion')
-      expect(result.message).toContain('새 게임')
+      expect(result.message).toContain('재시작')
     }
   })
 
