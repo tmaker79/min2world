@@ -53,7 +53,7 @@ import {
   getSelectedUnitReachablePositions,
 } from './game/selectors'
 import { getSiteOccupiedPositions } from './game/siteFootprint'
-import type { GameState, Tile, UnitType } from './game/types'
+import type { GameState, Site, Tile, Unit, UnitType } from './game/types'
 import {
   getFactionNetIncome,
   getFactionUpkeep,
@@ -78,6 +78,20 @@ type AppProps = {
 
 const COMPACT_MAP_OVERLAY_QUERY =
   '(max-width: 700px), (max-width: 980px) and (max-height: 500px)'
+const SIDEBAR_OVERLAY_QUERY = '(max-width: 980px)'
+
+type SidebarContent =
+  | { kind: 'deployment'; unitType: UnitType }
+  | { kind: 'site'; site: Site }
+  | { kind: 'unit'; unit: Unit }
+  | {
+      kind: 'mapInfo'
+      tile: Tile
+      unit?: Unit
+      site?: Site
+      preview: boolean
+    }
+  | { kind: 'empty' }
 
 function GameApp({ initialState }: { initialState: GameState }) {
   const [state, dispatch] = useReducer(gameReducer, initialState)
@@ -134,6 +148,15 @@ function GameApp({ initialState }: { initialState: GameState }) {
       setMobileMinimapExpanded(false)
     }
   }, [])
+  const closeSidebarOverlayMinimap = useCallback(() => {
+    if (window.matchMedia(SIDEBAR_OVERLAY_QUERY).matches) {
+      setMobileMinimapExpanded(false)
+    }
+  }, [])
+  const openSidebarInfo = useCallback(() => {
+    setMobileInfoExpanded(true)
+    closeSidebarOverlayMinimap()
+  }, [closeSidebarOverlayMinimap])
   const {
     zoom: mapZoom,
     zoomIn,
@@ -204,6 +227,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     !activeCombat
       ? productionUnitType
       : undefined
+  const selectedUnit = getSelectedUnit(state)
   const canPreviewMapInfo =
     !activeProductionUnitType &&
     !activeCombat &&
@@ -211,14 +235,35 @@ function GameApp({ initialState }: { initialState: GameState }) {
     !cityInfoSite &&
     !state.selectedUnitId &&
     !inspectedTile
-  const sidebarPreviewTile = canPreviewMapInfo ? previewTile : undefined
-  const sidebarMapInfoTile = sidebarPreviewTile ?? inspectedTile
-  const sidebarMapInfoUnit = sidebarMapInfoTile
-    ? getUnitAt(state, sidebarMapInfoTile.position)
-    : undefined
-  const sidebarMapInfoSite = sidebarMapInfoTile
-    ? getSiteAt(state, sidebarMapInfoTile.position)
-    : undefined
+  let sidebarContent: SidebarContent
+  if (activeProductionUnitType) {
+    sidebarContent = {
+      kind: 'deployment',
+      unitType: activeProductionUnitType,
+    }
+  } else if (cityInfoSite) {
+    sidebarContent = { kind: 'site', site: cityInfoSite }
+  } else if (selectedUnit) {
+    sidebarContent = { kind: 'unit', unit: selectedUnit }
+  } else if (inspectedTile) {
+    sidebarContent = {
+      kind: 'mapInfo',
+      tile: inspectedTile,
+      unit: getUnitAt(state, inspectedTile.position),
+      site: getSiteAt(state, inspectedTile.position),
+      preview: false,
+    }
+  } else if (canPreviewMapInfo && previewTile) {
+    sidebarContent = {
+      kind: 'mapInfo',
+      tile: previewTile,
+      unit: getUnitAt(state, previewTile.position),
+      site: getSiteAt(state, previewTile.position),
+      preview: true,
+    }
+  } else {
+    sidebarContent = { kind: 'empty' }
+  }
   const deployablePositions = useMemo(
     () =>
       productionSite ? getDeployablePositions(state, productionSite) : [],
@@ -231,16 +276,24 @@ function GameApp({ initialState }: { initialState: GameState }) {
         : new Set<string>(),
     [activeProductionUnitType, deployablePositions],
   )
-  const selectedUnit = getSelectedUnit(state)
-  const mobileInfoLabel = activeProductionUnitType
-    ? `${UNIT_TYPE_LABELS[activeProductionUnitType]} 배치`
-    : cityInfoSite?.name ??
-      selectedUnit?.name ??
-      sidebarMapInfoUnit?.name ??
-      sidebarMapInfoSite?.name ??
-      (sidebarMapInfoTile
-        ? TERRAIN_LABELS[sidebarMapInfoTile.terrain]
-        : '선택 정보')
+  const mobileInfoLabel = (() => {
+    switch (sidebarContent.kind) {
+      case 'deployment':
+        return `${UNIT_TYPE_LABELS[sidebarContent.unitType]} 배치`
+      case 'site':
+        return sidebarContent.site.name
+      case 'unit':
+        return sidebarContent.unit.name
+      case 'mapInfo':
+        return (
+          sidebarContent.unit?.name ??
+          sidebarContent.site?.name ??
+          TERRAIN_LABELS[sidebarContent.tile.terrain]
+        )
+      case 'empty':
+        return '선택 정보'
+    }
+  })()
   const playerCapital = state.sites.find(
     (site) => site.capitalFor === state.humanFactionId,
   )
@@ -581,7 +634,6 @@ function GameApp({ initialState }: { initialState: GameState }) {
   useEffect(() => {
     if (
       state.phase !== 'playing' ||
-      state.activeFactionId !== state.humanFactionId ||
       activeCombat ||
       activeSiteAttack
     ) {
@@ -612,6 +664,17 @@ function GameApp({ initialState }: { initialState: GameState }) {
         setProductionFeedback(undefined)
         setActiveSiteTab(undefined)
         setDevelopmentFootprintIndex(0)
+        openSidebarInfo()
+        return
+      }
+
+      if (
+        event.key === 'Escape' &&
+        mobileInfoExpanded &&
+        window.matchMedia(SIDEBAR_OVERLAY_QUERY).matches
+      ) {
+        event.preventDefault()
+        setMobileInfoExpanded(false)
         return
       }
 
@@ -624,7 +687,8 @@ function GameApp({ initialState }: { initialState: GameState }) {
         event.metaKey ||
         isEditing ||
         isInteractive ||
-        isMoveMode
+        isMoveMode ||
+        state.activeFactionId !== state.humanFactionId
       ) {
         return
       }
@@ -650,16 +714,13 @@ function GameApp({ initialState }: { initialState: GameState }) {
     activeProductionUnitType,
     activeSiteTab,
     isMoveMode,
+    mobileInfoExpanded,
+    openSidebarInfo,
     state.activeFactionId,
     state.humanFactionId,
     state.phase,
     closeCompactMinimap,
   ])
-
-  const openMobileInfo = useCallback(() => {
-    setMobileInfoExpanded(true)
-    closeCompactMinimap()
-  }, [closeCompactMinimap])
 
   const handleTileClick = useCallback((tile: Tile) => {
     const unit = getUnitAt(state, tile.position)
@@ -670,15 +731,19 @@ function GameApp({ initialState }: { initialState: GameState }) {
     }
 
     if (state.activeFactionId !== state.humanFactionId) {
+      openSidebarInfo()
+      setActiveMoveUnitId(undefined)
+      setProductionUnitType(undefined)
+      setProductionFeedback(undefined)
+      setActiveSiteTab(undefined)
+      setDevelopmentFootprintIndex(0)
+      dispatch({ type: 'selectionCleared' })
       if (site) {
-        openMobileInfo()
-        setActiveMoveUnitId(undefined)
         setInspectedTileKey(undefined)
         setCityInfoSiteId(site.id)
-        setActiveSiteTab(undefined)
-        setDevelopmentFootprintIndex(0)
-        setProductionUnitType(undefined)
-        setProductionFeedback(undefined)
+      } else {
+        setCityInfoSiteId(undefined)
+        setInspectedTileKey(positionKey(tile.position))
       }
       return
     }
@@ -736,7 +801,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     }
 
     if (unit?.factionId === state.humanFactionId) {
-      openMobileInfo()
+      openSidebarInfo()
       setActiveMoveUnitId(undefined)
       setInspectedTileKey(undefined)
       if (selectedUnit?.id === unit.id && site) {
@@ -765,7 +830,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     }
 
     if (site) {
-      openMobileInfo()
+      openSidebarInfo()
       setActiveMoveUnitId(undefined)
       setInspectedTileKey(undefined)
       dispatch({ type: 'selectionCleared' })
@@ -789,7 +854,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     }
 
     setActiveMoveUnitId(undefined)
-    openMobileInfo()
+    openSidebarInfo()
     dispatch({ type: 'selectionCleared' })
     setCityInfoSiteId(undefined)
     setInspectedTileKey(positionKey(tile.position))
@@ -807,7 +872,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     productionSite,
     reachableKeys,
     isMoveMode,
-    openMobileInfo,
+    openSidebarInfo,
     selectedUnit,
     startCombat,
     startSiteAttack,
@@ -998,6 +1063,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
                   onClick={() => {
                     setProductionUnitType(undefined)
                     setProductionFeedback(undefined)
+                    openSidebarInfo()
                   }}
                 >
                   취소 <kbd>Esc</kbd>
@@ -1018,7 +1084,10 @@ function GameApp({ initialState }: { initialState: GameState }) {
                 <button
                   type="button"
                   aria-label="부대 이동 취소"
-                  onClick={() => setActiveMoveUnitId(undefined)}
+                  onClick={() => {
+                    setActiveMoveUnitId(undefined)
+                    openSidebarInfo()
+                  }}
                 >
                   취소 <kbd>Esc</kbd>
                 </button>
@@ -1164,7 +1233,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
                   onClick={() => {
                     const expanded = !mobileInfoExpanded
                     setMobileInfoExpanded(expanded)
-                    if (expanded) closeCompactMinimap()
+                    if (expanded) closeSidebarOverlayMinimap()
                   }}
                 >
                   <span className="mobile-info-sheet__handle" aria-hidden="true" />
@@ -1174,21 +1243,14 @@ function GameApp({ initialState }: { initialState: GameState }) {
                   id="mobile-info-sheet-body"
                   className="mobile-info-sheet__body"
                 >
-                {sidebarPreviewTile && sidebarMapInfoTile && (
-                  <MapInfoPanel
-                    tile={sidebarMapInfoTile}
-                    unit={sidebarMapInfoUnit}
-                    site={sidebarMapInfoSite}
-                    preview
-                  />
-                )}
-                {!sidebarPreviewTile && !activeProductionUnitType && cityInfoSite && (
+                {sidebarContent.kind === 'site' && (
                   <CityPanel
-                    site={cityInfoSite}
+                    site={sidebarContent.site}
                     activeTab={activeSiteTab}
                     canProduce={
-                      cityInfoSite.ownerId === state.humanFactionId &&
-                      SITE_STATS[cityInfoSite.kind].canProduce
+                      state.activeFactionId === state.humanFactionId &&
+                      sidebarContent.site.ownerId === state.humanFactionId &&
+                      SITE_STATS[sidebarContent.site.kind].canProduce
                     }
                     onTabChange={(tab) => {
                       setActiveSiteTab(tab)
@@ -1196,7 +1258,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
                       setProductionUnitType(undefined)
                       setProductionFeedback(undefined)
                       if (tab === 'production') {
-                        setProductionSiteId(cityInfoSite.id)
+                        setProductionSiteId(sidebarContent.site.id)
                       }
                     }}
                     onClose={() => {
@@ -1206,6 +1268,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
                       setDevelopmentFootprintIndex(0)
                       setProductionUnitType(undefined)
                       setProductionFeedback(undefined)
+                      dispatch({ type: 'selectionCleared' })
                     }}
                   >
                     {activeSiteTab === 'production' && (
@@ -1238,20 +1301,21 @@ function GameApp({ initialState }: { initialState: GameState }) {
                         onCancel={() => {
                           setProductionUnitType(undefined)
                           setProductionFeedback(undefined)
+                          openSidebarInfo()
                         }}
                       />
                     )}
                     {activeSiteTab === 'development' && (
                       <DevelopmentPanel
                         state={state}
-                        site={cityInfoSite}
+                        site={sidebarContent.site}
                         footprints={developmentFootprints}
                         selectedFootprintIndex={developmentFootprintIndex}
                         onFootprintSelected={setDevelopmentFootprintIndex}
                         onDevelop={() => {
                           dispatch({
                             type: 'siteDeveloped',
-                            siteId: cityInfoSite.id,
+                            siteId: sidebarContent.site.id,
                             footprint: selectedDevelopmentFootprint,
                           })
                           setActiveSiteTab(undefined)
@@ -1260,47 +1324,49 @@ function GameApp({ initialState }: { initialState: GameState }) {
                       />
                     )}
                     {activeSiteTab === 'construction' &&
-                      cityInfoSite.kind === 'city' && (
+                      sidebarContent.site.kind === 'city' && (
                         <ConstructionPanel
                           state={state}
-                          site={cityInfoSite}
+                          site={sidebarContent.site}
                           onStart={(buildingId) => {
                             dispatch({
                               type: 'constructionStarted',
-                              siteId: cityInfoSite.id,
+                              siteId: sidebarContent.site.id,
                               buildingId,
                             })
                           }}
                           onCancel={() => {
                             dispatch({
                               type: 'constructionCancelled',
-                              siteId: cityInfoSite.id,
+                              siteId: sidebarContent.site.id,
                             })
                           }}
                         />
                       )}
                   </CityPanel>
                 )}
-                {!sidebarPreviewTile && !activeProductionUnitType && selectedUnit && (
+                {sidebarContent.kind === 'unit' && (
                   <InfoPanel
-                    unit={selectedUnit}
+                    unit={sidebarContent.unit}
                     canMove={canEnterMoveMode}
                     moveMode={isMoveMode}
                     canDisband={
                       state.phase === 'playing' &&
                       state.activeFactionId === state.humanFactionId &&
-                      selectedUnit.factionId === state.humanFactionId &&
+                      sidebarContent.unit.factionId === state.humanFactionId &&
                       !activeCombat &&
                       !activeSiteAttack
                     }
                     onMoveModeChange={(active) => {
-                      setActiveMoveUnitId(active ? selectedUnit.id : undefined)
+                      setActiveMoveUnitId(
+                        active ? sidebarContent.unit.id : undefined,
+                      )
                       if (active) setMobileInfoExpanded(false)
                     }}
                     onDisband={() => {
                       if (
                         !window.confirm(
-                          `${selectedUnit.name}을 해산할까요? 자원은 환불되지 않습니다.`,
+                          `${sidebarContent.unit.name}을 해산할까요? 자원은 환불되지 않습니다.`,
                         )
                       ) {
                         return
@@ -1308,34 +1374,40 @@ function GameApp({ initialState }: { initialState: GameState }) {
                       setActiveMoveUnitId(undefined)
                       dispatch({
                         type: 'unitDisbanded',
-                        unitId: selectedUnit.id,
+                        unitId: sidebarContent.unit.id,
                       })
+                    }}
+                    onClose={() => {
+                      setActiveMoveUnitId(undefined)
+                      setMobileInfoExpanded(false)
+                      dispatch({ type: 'selectionCleared' })
                     }}
                   />
                 )}
-                {activeProductionUnitType && (
+                {sidebarContent.kind === 'deployment' && (
                   <div className="empty-selection empty-selection--compact">
                     <span aria-hidden="true">⌖</span>
                     <p>지도에서 청록색 배치 타일을 선택하세요.</p>
                   </div>
                 )}
-                {!sidebarPreviewTile &&
-                  !activeProductionUnitType &&
-                  !cityInfoSite &&
-                  !selectedUnit &&
-                  inspectedTile &&
-                  sidebarMapInfoTile && (
-                    <MapInfoPanel
-                      tile={sidebarMapInfoTile}
-                      unit={sidebarMapInfoUnit}
-                      site={sidebarMapInfoSite}
-                    />
-                  )}
-                {!sidebarPreviewTile &&
-                  !activeProductionUnitType &&
-                  !cityInfoSite &&
-                  !selectedUnit &&
-                  !inspectedTile && (
+                {sidebarContent.kind === 'mapInfo' && (
+                  <MapInfoPanel
+                    tile={sidebarContent.tile}
+                    unit={sidebarContent.unit}
+                    site={sidebarContent.site}
+                    preview={sidebarContent.preview}
+                    onClose={
+                      sidebarContent.preview
+                        ? undefined
+                        : () => {
+                            setInspectedTileKey(undefined)
+                            setMobileInfoExpanded(false)
+                            dispatch({ type: 'selectionCleared' })
+                          }
+                    }
+                  />
+                )}
+                {sidebarContent.kind === 'empty' && (
                   <div className="empty-selection empty-selection--compact">
                     <span aria-hidden="true">◇</span>
                     <p>지도 타일을 가리키거나 선택하면 상세 정보가 표시됩니다.</p>

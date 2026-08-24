@@ -41,6 +41,14 @@ export function CityPanel({
             <strong>{site.name}</strong>
             <span>{SITE_TYPE_LABELS[site.kind]}</span>
           </div>
+          <button
+            type="button"
+            className="city-card__close"
+            aria-label="거점 정보 닫기"
+            onClick={onClose}
+          >
+            ×
+          </button>
         </div>
         <dl>
           <div>
@@ -107,14 +115,6 @@ export function CityPanel({
             건설
           </button>
         )}
-        <button
-          type="button"
-          className="city-card__close"
-          aria-label="거점 정보 닫기"
-          onClick={onClose}
-        >
-          ×
-        </button>
       </div>
 
       {children}

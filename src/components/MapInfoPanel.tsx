@@ -14,6 +14,7 @@ type MapInfoPanelProps = {
   unit?: Unit
   site?: Site
   preview?: boolean
+  onClose?: () => void
 }
 
 function factionLabel(factionId: string): string {
@@ -39,6 +40,7 @@ export function MapInfoPanel({
   unit,
   site,
   preview = false,
+  onClose,
 }: MapInfoPanelProps) {
   const title = unit?.name ?? site?.name ?? TERRAIN_LABELS[tile.terrain]
   const subtitle = unit
@@ -64,6 +66,16 @@ export function MapInfoPanel({
             <strong>{title}</strong>
             <span>{subtitle}</span>
           </div>
+          {onClose && (
+            <button
+              type="button"
+              className="city-card__close"
+              aria-label="타일 정보 닫기"
+              onClick={onClose}
+            >
+              ×
+            </button>
+          )}
         </div>
 
         <dl>

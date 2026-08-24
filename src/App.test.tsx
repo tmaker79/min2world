@@ -9,11 +9,32 @@ import {
   positionKey,
 } from './game/hex'
 import { createInitialGameState } from './game/initialState'
+import { TERRAIN_LABELS } from './game/rules'
 import { getSiteDevelopmentFootprints } from './game/siteDevelopment'
 import type { GameState, Unit } from './game/types'
 
 function renderApp(state: GameState = createInitialGameState('ui-seed')) {
   return render(<App initialState={state} />)
+}
+
+function mockViewport(width: number, height = 800) {
+  vi.spyOn(window, 'matchMedia').mockImplementation((query) => {
+    const matches =
+      query === '(prefers-reduced-motion: reduce)' ||
+      (query === '(max-width: 980px)' && width <= 980) ||
+      (query.includes('(max-width: 700px)') &&
+        (width <= 700 || (width <= 980 && height <= 500)))
+    return {
+      matches,
+      media: query,
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    }
+  })
 }
 
 describe('Milestone 07 UI', () => {
@@ -88,6 +109,22 @@ describe('Milestone 07 UI', () => {
     expect(screen.queryByRole('button', { name: '범례' })).not.toBeInTheDocument()
   }, 20_000)
 
+  it('keeps impassable mountain and water tiles inspectable with a pointer cursor', () => {
+    const state = createInitialGameState('ui-impassable-cursor')
+    state.tiles[0].terrain = 'mountain'
+    state.tiles[1].terrain = 'water'
+    const { container } = renderApp(state)
+    const mountain = container.querySelector<HTMLElement>(
+      `.map-tile[data-coordinate="${positionKey(state.tiles[0].position)}"]`,
+    )!
+    const water = container.querySelector<HTMLElement>(
+      `.map-tile[data-coordinate="${positionKey(state.tiles[1].position)}"]`,
+    )!
+
+    expect(getComputedStyle(mountain).cursor).toBe('pointer')
+    expect(getComputedStyle(water).cursor).toBe('pointer')
+  })
+
   it('lets wide screens collapse the initially expanded minimap accessibly', () => {
     const { container } = renderApp()
 
@@ -131,6 +168,79 @@ describe('Milestone 07 UI', () => {
     expect(
       container.querySelector('.map-minimap-dock__toggle'),
     ).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it.each([
+    [1200, 'true'],
+    [900, 'false'],
+  ])(
+    'keeps the minimap state appropriate when information opens at %ipx',
+    (width, expectedMinimapExpanded) => {
+      mockViewport(width)
+      const state = createInitialGameState(`sidebar-viewport-${width}`)
+      const emptyTile = state.tiles.find(
+        (tile) =>
+          !state.units.some(
+            (unit) => positionKey(unit.position) === positionKey(tile.position),
+          ) &&
+          !state.sites.some(
+            (site) => positionKey(site.position) === positionKey(tile.position),
+          ),
+      )!
+      const { container } = renderApp(state)
+      const minimapToggle = container.querySelector<HTMLButtonElement>(
+        '.map-minimap-dock__toggle',
+      )!
+      const infoToggle = container.querySelector<HTMLButtonElement>(
+        '.mobile-info-sheet__toggle',
+      )!
+
+      expect(minimapToggle).toHaveAttribute('aria-expanded', 'true')
+      fireEvent.click(
+        container.querySelector<HTMLButtonElement>(
+          `.map-tile[data-coordinate="${positionKey(emptyTile.position)}"]`,
+        )!,
+      )
+
+      expect(infoToggle).toHaveAttribute('aria-expanded', 'true')
+      expect(minimapToggle).toHaveAttribute(
+        'aria-expanded',
+        expectedMinimapExpanded,
+      )
+    },
+  )
+
+  it('keeps the minimap and information sheet mutually exclusive at 700px', () => {
+    mockViewport(700)
+    const state = createInitialGameState('sidebar-viewport-700')
+    const emptyTile = state.tiles.find(
+      (tile) =>
+        !state.units.some(
+          (unit) => positionKey(unit.position) === positionKey(tile.position),
+        ) &&
+        !state.sites.some(
+          (site) => positionKey(site.position) === positionKey(tile.position),
+        ),
+    )!
+    const { container } = renderApp(state)
+    const minimapToggle = container.querySelector<HTMLButtonElement>(
+      '.map-minimap-dock__toggle',
+    )!
+    const infoToggle = container.querySelector<HTMLButtonElement>(
+      '.mobile-info-sheet__toggle',
+    )!
+
+    fireEvent.click(
+      container.querySelector<HTMLButtonElement>(
+        `.map-tile[data-coordinate="${positionKey(emptyTile.position)}"]`,
+      )!,
+    )
+    expect(infoToggle).toHaveAttribute('aria-expanded', 'true')
+    expect(minimapToggle).toHaveAttribute('aria-expanded', 'false')
+
+    fireEvent.click(minimapToggle)
+    expect(minimapToggle).toHaveAttribute('aria-expanded', 'true')
+    expect(infoToggle).toHaveAttribute('aria-expanded', 'false')
   })
 
   it('shows accessible map zoom controls and updates their state', () => {
@@ -280,6 +390,13 @@ describe('Milestone 07 UI', () => {
 
     expect(screen.queryByLabelText('지도 정보 미리보기')).not.toBeInTheDocument()
     expect(screen.getByLabelText('타일 정보')).toHaveTextContent('평지')
+
+    fireEvent.click(screen.getByRole('button', { name: '타일 정보 닫기' }))
+    expect(screen.queryByLabelText('타일 정보')).not.toBeInTheDocument()
+    expect(tile).not.toHaveClass('map-tile--inspected')
+    expect(
+      container.querySelector('.mobile-info-sheet__toggle'),
+    ).toHaveAttribute('aria-expanded', 'false')
   })
 
   it('keeps selected unit information while hovering an attack target', () => {
@@ -343,12 +460,42 @@ describe('Milestone 07 UI', () => {
     expect(screen.queryByRole('button', { name: /요새화/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /방어/ })).not.toBeInTheDocument()
     expect(
-      screen.queryByRole('button', { name: '부대 정보 닫기' }),
-    ).not.toBeInTheDocument()
+      screen.getByRole('button', { name: '부대 정보 닫기' }),
+    ).toBeInTheDocument()
     expect(screen.queryByText('미구현')).not.toBeInTheDocument()
     expect(container.querySelector('.map-stage')).not.toContainElement(
       unitInfo,
     )
+
+    await user.click(screen.getByRole('button', { name: '부대 정보 닫기' }))
+    expect(screen.queryByLabelText('부대 정보')).not.toBeInTheDocument()
+    expect(tile).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('collapses overlay information without clearing its selection', async () => {
+    mockViewport(900)
+    const user = userEvent.setup()
+    const state = createInitialGameState('sidebar-collapse-selection')
+    const player = state.units.find((unit) => unit.factionId === 'player')!
+    const { container } = renderApp(state)
+    const playerTile = container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(player.position)}"]`,
+    )!
+    const infoToggle = container.querySelector<HTMLButtonElement>(
+      '.mobile-info-sheet__toggle',
+    )!
+
+    await user.click(playerTile)
+    expect(infoToggle).toHaveAttribute('aria-expanded', 'true')
+
+    await user.click(infoToggle)
+    expect(infoToggle).toHaveAttribute('aria-expanded', 'false')
+    expect(playerTile).toHaveAttribute('aria-pressed', 'true')
+
+    await user.click(infoToggle)
+    await user.keyboard('{Escape}')
+    expect(infoToggle).toHaveAttribute('aria-expanded', 'false')
+    expect(playerTile).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('moves the selected unit onto a reachable axial cell with right-click', async () => {
@@ -447,6 +594,9 @@ describe('Milestone 07 UI', () => {
     expect(moveButton).toHaveAttribute('aria-pressed', 'false')
     expect(playerTile).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByLabelText('부대 정보')).toBeInTheDocument()
+    expect(
+      container.querySelector('.mobile-info-sheet__toggle'),
+    ).toHaveAttribute('aria-expanded', 'true')
   })
 
   it('disables the move command when no reachable cells remain', () => {
@@ -567,6 +717,61 @@ describe('Milestone 07 UI', () => {
     expect(container.querySelector('[data-site-selected="true"]')).toBeNull()
   })
 
+  it('clears a selected site when its information panel is closed', async () => {
+    mockViewport(900)
+    const user = userEvent.setup()
+    const state = createInitialGameState('sidebar-site-close')
+    const site = state.sites.find(
+      (candidate) => candidate.ownerId === state.humanFactionId,
+    )!
+    const { container } = renderApp(state)
+    const tile = container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(site.position)}"]`,
+    )!
+
+    await user.click(tile)
+    expect(tile).toHaveAttribute('data-site-selected', 'true')
+
+    await user.click(screen.getByRole('button', { name: '거점 정보 닫기' }))
+
+    expect(screen.queryByLabelText('거점 정보')).not.toBeInTheDocument()
+    expect(tile).not.toHaveAttribute('data-site-selected', 'true')
+    expect(
+      container.querySelector('.mobile-info-sheet__toggle'),
+    ).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it.each([
+    ['발전', '거점 발전'],
+    ['건설', '도시 건설'],
+  ])(
+    'returns to site information when %s mode is cancelled with Escape',
+    async (tabName, panelLabel) => {
+      mockViewport(900)
+      const user = userEvent.setup()
+      const state = createInitialGameState(`sidebar-${tabName}-escape`)
+      const city = state.sites.find(
+        (site) =>
+          site.ownerId === state.humanFactionId && site.kind === 'city',
+      )!
+      const { container } = renderApp(state)
+
+      await user.click(container.querySelector<HTMLButtonElement>(
+        `.map-tile[data-coordinate="${positionKey(city.position)}"]`,
+      )!)
+      await user.click(screen.getByRole('tab', { name: tabName }))
+      expect(screen.getByLabelText(panelLabel)).toBeInTheDocument()
+
+      await user.keyboard('{Escape}')
+
+      expect(screen.queryByLabelText(panelLabel)).not.toBeInTheDocument()
+      expect(screen.getByLabelText('거점 정보')).toHaveTextContent(city.name)
+      expect(
+        container.querySelector('.mobile-info-sheet__toggle'),
+      ).toHaveAttribute('aria-expanded', 'true')
+    },
+  )
+
   it('returns to production options when deployment is cancelled', async () => {
     const user = userEvent.setup()
     const state = createInitialGameState('ui-production-cancel')
@@ -592,6 +797,9 @@ describe('Milestone 07 UI', () => {
     expect(screen.queryByLabelText('부대 배치')).not.toBeInTheDocument()
     expect(container.querySelector('.production-card')).toBeInTheDocument()
     expect(container.querySelectorAll('.unit-token')).toHaveLength(6)
+    expect(
+      container.querySelector('.mobile-info-sheet__toggle'),
+    ).toHaveAttribute('aria-expanded', 'true')
   })
 
   it('starts and cancels City construction without a slot limit or refund', async () => {
@@ -682,6 +890,60 @@ describe('Milestone 07 UI', () => {
       '비소유 거점은 발전 정보를 열람만 할 수 있습니다.',
     )
     expect(screen.queryByRole('button', { name: '발전 확인' })).not.toBeInTheDocument()
+  })
+
+  it('allows read-only inspection of units, terrain, and sites during an opponent turn', () => {
+    const state = createInitialGameState('sidebar-opponent-inspection')
+    state.activeFactionId = 'enemy'
+    const enemy = state.units.find(
+      (unit) =>
+        unit.factionId === 'enemy' &&
+        !state.sites.some(
+          (site) => positionKey(site.position) === positionKey(unit.position),
+        ),
+    )!
+    const emptyTile = state.tiles.find(
+      (tile) =>
+        !state.units.some(
+          (unit) => positionKey(unit.position) === positionKey(tile.position),
+        ) &&
+        !state.sites.some(
+          (site) => positionKey(site.position) === positionKey(tile.position),
+        ),
+    )!
+    const playerSite = state.sites.find(
+      (site) => site.ownerId === state.humanFactionId,
+    )!
+    playerSite.kind = 'outpost'
+    playerSite.footprint = undefined
+    const { container } = renderApp(state)
+
+    fireEvent.click(
+      container.querySelector<HTMLButtonElement>(
+        `.map-tile[data-coordinate="${positionKey(enemy.position)}"]`,
+      )!,
+    )
+    expect(screen.getByLabelText('타일 정보')).toHaveTextContent(enemy.name)
+    expect(screen.queryByRole('toolbar', { name: '유닛 메뉴' })).not.toBeInTheDocument()
+
+    fireEvent.click(
+      container.querySelector<HTMLButtonElement>(
+        `.map-tile[data-coordinate="${positionKey(emptyTile.position)}"]`,
+      )!,
+    )
+    expect(screen.getByLabelText('타일 정보')).toHaveTextContent(
+      TERRAIN_LABELS[emptyTile.terrain],
+    )
+
+    fireEvent.click(
+      container.querySelector<HTMLButtonElement>(
+        `.map-tile[data-coordinate="${positionKey(playerSite.position)}"]`,
+      )!,
+    )
+    expect(screen.getByLabelText('거점 정보')).toHaveTextContent(playerSite.name)
+    expect(screen.queryByRole('tab', { name: '생산' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: '발전' }))
+    expect(screen.getByRole('button', { name: '발전 확인' })).toBeDisabled()
   })
 
   it('separately explains insufficient resources and maximum development', async () => {

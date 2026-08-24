@@ -14,6 +14,7 @@ type InfoPanelProps = {
   onMoveModeChange: (active: boolean) => void
   canDisband: boolean
   onDisband: () => void
+  onClose: () => void
 }
 
 export function InfoPanel({
@@ -23,6 +24,7 @@ export function InfoPanel({
   onMoveModeChange,
   canDisband,
   onDisband,
+  onClose,
 }: InfoPanelProps) {
   const stats = UNIT_STATS[unit.type]
 
@@ -40,6 +42,14 @@ export function InfoPanel({
             <strong>{unit.name}</strong>
             <span>{UNIT_TYPE_LABELS[unit.type]}</span>
           </div>
+          <button
+            type="button"
+            className="city-card__close"
+            aria-label="부대 정보 닫기"
+            onClick={onClose}
+          >
+            ×
+          </button>
         </div>
         <dl>
           <div>
