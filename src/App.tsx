@@ -1104,15 +1104,28 @@ function GameApp({ initialState }: { initialState: GameState }) {
                 <button
                   type="button"
                   className="map-minimap-dock__toggle"
+                  aria-label={
+                    mobileMinimapExpanded ? '미니맵 닫기' : '미니맵 열기'
+                  }
                   aria-expanded={mobileMinimapExpanded}
                   aria-controls="mobile-minimap"
+                  title={
+                    mobileMinimapExpanded ? '미니맵 닫기' : '미니맵 열기'
+                  }
                   onClick={() => {
                     const expanded = !mobileMinimapExpanded
                     setMobileMinimapExpanded(expanded)
                     if (expanded) setMobileInfoExpanded(false)
                   }}
                 >
-                  {mobileMinimapExpanded ? '미니맵 닫기' : '미니맵 열기'}
+                  <svg
+                    className="map-minimap-dock__icon"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path d="M5 12h14" />
+                    {!mobileMinimapExpanded && <path d="M12 5v14" />}
+                  </svg>
                 </button>
                 <div id="mobile-minimap" className="map-minimap-dock__body">
                   <Minimap

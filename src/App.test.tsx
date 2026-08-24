@@ -82,12 +82,17 @@ describe('Milestone 07 UI', () => {
     const toggle = container.querySelector<HTMLButtonElement>(
       '.map-minimap-dock__toggle',
     )!
-    expect(toggle).toHaveTextContent('미니맵 열기')
+    expect(toggle).toHaveAttribute('aria-label', '미니맵 열기')
+    expect(toggle).toHaveTextContent('')
+    expect(toggle.querySelector('.map-minimap-dock__icon')).toBeInTheDocument()
+    expect(toggle.querySelectorAll('.map-minimap-dock__icon path')).toHaveLength(2)
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
 
     fireEvent.click(toggle)
 
-    expect(toggle).toHaveTextContent('미니맵 닫기')
+    expect(toggle).toHaveAttribute('aria-label', '미니맵 닫기')
+    expect(toggle).toHaveTextContent('')
+    expect(toggle.querySelectorAll('.map-minimap-dock__icon path')).toHaveLength(1)
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
   })
 
