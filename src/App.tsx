@@ -77,6 +77,9 @@ type AppProps = {
   initialState?: GameState
 }
 
+const COMPACT_MAP_OVERLAY_QUERY =
+  '(max-width: 700px), (max-width: 980px) and (max-height: 500px)'
+
 function GameApp({ initialState }: { initialState: GameState }) {
   const [state, dispatch] = useReducer(gameReducer, initialState)
   const [activeCombat, setActiveCombat] = useState<
@@ -118,13 +121,20 @@ function GameApp({ initialState }: { initialState: GameState }) {
   const [mobileInfoExpanded, setMobileInfoExpanded] = useState(
     Boolean(initialState.selectedUnitId),
   )
-  const [mobileMinimapExpanded, setMobileMinimapExpanded] = useState(false)
+  const [mobileMinimapExpanded, setMobileMinimapExpanded] = useState(
+    () => !window.matchMedia(COMPACT_MAP_OVERLAY_QUERY).matches,
+  )
   const [openChromeMenu, setOpenChromeMenu] = useState<ChromeMenuId | null>(null)
   const [mapScrollElement, setMapScrollElement] = useState<HTMLDivElement | null>(
     null,
   )
   const mapGestureStateRef = useRef<MapGestureState>({ pinching: false })
   const mapDragMovedRef = useRef(false)
+  const closeCompactMinimap = useCallback(() => {
+    if (window.matchMedia(COMPACT_MAP_OVERLAY_QUERY).matches) {
+      setMobileMinimapExpanded(false)
+    }
+  }, [])
   const isCompactBoard =
     (state.boardSize.columns === BOARD_SIZE_PRESETS.tiny.columns &&
       state.boardSize.rows === BOARD_SIZE_PRESETS.tiny.rows) ||
@@ -466,7 +476,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     setPreviewTileKey(undefined)
     setInspectedTileKey(undefined)
     setMobileInfoExpanded(false)
-    setMobileMinimapExpanded(false)
+    closeCompactMinimap()
     setProductionSiteId(
       result.value.gameState.sites.find(
         (site) =>
@@ -635,7 +645,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
       setPreviewTileKey(undefined)
       setInspectedTileKey(undefined)
       setMobileInfoExpanded(false)
-      setMobileMinimapExpanded(false)
+      closeCompactMinimap()
       dispatch({ type: 'turnEnded' })
     }
 
@@ -650,12 +660,13 @@ function GameApp({ initialState }: { initialState: GameState }) {
     state.activeFactionId,
     state.humanFactionId,
     state.phase,
+    closeCompactMinimap,
   ])
 
   const openMobileInfo = useCallback(() => {
     setMobileInfoExpanded(true)
-    setMobileMinimapExpanded(false)
-  }, [])
+    closeCompactMinimap()
+  }, [closeCompactMinimap])
 
   const handleTileClick = useCallback((tile: Tile) => {
     const unit = getUnitAt(state, tile.position)
@@ -878,7 +889,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     setPreviewTileKey(undefined)
     setInspectedTileKey(undefined)
     setMobileInfoExpanded(false)
-    setMobileMinimapExpanded(false)
+    closeCompactMinimap()
     setProductionFeedback(undefined)
     setSaveFeedback(undefined)
     dispatch(
@@ -961,7 +972,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
                 setPreviewTileKey(undefined)
                 setInspectedTileKey(undefined)
                 setMobileInfoExpanded(false)
-                setMobileMinimapExpanded(false)
+                closeCompactMinimap()
                 setProductionFeedback(undefined)
                 dispatch({ type: 'turnEnded' })
               }}
@@ -1064,6 +1075,56 @@ function GameApp({ initialState }: { initialState: GameState }) {
                   }}
                 />
               </div>
+              <div
+                className={`map-minimap-dock${
+                  mobileMinimapExpanded ? ' map-minimap-dock--expanded' : ''
+                }`}
+              >
+                <button
+                  type="button"
+                  className="map-minimap-dock__toggle"
+                  aria-label={
+                    mobileMinimapExpanded ? '미니맵 닫기' : '미니맵 열기'
+                  }
+                  aria-expanded={mobileMinimapExpanded}
+                  aria-controls="map-minimap"
+                  title={
+                    mobileMinimapExpanded ? '미니맵 닫기' : '미니맵 열기'
+                  }
+                  onClick={() => {
+                    const expanded = !mobileMinimapExpanded
+                    setMobileMinimapExpanded(expanded)
+                    if (expanded) setMobileInfoExpanded(false)
+                  }}
+                >
+                  {mobileMinimapExpanded ? (
+                    <svg
+                      className="map-minimap-dock__icon map-minimap-dock__icon--collapse"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path d="M5 12h14" />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="map-minimap-dock__icon"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path d="M3 5 8 3l6 2 7-3v17l-7 3-6-2-5 2Z" />
+                      <path d="M8 3v17" />
+                      <path d="M14 5v17" />
+                    </svg>
+                  )}
+                </button>
+                <div id="map-minimap" className="map-minimap-dock__body">
+                  <Minimap
+                    state={state}
+                    scrollElement={mapScrollElement}
+                    zoom={mapZoom}
+                  />
+                </div>
+              </div>
               <div className="map-zoom-controls" aria-label="지도 확대/축소">
                 <button
                   type="button"
@@ -1096,46 +1157,6 @@ function GameApp({ initialState }: { initialState: GameState }) {
             </div>
 
             <aside className="map-sidebar" aria-label="지도 사이드바">
-              <div
-                className={`map-minimap-dock${
-                  mobileMinimapExpanded ? ' map-minimap-dock--expanded' : ''
-                }`}
-              >
-                <button
-                  type="button"
-                  className="map-minimap-dock__toggle"
-                  aria-label={
-                    mobileMinimapExpanded ? '미니맵 닫기' : '미니맵 열기'
-                  }
-                  aria-expanded={mobileMinimapExpanded}
-                  aria-controls="mobile-minimap"
-                  title={
-                    mobileMinimapExpanded ? '미니맵 닫기' : '미니맵 열기'
-                  }
-                  onClick={() => {
-                    const expanded = !mobileMinimapExpanded
-                    setMobileMinimapExpanded(expanded)
-                    if (expanded) setMobileInfoExpanded(false)
-                  }}
-                >
-                  <svg
-                    className="map-minimap-dock__icon"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                  >
-                    <path d="M5 12h14" />
-                    {!mobileMinimapExpanded && <path d="M12 5v14" />}
-                  </svg>
-                </button>
-                <div id="mobile-minimap" className="map-minimap-dock__body">
-                  <Minimap
-                    state={state}
-                    scrollElement={mapScrollElement}
-                    zoom={mapZoom}
-                  />
-                </div>
-              </div>
-
               <section
                 className={`map-sidebar__selection mobile-info-sheet${
                   mobileInfoExpanded ? ' mobile-info-sheet--expanded' : ''
@@ -1150,7 +1171,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
                   onClick={() => {
                     const expanded = !mobileInfoExpanded
                     setMobileInfoExpanded(expanded)
-                    if (expanded) setMobileMinimapExpanded(false)
+                    if (expanded) closeCompactMinimap()
                   }}
                 >
                   <span className="mobile-info-sheet__handle" aria-hidden="true" />

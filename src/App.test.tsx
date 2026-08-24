@@ -59,14 +59,14 @@ describe('Milestone 07 UI', () => {
     expect(container.querySelector('.site-marker')?.closest('.map-tile')).toBeNull()
     const sidebar = screen.getByLabelText('지도 사이드바')
     const minimap = screen.getByTestId('minimap')
-    expect(sidebar).toContainElement(minimap)
-    expect(container.querySelector('.map-stage')).not.toContainElement(minimap)
+    expect(sidebar).not.toContainElement(minimap)
+    expect(container.querySelector('.map-stage')).toContainElement(minimap)
     expect(screen.getByLabelText('선택 정보')).toHaveTextContent(
       '지도 타일을 가리키거나 선택하면 상세 정보가 표시됩니다.',
     )
     expect(container.querySelector('.map-minimap-dock__toggle')).toHaveAttribute(
       'aria-expanded',
-      'false',
+      'true',
     )
     expect(screen.queryByLabelText('정보 패널')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('부대 정보')).not.toBeInTheDocument()
@@ -75,25 +75,49 @@ describe('Milestone 07 UI', () => {
     expect(screen.queryByRole('button', { name: '범례' })).not.toBeInTheDocument()
   }, 20_000)
 
-  it('toggles the mobile minimap dock accessibly', () => {
+  it('lets wide screens collapse the initially expanded minimap accessibly', () => {
     const { container } = renderApp()
 
     expect(screen.getByLabelText('미니맵')).toBeInTheDocument()
     const toggle = container.querySelector<HTMLButtonElement>(
       '.map-minimap-dock__toggle',
     )!
-    expect(toggle).toHaveAttribute('aria-label', '미니맵 열기')
+    expect(toggle).toHaveAttribute('aria-label', '미니맵 닫기')
     expect(toggle).toHaveTextContent('')
     expect(toggle.querySelector('.map-minimap-dock__icon')).toBeInTheDocument()
-    expect(toggle.querySelectorAll('.map-minimap-dock__icon path')).toHaveLength(2)
-    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(toggle.querySelectorAll('.map-minimap-dock__icon path')).toHaveLength(1)
+    expect(toggle.querySelector('.map-minimap-dock__icon--collapse')).toBeInTheDocument()
+    expect(toggle.querySelector('.map-minimap-dock__pin')).not.toBeInTheDocument()
+    expect(toggle.querySelector('.map-minimap-dock__icon circle')).toBeNull()
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
 
     fireEvent.click(toggle)
 
-    expect(toggle).toHaveAttribute('aria-label', '미니맵 닫기')
+    expect(toggle).toHaveAttribute('aria-label', '미니맵 열기')
     expect(toggle).toHaveTextContent('')
-    expect(toggle.querySelectorAll('.map-minimap-dock__icon path')).toHaveLength(1)
-    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(toggle.querySelectorAll('.map-minimap-dock__icon path')).toHaveLength(3)
+    expect(toggle.querySelector('.map-minimap-dock__icon--collapse')).not.toBeInTheDocument()
+    expect(toggle.querySelector('.map-minimap-dock__pin')).not.toBeInTheDocument()
+    expect(toggle.querySelector('.map-minimap-dock__icon circle')).toBeNull()
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('starts with the minimap collapsed on compact screens', () => {
+    vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
+      matches: query.includes('max-width'),
+      media: query,
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    }))
+    const { container } = renderApp()
+
+    expect(
+      container.querySelector('.map-minimap-dock__toggle'),
+    ).toHaveAttribute('aria-expanded', 'false')
   })
 
   it('shows accessible map zoom controls and updates their state', () => {
