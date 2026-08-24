@@ -2,7 +2,12 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
-import { getHexNeighbors, HEX_TILE_COUNT, positionKey } from './game/hex'
+import {
+  BOARD_SIZE_PRESETS,
+  getHexNeighbors,
+  HEX_TILE_COUNT,
+  positionKey,
+} from './game/hex'
 import { createInitialGameState } from './game/initialState'
 import { getSiteDevelopmentFootprints } from './game/siteDevelopment'
 import type { GameState, Unit } from './game/types'
@@ -153,14 +158,24 @@ describe('Milestone 07 UI', () => {
     expect(zoomOut).toBeEnabled()
   })
 
-  it('centers the player capital when a game starts', () => {
+  it.each([
+    ['2인용', BOARD_SIZE_PRESETS.tiny],
+    ['초소형', BOARD_SIZE_PRESETS.small],
+    ['소형', BOARD_SIZE_PRESETS.standard],
+  ])('centers the player capital when a %s game starts', (_, boardSize) => {
     const frames: FrameRequestCallback[] = []
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
       frames.push(callback)
       return frames.length
     })
-    const state = createInitialGameState('center-capital')
-    const capital = state.sites.find((site) => site.capitalFor === 'player')!
+    const state = createInitialGameState(`center-capital-${boardSize.columns}`, {
+      boardSize,
+      factionCount: 2,
+      humanFactionId: 'f1',
+    })
+    const capital = state.sites.find(
+      (site) => site.capitalFor === state.humanFactionId,
+    )!
     const { container } = renderApp(state)
     const mapScroll = container.querySelector<HTMLElement>('.map-scroll')!
     const capitalTile = container.querySelector<HTMLElement>(

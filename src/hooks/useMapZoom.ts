@@ -89,6 +89,61 @@ export function zoomScrollOffset(
   return ((scroll + cursorOffset) / oldZoom) * newZoom - cursorOffset
 }
 
+export function getMapCameraGutter(
+  viewportSize: number,
+  edgeTileCenter: number,
+  zoom: number,
+  minimumGutter: number,
+): number {
+  return Math.max(
+    minimumGutter,
+    viewportSize / 2 - edgeTileCenter * zoom,
+  )
+}
+
+export function zoomScrollOffsetFromContent(
+  scroll: number,
+  anchorOffset: number,
+  oldZoom: number,
+  newZoom: number,
+  oldContentOffset: number,
+  newContentOffset: number,
+): number {
+  const contentPoint =
+    (scroll + anchorOffset - oldContentOffset) / oldZoom
+  return newContentOffset + contentPoint * newZoom - anchorOffset
+}
+
+type CameraAxis = 'x' | 'y'
+
+function cameraContentOffset(
+  scrollElement: HTMLElement,
+  mapContent: HTMLElement,
+  zoom: number,
+  axis: CameraAxis,
+): number | undefined {
+  const edgeTileCenter = Number(
+    axis === 'x'
+      ? mapContent.dataset.cameraEdgeCenterX
+      : mapContent.dataset.cameraEdgeCenterY,
+  )
+  const minimumGutter = Number(
+    axis === 'x'
+      ? mapContent.dataset.cameraMinimumGutterX
+      : mapContent.dataset.cameraMinimumGutterY,
+  )
+  if (!Number.isFinite(edgeTileCenter) || !Number.isFinite(minimumGutter)) {
+    return undefined
+  }
+
+  return getMapCameraGutter(
+    axis === 'x' ? scrollElement.clientWidth : scrollElement.clientHeight,
+    edgeTileCenter,
+    zoom,
+    minimumGutter,
+  )
+}
+
 /** Wheel and touch-pinch zoom on a scroll container, keeping the gesture anchor stable. */
 export function useMapZoom(
   scrollElement: HTMLElement | null,
@@ -187,19 +242,48 @@ export function useMapZoom(
       anchorX: number,
       anchorY: number,
     ) => {
+      const mapContent =
+        scrollElement.querySelector<HTMLElement>('.map-zoom-shell')
+      const nextContentLeft = mapContent
+        ? cameraContentOffset(scrollElement, mapContent, newZoom, 'x')
+        : undefined
+      const nextContentTop = mapContent
+        ? cameraContentOffset(scrollElement, mapContent, newZoom, 'y')
+        : undefined
+
       commitZoom(newZoom, {
-        left: zoomScrollOffset(
-          scrollElement.scrollLeft,
-          anchorX,
-          oldZoom,
-          newZoom,
-        ),
-        top: zoomScrollOffset(
-          scrollElement.scrollTop,
-          anchorY,
-          oldZoom,
-          newZoom,
-        ),
+        left:
+          mapContent && nextContentLeft !== undefined
+            ? zoomScrollOffsetFromContent(
+                scrollElement.scrollLeft,
+                anchorX,
+                oldZoom,
+                newZoom,
+                mapContent.offsetLeft,
+                nextContentLeft,
+              )
+            : zoomScrollOffset(
+                scrollElement.scrollLeft,
+                anchorX,
+                oldZoom,
+                newZoom,
+              ),
+        top:
+          mapContent && nextContentTop !== undefined
+            ? zoomScrollOffsetFromContent(
+                scrollElement.scrollTop,
+                anchorY,
+                oldZoom,
+                newZoom,
+                mapContent.offsetTop,
+                nextContentTop,
+              )
+            : zoomScrollOffset(
+                scrollElement.scrollTop,
+                anchorY,
+                oldZoom,
+                newZoom,
+              ),
       })
     }
 
@@ -230,15 +314,21 @@ export function useMapZoom(
         contentWidth,
         contentHeight,
       )
+      const nextContentLeft =
+        cameraContentOffset(scrollElement, mapContent, newZoom, 'x') ??
+        mapContent.offsetLeft
+      const nextContentTop =
+        cameraContentOffset(scrollElement, mapContent, newZoom, 'y') ??
+        mapContent.offsetTop
       commitZoom(newZoom, {
         left: Math.max(
           0,
-          mapContent.offsetLeft +
+          nextContentLeft +
             (contentWidth * newZoom - scrollElement.clientWidth) / 2,
         ),
         top: Math.max(
           0,
-          mapContent.offsetTop +
+          nextContentTop +
             (contentHeight * newZoom - scrollElement.clientHeight) / 2,
         ),
       })
@@ -267,11 +357,29 @@ export function useMapZoom(
       const localX = center.x - bounds.left
       const localY = center.y - bounds.top
       const startZoom = zoomRef.current
+      const mapContent =
+        scrollElement.querySelector<HTMLElement>('.map-zoom-shell')
+      const contentLeft = mapContent
+        ? cameraContentOffset(scrollElement, mapContent, startZoom, 'x') !==
+          undefined
+          ? mapContent.offsetLeft
+          : undefined
+        : undefined
+      const contentTop = mapContent
+        ? cameraContentOffset(scrollElement, mapContent, startZoom, 'y') !==
+          undefined
+          ? mapContent.offsetTop
+          : undefined
+        : undefined
       pinchStart = {
         distance: distance(...pair),
         zoom: startZoom,
-        contentX: (scrollElement.scrollLeft + localX) / startZoom,
-        contentY: (scrollElement.scrollTop + localY) / startZoom,
+        contentX:
+          (scrollElement.scrollLeft + localX - (contentLeft ?? 0)) /
+          startZoom,
+        contentY:
+          (scrollElement.scrollTop + localY - (contentTop ?? 0)) /
+          startZoom,
       }
       gestureState.pinching = true
       clickSuppressRef.current = true
@@ -320,9 +428,17 @@ export function useMapZoom(
         pinchStart.distance,
         distance(...pair),
       )
+      const mapContent =
+        scrollElement.querySelector<HTMLElement>('.map-zoom-shell')
+      const nextContentLeft = mapContent
+        ? cameraContentOffset(scrollElement, mapContent, nextZoom, 'x') ?? 0
+        : 0
+      const nextContentTop = mapContent
+        ? cameraContentOffset(scrollElement, mapContent, nextZoom, 'y') ?? 0
+        : 0
       commitZoom(nextZoom, {
-        left: pinchStart.contentX * nextZoom - localX,
-        top: pinchStart.contentY * nextZoom - localY,
+        left: nextContentLeft + pinchStart.contentX * nextZoom - localX,
+        top: nextContentTop + pinchStart.contentY * nextZoom - localY,
       })
     }
 

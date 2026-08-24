@@ -27,7 +27,6 @@ import { SavePanel } from './components/SavePanel'
 import { StatusBar } from './components/StatusBar'
 import { StartScreen } from './components/StartScreen'
 import { createInitialGameState } from './game/initialState'
-import { BOARD_SIZE_PRESETS } from './game/hex'
 import { createRandomMapSeed } from './game/mapGenerator'
 import { gameReducer } from './game/reducer'
 import { getSiteDevelopmentFootprints } from './game/siteDevelopment'
@@ -135,11 +134,6 @@ function GameApp({ initialState }: { initialState: GameState }) {
       setMobileMinimapExpanded(false)
     }
   }, [])
-  const isCompactBoard =
-    (state.boardSize.columns === BOARD_SIZE_PRESETS.tiny.columns &&
-      state.boardSize.rows === BOARD_SIZE_PRESETS.tiny.rows) ||
-    (state.boardSize.columns === BOARD_SIZE_PRESETS.small.columns &&
-      state.boardSize.rows === BOARD_SIZE_PRESETS.small.rows)
   const {
     zoom: mapZoom,
     zoomIn,
@@ -307,7 +301,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
   )
 
   useEffect(() => {
-    if (!mapScrollElement || !playerCapitalPosition || isCompactBoard) return
+    if (!mapScrollElement || !playerCapitalPosition) return
 
     const frame = window.requestAnimationFrame(() => {
       const capitalTile = mapScrollElement.querySelector<HTMLElement>(
@@ -337,7 +331,6 @@ function GameApp({ initialState }: { initialState: GameState }) {
 
     return () => window.cancelAnimationFrame(frame)
   }, [
-    isCompactBoard,
     mapScrollElement,
     playerCapitalPosition,
     state.tiles,
@@ -1036,7 +1029,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
           <div className="board-workspace">
             <div className="map-stage">
               <div
-                className={`map-scroll${isCompactBoard ? ' map-scroll--fit' : ''}`}
+                className="map-scroll"
                 ref={setMapScrollElement}
               >
                 <GameMap

@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   clampMapZoom,
   fitMapZoom,
+  getMapCameraGutter,
   MAP_ZOOM_DEFAULT,
   MAP_ZOOM_LEVELS,
   MAP_ZOOM_MAX,
@@ -11,6 +12,7 @@ import {
   pinchMapZoom,
   useMapZoom,
   zoomScrollOffset,
+  zoomScrollOffsetFromContent,
 } from './useMapZoom'
 
 function createScrollElement() {
@@ -115,6 +117,18 @@ describe('map zoom helpers', () => {
     expect(zoomScrollOffset(250, 50, 2, 1)).toBe(100)
   })
 
+  it('gives edge tiles enough camera gutter to reach the viewport center', () => {
+    expect(getMapCameraGutter(800, 38, 1, 12)).toBe(362)
+    expect(getMapCameraGutter(800, 38, 20, 12)).toBe(12)
+    expect(getMapCameraGutter(0, 38, 1, 12)).toBe(12)
+  })
+
+  it('keeps the map point anchored when the camera gutter changes', () => {
+    expect(
+      zoomScrollOffsetFromContent(100, 50, 1, 2, 40, 20),
+    ).toBe(190)
+  })
+
   it('scales pinch zoom continuously and clamps to the configured range', () => {
     expect(pinchMapZoom(1, 100, 120)).toBeCloseTo(1.2)
     expect(pinchMapZoom(1, 100, 80)).toBeCloseTo(0.8)
@@ -154,6 +168,57 @@ describe('useMapZoom', () => {
     )
     expect(element.scrollTop).toBeCloseTo(
       zoomScrollOffset(80, 60, 1, 1.1),
+    )
+  })
+
+  it('updates wheel zoom around the map content instead of its camera gutter', () => {
+    const element = createScrollElement()
+    const mapContent = document.createElement('div')
+    mapContent.className = 'map-zoom-shell'
+    mapContent.dataset.cameraEdgeCenterX = '38'
+    mapContent.dataset.cameraEdgeCenterY = '42'
+    mapContent.dataset.cameraMinimumGutterX = '12'
+    mapContent.dataset.cameraMinimumGutterY = '8'
+    Object.defineProperties(mapContent, {
+      offsetLeft: { configurable: true, value: 162 },
+      offsetTop: { configurable: true, value: 108 },
+    })
+    element.appendChild(mapContent)
+    const { result } = renderHook(() => useMapZoom(element))
+
+    act(() => {
+      element.dispatchEvent(
+        new WheelEvent('wheel', {
+          deltaY: -120,
+          clientX: 140,
+          clientY: 80,
+          bubbles: true,
+          cancelable: true,
+        }),
+      )
+    })
+
+    const nextZoom = 1.1
+    expect(result.current.zoom).toBeCloseTo(nextZoom)
+    expect(element.scrollLeft).toBeCloseTo(
+      zoomScrollOffsetFromContent(
+        100,
+        100,
+        1,
+        nextZoom,
+        162,
+        getMapCameraGutter(400, 38, nextZoom, 12),
+      ),
+    )
+    expect(element.scrollTop).toBeCloseTo(
+      zoomScrollOffsetFromContent(
+        80,
+        60,
+        1,
+        nextZoom,
+        108,
+        getMapCameraGutter(300, 42, nextZoom, 8),
+      ),
     )
   })
 

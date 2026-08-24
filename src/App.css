@@ -673,7 +673,7 @@
   place-content: safe center;
   place-items: center;
   overflow: auto;
-  padding: 8px 12px;
+  padding: 0;
   cursor: grab;
   touch-action: none;
   scrollbar-width: none;
@@ -1165,6 +1165,13 @@
   stroke: #ffe58a;
   stroke-width: 1.2;
   pointer-events: none;
+}
+
+.map-camera-space {
+  display: grid;
+  box-sizing: content-box;
+  width: max-content;
+  height: max-content;
 }
 
 .map-zoom-shell {
@@ -3029,7 +3036,7 @@
     height: clamp(320px, 58dvh, 520px);
     min-height: 0;
     max-height: none;
-    padding: 8px 10px;
+    padding: 0;
   }
 
   .map-zoom-controls {

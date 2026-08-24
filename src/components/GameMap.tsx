@@ -37,6 +37,7 @@ import type {
   Unit,
 } from '../game/types'
 import { getSiteOccupiedPositions } from '../game/siteFootprint'
+import { getMapCameraGutter } from '../hooks/useMapZoom'
 import { useMapViewport } from '../hooks/useMapViewport'
 import { ArrowVolley } from './ArrowVolley'
 import { SiteIcon } from './SiteIcon'
@@ -46,6 +47,10 @@ import { UnitIcon } from './UnitIcon'
 const VIEWPORT_OVERSCAN_PX = Math.max(HEX_WIDTH, HEX_HEIGHT) * 2
 /** Matches `.game-map` content-box padding (8*2) + border (1*2). */
 const MAP_FRAME_PX = 18
+const MAP_CAMERA_MINIMUM_GUTTER_X = 12
+const MAP_CAMERA_MINIMUM_GUTTER_Y = 8
+const MAP_CAMERA_EDGE_CENTER_X = (HEX_WIDTH + MAP_FRAME_PX) / 2
+const MAP_CAMERA_EDGE_CENTER_Y = (HEX_HEIGHT + MAP_FRAME_PX) / 2
 const PRODUCTION_SITE_ASSET_PREVIEW_ICONS = {
   'farm-1': farmLevel1Icon,
   'farm-2': farmLevel2Icon,
@@ -524,6 +529,18 @@ function GameMapComponent({
   onPreviewTileChange,
 }: GameMapProps) {
   const viewport = useMapViewport(scrollElement)
+  const cameraGutterX = getMapCameraGutter(
+    scrollElement?.clientWidth ?? 0,
+    MAP_CAMERA_EDGE_CENTER_X,
+    zoom,
+    MAP_CAMERA_MINIMUM_GUTTER_X,
+  )
+  const cameraGutterY = getMapCameraGutter(
+    scrollElement?.clientHeight ?? 0,
+    MAP_CAMERA_EDGE_CENTER_Y,
+    zoom,
+    MAP_CAMERA_MINIMUM_GUTTER_Y,
+  )
 
   const layout = useMemo(() => {
     const positionedTiles = state.tiles.map((tile) => ({
@@ -618,11 +635,16 @@ function GameMapComponent({
     })
   }, [showSiteAssetPreview, state.sites, state.tiles, state.units])
   const visibleTiles = useMemo(() => {
-    const left = viewport.left / zoom - VIEWPORT_OVERSCAN_PX
-    const top = viewport.top / zoom - VIEWPORT_OVERSCAN_PX
-    const right = (viewport.left + viewport.width) / zoom + VIEWPORT_OVERSCAN_PX
+    const left =
+      (viewport.left - cameraGutterX) / zoom - VIEWPORT_OVERSCAN_PX
+    const top =
+      (viewport.top - cameraGutterY) / zoom - VIEWPORT_OVERSCAN_PX
+    const right =
+      (viewport.left - cameraGutterX + viewport.width) / zoom +
+      VIEWPORT_OVERSCAN_PX
     const bottom =
-      (viewport.top + viewport.height) / zoom + VIEWPORT_OVERSCAN_PX
+      (viewport.top - cameraGutterY + viewport.height) / zoom +
+      VIEWPORT_OVERSCAN_PX
     const visible = new Map<
       string,
       { tile: Tile; left: number; top: number; style: CSSProperties }
@@ -681,6 +703,8 @@ function GameMapComponent({
     state.sites,
     state.units,
     viewport,
+    cameraGutterX,
+    cameraGutterY,
     zoneOfControlKeys,
     zoom,
   ])
@@ -717,7 +741,18 @@ function GameMapComponent({
 
   return (
     <div
+      className="map-camera-space"
+      style={{
+        paddingBlock: cameraGutterY,
+        paddingInline: cameraGutterX,
+      }}
+    >
+    <div
       className="map-zoom-shell"
+      data-camera-edge-center-x={MAP_CAMERA_EDGE_CENTER_X}
+      data-camera-edge-center-y={MAP_CAMERA_EDGE_CENTER_Y}
+      data-camera-minimum-gutter-x={MAP_CAMERA_MINIMUM_GUTTER_X}
+      data-camera-minimum-gutter-y={MAP_CAMERA_MINIMUM_GUTTER_Y}
       style={{
         width: (logicalWidth + MAP_FRAME_PX) * zoom,
         height: (logicalHeight + MAP_FRAME_PX) * zoom,
@@ -865,6 +900,7 @@ function GameMapComponent({
               : `방어 유닛이 ${combatAnimation.damageToDefender} 피해를 받았습니다`)}
         </span>
       )}
+    </div>
     </div>
     </div>
   )
