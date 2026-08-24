@@ -917,6 +917,10 @@
   border-radius: 0 0 6px 6px;
 }
 
+.map-sidebar__selection .city-stack > :only-child {
+  border-radius: 6px;
+}
+
 .map-sidebar__selection .city-card__menu {
   padding: 6px;
   box-shadow: none;
