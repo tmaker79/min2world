@@ -54,9 +54,9 @@ const NEUTRAL_SITE_TYPES: readonly SiteType[] = [
   'blacksmith',
 ]
 const STARTING_UNIT_TYPES: readonly UnitType[] = [
-  'archer',
-  'archer',
-  'archer',
+  'infantry',
+  'infantry',
+  'cavalry',
 ]
 const TINY_RIVER_COLUMN = 7
 const TINY_RIVER_CROSSING_ROWS = [3, 7] as const
