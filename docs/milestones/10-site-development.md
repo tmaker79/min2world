@@ -125,7 +125,7 @@ type SiteType =
 ## 제외 범위
 
 - 신규 거점 건설(Milestone 14)
-- 건물 슬롯·대기열(Milestone 11)
+- City 전용 건물·건설 대기열(Milestone 11)
 - 유지비(Milestone 12)
 - 발전 단계 하락·거점 파괴
 

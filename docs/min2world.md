@@ -455,7 +455,7 @@ localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지
 | --- | --- | --- |
 | [09](milestones/09-terrain-expansion.md) | 사막·툰드라와 후속 지형 확장 | 완료 |
 | [10](milestones/10-site-development.md) | 역할별 거점 발전 | 완료 |
-| [11](milestones/11-city-administration.md) | 거점 건물·대기열 | 다음 목표 |
+| [11](milestones/11-city-administration.md) | City 전용 건물·대기열 | 다음 목표 |
 | [12](milestones/12-upkeep.md) | 유지비(소프트 제약) | 예정 |
 | [13](milestones/13-ai-refinement.md) | 경제를 보는 AI | 예정 |
 | [14](milestones/14-settlement-construction.md) | 개척자·건설자의 신규 거점 건설 | 예정 |
@@ -470,9 +470,9 @@ localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지
 
 ## 12. 현재 개발 목표
 
-다음 구현 목표는 [Milestone 11: 거점 내정](milestones/11-city-administration.md)이다.
+다음 구현 목표는 [Milestone 11: 도시 내정](milestones/11-city-administration.md)이다.
 
-Milestone 10에서 군사·방어 계열 `Outpost → Keep → Stronghold`, 정착 계열 `Village → Town → City`, 생산 특화 시설 `Farm`·`Mine`·`Blacksmith`를 구현했다. Milestone 11에서는 발전한 거점에 건물 슬롯과 생산 대기열을 추가한다.
+Milestone 10에서 군사·방어 계열 `Outpost → Keep → Stronghold`, 정착 계열 `Village → Town → City`, 생산 특화 시설 `Farm`·`Mine`·`Blacksmith`를 구현했다. Milestone 11에서는 City에 슬롯 제한 없는 건물 7종과 도시당 하나의 건설 대기열을 추가한다. 이후 생산·경제·인구·보급·사기·연구 시스템은 이 건물 기반 위에서 단계적으로 확장한다.
 
 가변 지도·다세력·HUD까지 반영한 현재 기준 시나리오는 다음과 같다.
 
