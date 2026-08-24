@@ -33,6 +33,7 @@ import { gameReducer } from './game/reducer'
 import { getSiteDevelopmentFootprints } from './game/siteDevelopment'
 import {
   getDeployablePositions,
+  getFactionIncome,
   getProducibleUnitTypes,
   getSiteAt,
   getSiteMaxHp,
@@ -54,6 +55,11 @@ import {
 } from './game/selectors'
 import { getSiteOccupiedPositions } from './game/siteFootprint'
 import type { GameState, Tile, UnitType } from './game/types'
+import {
+  getFactionNetIncome,
+  getFactionUpkeep,
+  getFactionUpkeepReserve,
+} from './game/upkeep'
 import { useAiTurn } from './hooks/useAiTurn'
 import { useMapPan } from './hooks/useMapPan'
 import { useMapZoom } from './hooks/useMapZoom'
@@ -932,6 +938,13 @@ function GameApp({ initialState }: { initialState: GameState }) {
             <StatusBar
               turn={state.turn}
               resource={state.resources[state.humanFactionId] ?? 0}
+              income={getFactionIncome(state, state.humanFactionId)}
+              upkeep={getFactionUpkeep(state, state.humanFactionId)}
+              netIncome={getFactionNetIncome(state, state.humanFactionId)}
+              upkeepReserve={getFactionUpkeepReserve(
+                state,
+                state.humanFactionId,
+              )}
               activeFactionId={state.activeFactionId}
               humanFactionId={state.humanFactionId}
               disabled={
@@ -1173,7 +1186,6 @@ function GameApp({ initialState }: { initialState: GameState }) {
                         site={productionSite}
                         state={state}
                         selectedUnitType={activeProductionUnitType}
-                        resource={state.resources[state.humanFactionId] ?? 0}
                         turn={state.turn}
                         deployableCount={deployablePositions.length}
                         disabled={
@@ -1247,9 +1259,30 @@ function GameApp({ initialState }: { initialState: GameState }) {
                     unit={selectedUnit}
                     canMove={canEnterMoveMode}
                     moveMode={isMoveMode}
+                    canDisband={
+                      state.phase === 'playing' &&
+                      state.activeFactionId === state.humanFactionId &&
+                      selectedUnit.factionId === state.humanFactionId &&
+                      !activeCombat &&
+                      !activeSiteAttack
+                    }
                     onMoveModeChange={(active) => {
                       setActiveMoveUnitId(active ? selectedUnit.id : undefined)
                       if (active) setMobileInfoExpanded(false)
+                    }}
+                    onDisband={() => {
+                      if (
+                        !window.confirm(
+                          `${selectedUnit.name}을 해산할까요? 자원은 환불되지 않습니다.`,
+                        )
+                      ) {
+                        return
+                      }
+                      setActiveMoveUnitId(undefined)
+                      dispatch({
+                        type: 'unitDisbanded',
+                        unitId: selectedUnit.id,
+                      })
                     }}
                   />
                 )}

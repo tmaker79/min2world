@@ -6,6 +6,10 @@ import {
   UNIT_TYPES,
 } from '../game/rules'
 import type { GameState, Site, UnitType } from '../game/types'
+import {
+  canSpendWithUpkeepReserve,
+  UNIT_UPKEEP,
+} from '../game/upkeep'
 import { UnitIcon } from './UnitIcon'
 
 type ProductionFeedback = {
@@ -17,7 +21,6 @@ type ProductionPanelProps = {
   site?: Site
   state: GameState
   selectedUnitType?: UnitType
-  resource: number
   turn: number
   deployableCount: number
   disabled: boolean
@@ -30,7 +33,6 @@ export function ProductionPanel({
   site,
   state,
   selectedUnitType,
-  resource,
   turn,
   deployableCount,
   disabled,
@@ -62,6 +64,12 @@ export function ProductionPanel({
                 unitType,
                 site,
               )
+              const spending = canSpendWithUpkeepReserve(
+                state,
+                state.humanFactionId,
+                cost,
+                { upkeepDelta: UNIT_UPKEEP[unitType] },
+              )
               return (
                 <button
                   key={unitType}
@@ -72,7 +80,7 @@ export function ProductionPanel({
                   }
                   type="button"
                   aria-pressed={selectedUnitType === unitType}
-                  disabled={!unlocked || unavailable || resource < cost}
+                  disabled={!unlocked || unavailable || !spending.ok}
                   onClick={() => onUnitTypeSelected(unitType)}
                 >
                   <strong>
@@ -81,11 +89,18 @@ export function ProductionPanel({
                   </strong>
                   <span>{cost} 자원</span>
                   <small>
-                    {unlocked
+                    {!unlocked
+                      ? `${site.kind} 단계에서는 해금되지 않은 병종입니다.`
+                      : !spending.ok &&
+                          spending.reason === 'insufficientUpkeepReserve'
+                        ? `다음 유지비 ${spending.reserve} 자원을 남겨야 합니다.`
+                        : !spending.ok
+                          ? '자원이 부족합니다.'
+                        : unlocked
                       ? `이동 ${stats.movement} · 근접 ${stats.melee}${
                           stats.ranged > 0 ? ` · 원거리 ${stats.ranged}` : ''
                         } · 사거리 ${stats.range}`
-                      : `${site.kind} 단계에서는 해금되지 않은 병종입니다.`}
+                      : ''}
                   </small>
                 </button>
               )

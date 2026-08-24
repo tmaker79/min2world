@@ -3,6 +3,10 @@ import type { FactionId } from '../game/types'
 type StatusBarProps = {
   turn: number
   resource: number
+  income: number
+  upkeep: number
+  netIncome: number
+  upkeepReserve: number
   activeFactionId: FactionId
   humanFactionId: FactionId
   disabled: boolean
@@ -12,6 +16,10 @@ type StatusBarProps = {
 export function StatusBar({
   turn,
   resource,
+  income,
+  upkeep,
+  netIncome,
+  upkeepReserve,
   activeFactionId,
   humanFactionId,
   disabled,
@@ -48,6 +56,19 @@ export function StatusBar({
         <span>
           자원 <strong>{resource}</strong>
         </span>
+        <span className="status-bar__dot" aria-hidden="true">
+          ·
+        </span>
+        <span>수입 <strong>{income}</strong></span>
+        <span>유지비 <strong>{upkeep}</strong></span>
+        <span className={netIncome < 0 ? 'status-bar__deficit' : undefined}>
+          순수입 <strong>{netIncome > 0 ? `+${netIncome}` : netIncome}</strong>
+        </span>
+        {upkeepReserve > 0 && (
+          <span className="status-bar__deficit">
+            예약 <strong>{upkeepReserve}</strong>
+          </span>
+        )}
       </div>
       <button
         className="end-turn-button"

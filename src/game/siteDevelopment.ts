@@ -2,8 +2,10 @@ import { positionKey } from './hex'
 import { getFactionLibraryDiscount } from './cityAdministration'
 import {
   getSiteMaxHp,
+  getSiteIncome,
   isFortifiedSiteKind,
 } from './rules'
+import { canSpendWithUpkeepReserve } from './upkeep'
 import {
   getCityFootprintCandidates,
   getSiteOccupiedPositions,
@@ -22,6 +24,7 @@ export type SiteDevelopmentFailure =
   | 'maxLevel'
   | 'alreadyDeveloped'
   | 'insufficientResources'
+  | 'insufficientUpkeepReserve'
   | 'invalidFootprint'
 
 export type SiteDevelopmentCheck =
@@ -172,8 +175,16 @@ export function canDevelopSite(
     return { ok: false, reason: 'alreadyDeveloped' }
   }
   const cost = getSiteDevelopmentCost(site, state)!
-  if ((state.resources[site.ownerId] ?? 0) < cost) {
-    return { ok: false, reason: 'insufficientResources' }
+  const projectedSite: Site = {
+    ...site,
+    kind: target.kind,
+    level: target.level,
+  }
+  const spending = canSpendWithUpkeepReserve(state, site.ownerId, cost, {
+    incomeDelta: getSiteIncome(projectedSite) - getSiteIncome(site),
+  })
+  if (!spending.ok) {
+    return { ok: false, reason: spending.reason }
   }
 
   const requiresFootprint = site.kind === 'village' || site.kind === 'town'

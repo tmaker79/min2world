@@ -1,5 +1,6 @@
 import { positionKey } from './hex'
 import { getSiteOccupiedPositions } from './siteFootprint'
+import { canSpendWithUpkeepReserve } from './upkeep'
 import type {
   BuildingId,
   FactionId,
@@ -151,6 +152,7 @@ export type ConstructionFailure =
   | 'alreadyQueued'
   | 'queueOccupied'
   | 'insufficientResources'
+  | 'insufficientUpkeepReserve'
 
 export type ConstructionCheck =
   | { ok: true; cost: number; turns: number }
@@ -178,8 +180,13 @@ export function canStartConstruction(
   if (site.constructionQueue) return { ok: false, reason: 'queueOccupied' }
 
   const definition = BUILDING_DEFINITIONS[buildingId]
-  if ((state.resources[site.ownerId] ?? 0) < definition.cost) {
-    return { ok: false, reason: 'insufficientResources' }
+  const spending = canSpendWithUpkeepReserve(
+    state,
+    site.ownerId,
+    definition.cost,
+  )
+  if (!spending.ok) {
+    return { ok: false, reason: spending.reason }
   }
   return { ok: true, cost: definition.cost, turns: definition.turns }
 }

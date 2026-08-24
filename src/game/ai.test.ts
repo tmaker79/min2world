@@ -39,6 +39,18 @@ function enemySite(state: GameState, overrides: Partial<Site> = {}): Site {
   }
 }
 
+function enemyIncomeSite(state: GameState): Site {
+  return enemySite(state, {
+    id: 'enemy-income',
+    kind: 'city',
+    ownerId: 'enemy',
+    position: { q: 99, r: 99 },
+    footprint: [{ q: 99, r: 99 }],
+    hp: 120,
+    maxHp: 120,
+  })
+}
+
 describe('hex-map AI', () => {
   it('does nothing outside the enemy playing phase', () => {
     expect(chooseAiAction(createInitialGameState('ai-player'))).toBeUndefined()
@@ -86,7 +98,10 @@ describe('hex-map AI', () => {
       hp: 1, maxHp: 50,
     })
     const state = {
-      ...initial, selectedUnitId: attacker.id, units: [attacker, defender], sites: [site],
+      ...initial,
+      selectedUnitId: attacker.id,
+      units: [attacker, defender],
+      sites: [site, enemyIncomeSite(initial)],
     }
 
     expect(chooseAiAction(state)).toEqual({
@@ -109,7 +124,7 @@ describe('hex-map AI', () => {
     const capital = makeSite('z-capital', { q: 2, r: 0 }, 40, true)
     const state = {
       ...initial, selectedUnitId: attacker.id, units: [attacker],
-      sites: [low, capital],
+      sites: [low, capital, enemyIncomeSite(initial)],
     }
 
     expect(chooseAiAction(state)).toEqual({
@@ -121,10 +136,16 @@ describe('hex-map AI', () => {
       makeSite('a-site', { q: 2, r: 0 }, 10),
       makeSite('m-lowest', { q: 1, r: 1 }, 2),
     ]
-    expect(chooseAiAction({ ...state, sites: equalHpSites })).toEqual({
+    expect(chooseAiAction({
+      ...state,
+      sites: [...equalHpSites, enemyIncomeSite(initial)],
+    })).toEqual({
       type: 'siteAttacked', attackerId: attacker.id, siteId: 'm-lowest',
     })
-    expect(chooseAiAction({ ...state, sites: equalHpSites.slice(0, 2) })).toEqual({
+    expect(chooseAiAction({
+      ...state,
+      sites: [...equalHpSites.slice(0, 2), enemyIncomeSite(initial)],
+    })).toEqual({
       type: 'siteAttacked', attackerId: attacker.id, siteId: 'a-site',
     })
   })
@@ -139,7 +160,10 @@ describe('hex-map AI', () => {
       id: 'neutral-fort', ownerId: 'neutral', position: { q: 1, r: 0 }, hp: 50,
     })
     const state = {
-      ...initial, selectedUnitId: attacker.id, units: [attacker], sites: [neutral],
+      ...initial,
+      selectedUnitId: attacker.id,
+      units: [attacker],
+      sites: [neutral, enemyIncomeSite(initial)],
     }
 
     expect(chooseAiAction(state)).toEqual({
@@ -164,7 +188,7 @@ describe('hex-map AI', () => {
       selectedUnitId: attacker.id,
       tiles: initial.tiles.map((tile) => ({ ...tile, terrain: 'plain' as const })),
       units: [attacker],
-      sites: [capital],
+      sites: [capital, enemyIncomeSite(initial)],
     }
     const movement = chooseAiAction(state)
 
@@ -210,6 +234,11 @@ describe('hex-map AI', () => {
       units: initial.units.map((unit) =>
         unit.factionId === 'enemy' ? { ...unit, hasActed: true, movementRemaining: 0 } : unit,
       ),
+      sites: initial.sites.map((site) =>
+        site.ownerId === 'enemy'
+          ? { ...site, lastDevelopedTurn: initial.turn }
+          : site,
+      ),
     }
     const action = chooseAiAction(state)
 
@@ -247,7 +276,7 @@ describe('hex-map AI', () => {
     })
   })
 
-  it('keeps five resources in reserve before development, then considers production', () => {
+  it('uses the projected upkeep reserve instead of a fixed development reserve', () => {
     const initial = economyState('ai-development-reserve')
     const site = enemySite(initial)
     const state = {
@@ -257,10 +286,106 @@ describe('hex-map AI', () => {
     }
 
     expect(chooseAiAction(state)).toMatchObject({
-      type: 'unitProduced',
+      type: 'siteDeveloped',
       siteId: site.id,
-      unitType: 'infantry',
     })
+  })
+
+  it('repeatedly disbands expensive low-hp units until income covers upkeep', () => {
+    const initial = economyState('ai-disband-loop')
+    const site = enemySite(initial)
+    const units: Unit[] = [
+      {
+        id: 'cavalry-a', name: 'cavalry a', factionId: 'enemy', type: 'cavalry',
+        position: { q: 10, r: 0 }, hp: 50, maxHp: 100,
+        movementRemaining: 0, hasActed: true,
+      },
+      {
+        id: 'cavalry-b', name: 'cavalry b', factionId: 'enemy', type: 'cavalry',
+        position: { q: 11, r: 0 }, hp: 20, maxHp: 100,
+        movementRemaining: 0, hasActed: true,
+      },
+      {
+        id: 'infantry', name: 'infantry', factionId: 'enemy', type: 'infantry',
+        position: { q: 12, r: 0 }, hp: 1, maxHp: 100,
+        movementRemaining: 0, hasActed: true,
+      },
+    ]
+    const state = { ...initial, sites: [site], units }
+
+    const first = chooseAiAction(state)
+    expect(first).toEqual({ type: 'unitDisbanded', unitId: 'cavalry-b' })
+    const afterFirst = gameReducer(state, first!)
+    const second = chooseAiAction(afterFirst)
+    expect(second).toEqual({ type: 'unitDisbanded', unitId: 'cavalry-a' })
+    expect(chooseAiAction(gameReducer(afterFirst, second!))?.type)
+      .not.toBe('unitDisbanded')
+  })
+
+  it('preserves an immediately attackable unit while another disband candidate exists', () => {
+    const initial = economyState('ai-preserve-attacker')
+    const cavalry: Unit = {
+      id: 'attacking-cavalry', name: 'cavalry', factionId: 'enemy', type: 'cavalry',
+      position: { q: 0, r: 0 }, hp: 100, maxHp: 100,
+      movementRemaining: 3, hasActed: false,
+    }
+    const infantry: Unit = {
+      id: 'idle-infantry', name: 'infantry', factionId: 'enemy', type: 'infantry',
+      position: { q: 10, r: 0 }, hp: 100, maxHp: 100,
+      movementRemaining: 2, hasActed: false,
+    }
+    const target: Unit = {
+      id: 'player-target', name: 'target', factionId: 'player', type: 'infantry',
+      position: { q: 1, r: 0 }, hp: 100, maxHp: 100,
+      movementRemaining: 0, hasActed: true,
+    }
+    const state = {
+      ...initial,
+      sites: [enemySite(initial)],
+      units: [cavalry, infantry, target],
+      selectedUnitId: cavalry.id,
+    }
+
+    expect(chooseAiAction(state)).toEqual({
+      type: 'unitDisbanded',
+      unitId: infantry.id,
+    })
+  })
+
+  it('does not produce when the new unit would consume the upkeep reserve', () => {
+    const initial = economyState('ai-production-upkeep-reserve')
+    const city = initial.sites.find(
+      (site) => site.ownerId === 'enemy' && site.kind === 'city',
+    )!
+    city.lastDevelopedTurn = initial.turn
+    const template = initial.tiles.slice(0, 4)
+    const units: Unit[] = ['a', 'b', 'c'].map((id, index) => ({
+      id: `cavalry-${id}`,
+      name: `cavalry ${id}`,
+      factionId: 'enemy',
+      type: 'cavalry',
+      position: template[index].position,
+      hp: 100,
+      maxHp: 100,
+      movementRemaining: 0,
+      hasActed: true,
+    }))
+    units.push({
+      id: 'archer-a', name: 'archer', factionId: 'enemy', type: 'archer',
+      position: template[3].position, hp: 100, maxHp: 100,
+      movementRemaining: 0, hasActed: true,
+    })
+    const state = {
+      ...initial,
+      sites: [city],
+      units,
+      resources: {
+        ...initial.resources,
+        enemy: getUnitProductionCost(initial, 'enemy', 'infantry', city),
+      },
+    }
+
+    expect(chooseAiAction(state)).toEqual({ type: 'turnEnded' })
   })
 
   it('skips settlement development when no valid footprint exists', () => {

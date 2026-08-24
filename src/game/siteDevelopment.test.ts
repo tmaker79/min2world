@@ -232,6 +232,40 @@ describe('site development', () => {
     })
   })
 
+  it('uses the developed site income when checking the upkeep reserve', () => {
+    const initial = developmentState('outpost')
+    const units = Array.from({ length: 3 }, (_, index) => ({
+      id: `development-cavalry-${index}`,
+      name: `Cavalry ${index}`,
+      factionId: initial.activeFactionId,
+      type: 'cavalry' as const,
+      position: initial.tiles[index].position,
+      hp: 100,
+      maxHp: 100,
+      movementRemaining: 0,
+      hasActed: true,
+    }))
+    const allowed = {
+      ...initial,
+      resources: { ...initial.resources, [initial.activeFactionId]: 11 },
+      units,
+    }
+    expect(canDevelopSite(allowed, 'site-1')).toEqual({
+      ok: true,
+      cost: 8,
+      footprint: [initial.sites[0].position],
+    })
+
+    const blocked = {
+      ...allowed,
+      resources: { ...allowed.resources, [initial.activeFactionId]: 10 },
+    }
+    expect(canDevelopSite(blocked, 'site-1')).toEqual({
+      ok: false,
+      reason: 'insufficientUpkeepReserve',
+    })
+  })
+
   it('allows different sites to develop during the same faction turn', () => {
     const state = developmentState('outpost')
     const withSecond = {

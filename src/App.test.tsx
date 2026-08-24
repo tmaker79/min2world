@@ -921,4 +921,206 @@ describe('Milestone 07 UI', () => {
       .toHaveClass('unit-token--striking')
     vi.useRealTimers()
   })
+
+  it('shows player income, upkeep, net income, and a highlighted deficit reserve', () => {
+    const initial = createInitialGameState('ui-upkeep-status')
+    const status = renderApp(initial).container.querySelector('.status-bar')!
+
+    expect(status).toHaveTextContent('자원 15')
+    expect(status).toHaveTextContent('수입 7')
+    expect(status).toHaveTextContent('유지비 3')
+    expect(status).toHaveTextContent('순수입 +4')
+    expect(status).not.toHaveTextContent('예약')
+
+    const { unmount } = renderApp({
+      ...initial,
+      sites: initial.sites.filter(
+        (site) => site.ownerId !== initial.humanFactionId,
+      ),
+    })
+    const deficitStatuses = document.querySelectorAll('.status-bar')
+    const deficitStatus = deficitStatuses[deficitStatuses.length - 1]
+    expect(deficitStatus).toHaveTextContent('순수입 -3')
+    expect(deficitStatus).toHaveTextContent('예약 3')
+    expect(deficitStatus.querySelectorAll('.status-bar__deficit')).toHaveLength(2)
+    unmount()
+  })
+
+  it('confirms player disbanding, clears selection, and gives no refund', async () => {
+    const user = userEvent.setup()
+    const initial = createInitialGameState('ui-unit-disband')
+    const unit = initial.units.find(
+      (candidate) => candidate.factionId === initial.humanFactionId,
+    )!
+    const confirm = vi.spyOn(window, 'confirm')
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(true)
+    const { container } = renderApp({
+      ...initial,
+      selectedUnitId: unit.id,
+    })
+
+    const info = screen.getByLabelText('부대 정보')
+    expect(info).toHaveTextContent('유지비')
+    expect(info).toHaveTextContent('1 자원/턴')
+    const disband = screen.getByRole('button', { name: '해산' })
+    await user.click(disband)
+    expect(container.querySelector(`[data-unit-id="${unit.id}"]`))
+      .toBeInTheDocument()
+
+    await user.click(disband)
+    expect(confirm).toHaveBeenCalledTimes(2)
+    expect(container.querySelector(`[data-unit-id="${unit.id}"]`))
+      .not.toBeInTheDocument()
+    expect(screen.queryByLabelText('부대 정보')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('현재 게임 상태')).toHaveTextContent('자원 15')
+  })
+
+  it('disables disbanding outside the player active turn', () => {
+    const initial = createInitialGameState('ui-unit-disband-inactive')
+    const unit = initial.units.find(
+      (candidate) => candidate.factionId === initial.humanFactionId,
+    )!
+    const enemyFactionId = initial.factionOrder.find(
+      (factionId) => factionId !== initial.humanFactionId,
+    )!
+
+    renderApp({
+      ...initial,
+      activeFactionId: enemyFactionId,
+      selectedUnitId: unit.id,
+    })
+
+    expect(screen.getByRole('button', { name: '해산' })).toBeDisabled()
+  })
+
+  it('explains the projected upkeep reserve on blocked production', async () => {
+    const user = userEvent.setup()
+    const initial = createInitialGameState('ui-production-reserve')
+    const city = initial.sites.find(
+      (site) =>
+        site.ownerId === initial.humanFactionId && site.kind === 'city',
+    )!
+    const humanUnits = initial.units
+      .filter((unit) => unit.factionId === initial.humanFactionId)
+      .map((unit) => ({ ...unit, type: 'cavalry' as const }))
+    const extraPosition = initial.tiles.find(
+      (tile) =>
+        !initial.units.some(
+          (unit) =>
+            unit.position.q === tile.position.q &&
+            unit.position.r === tile.position.r,
+        ) &&
+        !initial.sites.some(
+          (site) =>
+            site.position.q === tile.position.q &&
+            site.position.r === tile.position.r,
+        ),
+    )!.position
+    const extra = {
+      ...humanUnits[0],
+      id: 'reserve-cavalry-extra',
+      position: extraPosition,
+    }
+    const state = {
+      ...initial,
+      resources: { ...initial.resources, [initial.humanFactionId]: 11 },
+      units: [
+        ...initial.units.filter(
+          (unit) => unit.factionId !== initial.humanFactionId,
+        ),
+        ...humanUnits,
+        extra,
+      ],
+    }
+    const { container } = renderApp(state)
+
+    await user.click(container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(city.position)}"]`,
+    )!)
+    await user.click(screen.getByRole('tab', { name: '생산' }))
+    const production = screen.getByLabelText('부대 생산')
+    const infantry = within(production).getByRole('button', { name: /보병/ })
+    expect(infantry).toBeDisabled()
+    expect(infantry).toHaveTextContent('다음 유지비 2 자원을 남겨야 합니다.')
+  })
+
+  it('explains upkeep reservation on blocked development and construction', async () => {
+    const user = userEvent.setup()
+    const initial = createInitialGameState('ui-investment-reserve')
+    const city = initial.sites.find(
+      (site) =>
+        site.ownerId === initial.humanFactionId && site.kind === 'city',
+    )!
+    const cavalry = initial.units
+      .filter((unit) => unit.factionId === initial.humanFactionId)
+      .map((unit) => ({ ...unit, type: 'cavalry' as const }))
+    const developmentState = {
+      ...initial,
+      resources: { ...initial.resources, [initial.humanFactionId]: 10 },
+      units: [
+        ...initial.units.filter(
+          (unit) => unit.factionId !== initial.humanFactionId,
+        ),
+        ...cavalry,
+      ],
+      sites: initial.sites.map((site) =>
+        site.id === city.id
+          ? {
+              ...site,
+              kind: 'outpost' as const,
+              footprint: undefined,
+              hp: 50,
+              maxHp: 50,
+            }
+          : site,
+      ),
+    }
+    const development = renderApp(developmentState)
+    await user.click(development.container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(city.position)}"]`,
+    )!)
+    await user.click(screen.getByRole('tab', { name: '발전' }))
+    expect(screen.getByLabelText('거점 발전'))
+      .toHaveTextContent('다음 유지비 3 자원을 남겨야 합니다.')
+    development.unmount()
+
+    const constructionState = {
+      ...initial,
+      resources: { ...initial.resources, [initial.humanFactionId]: 15 },
+      units: [
+        ...initial.units.filter(
+          (unit) => unit.factionId !== initial.humanFactionId,
+        ),
+        ...cavalry,
+        {
+          ...cavalry[0],
+          id: 'construction-reserve-extra',
+          position: initial.tiles.find(
+            (tile) =>
+              !initial.units.some(
+                (unit) =>
+                  unit.position.q === tile.position.q &&
+                  unit.position.r === tile.position.r,
+              ) &&
+              !initial.sites.some(
+                (site) =>
+                  site.position.q === tile.position.q &&
+                  site.position.r === tile.position.r,
+              ),
+          )!.position,
+        },
+      ],
+    }
+    const construction = renderApp(constructionState)
+    await user.click(construction.container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(city.position)}"]`,
+    )!)
+    await user.click(screen.getByRole('tab', { name: '건설' }))
+    expect(within(screen.getByLabelText('도시 건설')).getByRole(
+      'button',
+      { name: /곡창/ },
+    )).toHaveTextContent('다음 유지비 1 자원을 남겨야 합니다.')
+    construction.unmount()
+  })
 })

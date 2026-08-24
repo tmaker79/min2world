@@ -5,6 +5,7 @@ import {
 } from '../game/siteDevelopment'
 import { getSiteIncome, SITE_TYPE_LABELS } from '../game/rules'
 import type { GameState, Position, Site } from '../game/types'
+import { getProjectedUpkeepReserve } from '../game/upkeep'
 
 type DevelopmentPanelProps = {
   state: GameState
@@ -43,6 +44,15 @@ export function DevelopmentPanel({
   const nextSite = target
     ? { ...site, kind: target.kind, level: target.level }
     : undefined
+  const projectedReserve = getProjectedUpkeepReserve(
+    state,
+    state.humanFactionId,
+    {
+      incomeDelta: nextSite
+        ? getSiteIncome(nextSite) - getSiteIncome(site)
+        : 0,
+    },
+  )
   let blockedReason: string | undefined
 
   if (!owned) blockedReason = '비소유 거점은 발전 정보를 열람만 할 수 있습니다.'
@@ -60,6 +70,8 @@ export function DevelopmentPanel({
     blockedReason =
       check.reason === 'invalidFootprint'
         ? '발전에 필요한 공간 또는 유효한 footprint가 없습니다.'
+        : check.reason === 'insufficientUpkeepReserve'
+          ? `다음 유지비 ${projectedReserve} 자원을 남겨야 합니다.`
         : '현재 이 거점을 발전할 수 없습니다.'
   }
 

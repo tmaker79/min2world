@@ -4,6 +4,7 @@ import {
   UNIT_TYPE_LABELS,
 } from '../game/rules'
 import type { Unit } from '../game/types'
+import { UNIT_UPKEEP } from '../game/upkeep'
 import { UnitIcon } from './UnitIcon'
 
 type InfoPanelProps = {
@@ -11,6 +12,8 @@ type InfoPanelProps = {
   canMove: boolean
   moveMode: boolean
   onMoveModeChange: (active: boolean) => void
+  canDisband: boolean
+  onDisband: () => void
 }
 
 export function InfoPanel({
@@ -18,6 +21,8 @@ export function InfoPanel({
   canMove,
   moveMode,
   onMoveModeChange,
+  canDisband,
+  onDisband,
 }: InfoPanelProps) {
   const stats = UNIT_STATS[unit.type]
 
@@ -53,6 +58,10 @@ export function InfoPanel({
             <dt>근접</dt>
             <dd>{getDisplayedCombatStrength(unit, 'melee')}</dd>
           </div>
+          <div>
+            <dt>유지비</dt>
+            <dd>{UNIT_UPKEEP[unit.type]} 자원/턴</dd>
+          </div>
           {stats.ranged > 0 && (
             <div>
               <dt>원거리</dt>
@@ -71,6 +80,14 @@ export function InfoPanel({
           onClick={() => onMoveModeChange(!moveMode)}
         >
           이동
+        </button>
+        <button
+          type="button"
+          disabled={!canDisband}
+          title={canDisband ? '이 부대를 해산합니다.' : '현재 해산할 수 없습니다.'}
+          onClick={onDisband}
+        >
+          해산
         </button>
       </div>
     </div>

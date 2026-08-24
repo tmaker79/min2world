@@ -27,6 +27,11 @@ import {
   UNIT_STATS,
 } from './rules'
 import type { GameAction, GameState } from './types'
+import {
+  canSpendWithUpkeepReserve,
+  getFactionUpkeep,
+  UNIT_UPKEEP,
+} from './upkeep'
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
   if (action.type === 'gameRestarted') {
@@ -306,6 +311,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         action.unitType,
         site,
       )
+      const spending = canSpendWithUpkeepReserve(
+        state,
+        state.activeFactionId,
+        productionCost,
+        { upkeepDelta: UNIT_UPKEEP[action.unitType] },
+      )
 
       if (
         !site ||
@@ -313,7 +324,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         site.lastProducedTurn === state.turn ||
         !stats ||
         !canSiteProduceUnit(site, action.unitType) ||
-        (state.resources[state.activeFactionId] ?? 0) < productionCost ||
+        !spending.ok ||
         !getDeployablePositions(state, site).some(
           (position) =>
             position.q === action.destination.q &&
@@ -366,6 +377,19 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       }
     }
 
+    case 'unitDisbanded': {
+      const unit = state.units.find(
+        (candidate) => candidate.id === action.unitId,
+      )
+      if (!unit || unit.factionId !== state.activeFactionId) return state
+      return {
+        ...state,
+        selectedUnitId:
+          state.selectedUnitId === unit.id ? undefined : state.selectedUnitId,
+        units: state.units.filter((candidate) => candidate.id !== unit.id),
+      }
+    }
+
     case 'siteDeveloped':
       return resolveSiteDevelopment(state, action.siteId, action.footprint)
 
@@ -396,8 +420,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         resources: {
           ...state.resources,
           [endingFactionId]:
-            (state.resources[endingFactionId] ?? 0) +
-            getFactionIncome(state, endingFactionId),
+            Math.max(
+              0,
+              (state.resources[endingFactionId] ?? 0) +
+                getFactionIncome(state, endingFactionId) -
+                getFactionUpkeep(state, endingFactionId),
+            ),
         },
         sites: cityTurnStart.sites,
         units: cityTurnStart.units.map((unit) =>

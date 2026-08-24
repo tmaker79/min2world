@@ -14,6 +14,7 @@ import {
   getUnitProductionCost,
 } from './rules'
 import { canDevelopSite } from './siteDevelopment'
+import { getFactionUpkeepReserve } from './upkeep'
 import type { GameState, Site, Unit } from './types'
 
 function ownedCity(state: GameState): Site {
@@ -294,5 +295,70 @@ describe('city administration', () => {
       cost: 7,
       footprint: [outpost.position],
     })
+  })
+
+  it('does not count queued income buildings toward the upkeep reserve', () => {
+    const initial = createInitialGameState('building-upkeep-reserve')
+    const factionId = initial.activeFactionId
+    const city = ownedCity(initial)
+    const units = Array.from({ length: 4 }, (_, index) => ({
+      ...initial.units.find((unit) => unit.factionId === factionId)!,
+      id: `construction-cavalry-${index}`,
+      type: 'cavalry' as const,
+      position: initial.tiles[index].position,
+    }))
+    const queued: GameState = {
+      ...initial,
+      units,
+      sites: initial.sites.map((site) =>
+        site.id === city.id
+          ? {
+              ...site,
+              constructionQueue: {
+                buildingId: 'granary',
+                turnsRemaining: 1,
+                startedTurn: initial.turn,
+              },
+            }
+          : site,
+      ),
+    }
+    expect(getFactionUpkeepReserve(queued, factionId)).toBe(1)
+
+    const completed = {
+      ...queued,
+      sites: queued.sites.map((site) =>
+        site.id === city.id
+          ? { ...site, buildings: ['granary' as const], constructionQueue: undefined }
+          : site,
+      ),
+    }
+    expect(getFactionUpkeepReserve(completed, factionId)).toBe(0)
+  })
+
+  it('keeps the upkeep reserve when construction has no immediate income', () => {
+    const initial = createInitialGameState('building-spending-reserve')
+    const factionId = initial.activeFactionId
+    const city = ownedCity(initial)
+    const units = Array.from({ length: 4 }, (_, index) => ({
+      ...initial.units.find((unit) => unit.factionId === factionId)!,
+      id: `construction-reserve-cavalry-${index}`,
+      type: 'cavalry' as const,
+      position: initial.tiles[index].position,
+    }))
+    const blocked: GameState = {
+      ...initial,
+      units,
+      resources: { ...initial.resources, [factionId]: 15 },
+    }
+
+    expect(canStartConstruction(blocked, city.id, 'granary')).toEqual({
+      ok: false,
+      reason: 'insufficientUpkeepReserve',
+    })
+    expect(canStartConstruction({
+      ...blocked,
+      resources: { ...blocked.resources, [factionId]: 16 },
+    }, city.id, 'granary')).toEqual({ ok: true, cost: 15, turns: 1 })
   })
 })

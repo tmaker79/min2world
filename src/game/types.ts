@@ -162,6 +162,7 @@ export type GameAction =
   | { type: 'unitAttacked'; attackerId: string; defenderId: string }
   | { type: 'siteAttacked'; attackerId: string; siteId: string }
   | { type: 'unitWaited'; unitId: string }
+  | { type: 'unitDisbanded'; unitId: string }
   | {
       type: 'unitProduced'
       siteId: string

@@ -34,12 +34,15 @@ function siegeState(siteHp = 50): GameState {
     movementRemaining: 2,
     hasActed: false,
   }
+  const incomeSite = initial.sites.find(
+    (candidate) => candidate.ownerId === attacker.factionId,
+  )!
   return {
     ...initial,
     activeFactionId: attacker.factionId,
     resources: { ...initial.resources, [attacker.factionId]: 0 },
     units: [attacker],
-    sites: [site],
+    sites: [site, incomeSite],
   }
 }
 

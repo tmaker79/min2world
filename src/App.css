@@ -459,6 +459,11 @@
   color: rgba(169, 194, 204, 0.55);
 }
 
+.status-bar__summary .status-bar__deficit,
+.status-bar__summary .status-bar__deficit strong {
+  color: #ef9187;
+}
+
 .faction-name--player {
   color: #79c7ed;
   font-weight: 700;

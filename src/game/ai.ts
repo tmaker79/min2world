@@ -3,6 +3,7 @@ import {
   getAttackableSites,
   getAttackableUnits,
   getDeployablePositions,
+  getFactionIncome,
   getHexNeighbors,
   getProducibleUnitTypes,
   getReachablePositionCosts,
@@ -25,11 +26,7 @@ import {
   getSiteDevelopmentTarget,
 } from './siteDevelopment'
 import { MinPriorityQueue } from './priorityQueue'
-import {
-  BUILDING_DEFINITIONS,
-  canStartConstruction,
-  hasBuilding,
-} from './cityAdministration'
+import { canStartConstruction, hasBuilding } from './cityAdministration'
 import type {
   BuildingId,
   FactionId,
@@ -41,9 +38,11 @@ import type {
   Unit,
   UnitType,
 } from './types'
-
-const AI_DEVELOPMENT_RESERVE = 5
-const AI_CONSTRUCTION_RESERVE = 10
+import {
+  canSpendWithUpkeepReserve,
+  getFactionUpkeep,
+  UNIT_UPKEEP,
+} from './upkeep'
 
 const AI_PEACEFUL_BUILDING_PRIORITY: readonly BuildingId[] = [
   'granary',
@@ -417,8 +416,12 @@ function chooseProduction(
       .filter(
         (type) =>
           canSiteProduceUnit(site, type) &&
-          getUnitProductionCost(state, factionId, type, site) <=
-            (state.resources[factionId] ?? 0),
+          canSpendWithUpkeepReserve(
+            state,
+            factionId,
+            getUnitProductionCost(state, factionId, type, site),
+            { upkeepDelta: UNIT_UPKEEP[type] },
+          ).ok,
       )
       .sort(
         (left, right) =>
@@ -455,7 +458,6 @@ function chooseDevelopment(
     return undefined
   }
 
-  const resources = state.resources[factionId] ?? 0
   const candidates = ownedSites
     .filter(
       (site) =>
@@ -474,9 +476,7 @@ function chooseDevelopment(
       }
 
       const check = canDevelopSite(state, site.id, footprint)
-      return check.ok && resources - check.cost >= AI_DEVELOPMENT_RESERVE
-        ? { site, footprint }
-        : undefined
+      return check.ok ? { site, footprint } : undefined
     })
     .filter(
       (
@@ -513,7 +513,6 @@ function chooseConstruction(
     return undefined
   }
 
-  const resources = state.resources[factionId] ?? 0
   for (const city of ownedSites
     .filter((site) => site.kind === 'city' && !site.constructionQueue)
     .sort(compareIds)) {
@@ -531,16 +530,37 @@ function chooseConstruction(
     for (const buildingId of priorities) {
       if (hasBuilding(city, buildingId)) continue
       const check = canStartConstruction(state, city.id, buildingId)
-      if (
-        check.ok &&
-        resources - BUILDING_DEFINITIONS[buildingId].cost >=
-          AI_CONSTRUCTION_RESERVE
-      ) {
+      if (check.ok) {
         return { type: 'constructionStarted', siteId: city.id, buildingId }
       }
     }
   }
   return undefined
+}
+
+function chooseDisband(
+  state: GameState,
+  factionId: FactionId,
+): GameAction | undefined {
+  if (getFactionUpkeep(state, factionId) <= getFactionIncome(state, factionId)) {
+    return undefined
+  }
+
+  const units = state.units.filter((unit) => unit.factionId === factionId)
+  const protectedIds = new Set(
+    units
+      .filter((unit) => getAttackableUnits(state, unit).length > 0)
+      .map((unit) => unit.id),
+  )
+  const unprotected = units.filter((unit) => !protectedIds.has(unit.id))
+  const candidates = unprotected.length > 0 ? unprotected : units
+  const selected = [...candidates].sort(
+    (left, right) =>
+      UNIT_UPKEEP[right.type] - UNIT_UPKEEP[left.type] ||
+      left.hp - right.hp ||
+      left.id.localeCompare(right.id),
+  )[0]
+  return selected ? { type: 'unitDisbanded', unitId: selected.id } : undefined
 }
 
 export function chooseAiAction(
@@ -554,6 +574,9 @@ export function chooseAiAction(
   ) {
     return undefined
   }
+
+  const disband = chooseDisband(state, factionId)
+  if (disband) return disband
 
   const selectedUnit = state.units.find(
     (unit) =>

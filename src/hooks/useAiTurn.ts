@@ -102,6 +102,13 @@ export function getAiActionAnnouncement(
       : 'AI가 거점을 발전시킵니다.'
   }
 
+  if (action.type === 'unitDisbanded') {
+    const unit = state.units.find(
+      (candidate) => candidate.id === action.unitId,
+    )
+    return unit ? `${unit.name}을 유지비 절감을 위해 해산합니다.` : 'AI가 부대를 해산합니다.'
+  }
+
   if (action.type === 'constructionStarted') {
     const site = state.sites.find(
       (candidate) => candidate.id === action.siteId,

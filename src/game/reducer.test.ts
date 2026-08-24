@@ -236,6 +236,34 @@ describe('gameReducer on a hex map', () => {
     })).toBe(produced)
   })
 
+  it('includes the newly produced unit in the upkeep reservation', () => {
+    const initial = createInitialGameState('reducer-production-upkeep')
+    const factionId = initial.activeFactionId
+    const site = initial.sites.find(
+      (candidate) =>
+        candidate.ownerId === factionId && candidate.kind === 'city',
+    )!
+    const cavalry = Array.from({ length: 4 }, (_, index) => ({
+      ...initial.units.find((unit) => unit.factionId === factionId)!,
+      id: `upkeep-cavalry-${index}`,
+      type: 'cavalry' as const,
+      position: initial.tiles[index].position,
+    }))
+    const state = {
+      ...initial,
+      resources: { ...initial.resources, [factionId]: 11 },
+      units: cavalry,
+    }
+    const destination = getDeployablePositions(state, site)[0]
+
+    expect(gameReducer(state, {
+      type: 'unitProduced',
+      siteId: site.id,
+      unitType: 'infantry',
+      destination,
+    })).toBe(state)
+  })
+
   it('routes site development and validates production unlocks and discounts', () => {
     const initial = createInitialGameState('reducer-development')
     const ownerId = initial.activeFactionId
@@ -301,8 +329,36 @@ describe('gameReducer on a hex map', () => {
     const result = gameReducer(state, { type: 'turnEnded' })
 
     expect(result.activeFactionId).toBe('enemy')
-    expect(result.resources.player).toBe(state.resources.player + income)
+    expect(result.resources.player).toBe(state.resources.player + income - 3)
     expect(result.units.filter((unit) => unit.factionId === 'enemy').every((unit) => !unit.hasActed)).toBe(true)
+  })
+
+  it('floors upkeep settlement at zero and disbands only active owned units', () => {
+    const initial = createInitialGameState('reducer-upkeep-disband')
+    const factionId = initial.activeFactionId
+    const owned = initial.units.find((unit) => unit.factionId === factionId)!
+    const enemy = initial.units.find((unit) => unit.factionId !== factionId)!
+    const deficit = {
+      ...initial,
+      selectedUnitId: owned.id,
+      resources: { ...initial.resources, [factionId]: 0 },
+      sites: initial.sites.filter((site) => site.ownerId !== factionId),
+    }
+
+    expect(
+      gameReducer(deficit, { type: 'unitDisbanded', unitId: enemy.id }),
+    ).toBe(deficit)
+    const disbanded = gameReducer(deficit, {
+      type: 'unitDisbanded',
+      unitId: owned.id,
+    })
+    expect(disbanded.units.some((unit) => unit.id === owned.id)).toBe(false)
+    expect(disbanded.selectedUnitId).toBeUndefined()
+    expect(disbanded.resources).toEqual(deficit.resources)
+
+    const settled = gameReducer(deficit, { type: 'turnEnded' })
+    expect(settled.resources[factionId]).toBe(0)
+    expect(settled.units).toHaveLength(deficit.units.length)
   })
 
   it('restarts deterministically with the requested seed even after game over', () => {
