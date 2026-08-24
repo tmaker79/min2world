@@ -1187,9 +1187,7 @@
   background: #365172;
 }
 
-.map-tile--water,
-.map-tile--mountain,
-.map-tile--tundraMountain {
+.map-tile--water {
   cursor: not-allowed;
 }
 
