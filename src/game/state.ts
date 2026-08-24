@@ -30,6 +30,10 @@ export function cloneGameState(
       ...site,
       position: { ...site.position },
       footprint: site.footprint?.map((position) => ({ ...position })),
+      buildings: [...site.buildings],
+      constructionQueue: site.constructionQueue
+        ? { ...site.constructionQueue }
+        : undefined,
     })),
   }
 }

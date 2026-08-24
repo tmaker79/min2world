@@ -151,6 +151,7 @@ describe('hex movement rules', () => {
       ownerId: 'neutral',
       hp: 120,
       maxHp: 120,
+      buildings: [],
     }
     const blocked = { ...rulesState([mover]), sites: [fortified] }
 
@@ -276,6 +277,7 @@ describe('hex combat rules', () => {
       ownerId: 'enemy',
       hp: 50,
       maxHp: 50,
+      buildings: [],
     }
 
     expect(getSiteMaxHp(site)).toBe(50)
@@ -296,6 +298,7 @@ describe('hex combat rules', () => {
       ownerId: 'enemy',
       hp: 50,
       maxHp: 50,
+      buildings: [],
     }
     const forest = withTerrain(
       rulesState([archer]),
@@ -322,6 +325,7 @@ describe('hex combat rules', () => {
       ownerId: 'enemy',
       hp: 120,
       maxHp: 120,
+      buildings: [],
     }
     const state = { ...rulesState([archer, blocker]), sites: [city] }
 
@@ -370,6 +374,7 @@ describe('sites', () => {
       level: 2 as const,
       position: { q: 0, r: 0 },
       ownerId,
+      buildings: [],
     }
     const keep = { ...blacksmith, id: 'keep', kind: 'keep' as const, level: undefined }
     const discounted = { ...state, sites: [blacksmith, keep] }
@@ -393,6 +398,7 @@ describe('sites', () => {
       kind: 'village',
       position: { q: 0, r: 0 },
       ownerId: 'neutral',
+      buildings: [],
     }
     const enemyCapital = state.sites.find((site) => site.capitalFor === 'enemy')!
     const capturedNeutral = captureSiteAt([neutral, enemyCapital], neutral.position, 'player')
@@ -413,6 +419,7 @@ describe('sites', () => {
       position: { q: 0, r: 0 },
       footprint: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 1, r: -1 }],
       ownerId: 'neutral',
+      buildings: [],
     }
 
     expect(captureSiteAt([town], { q: 1, r: 0 }, 'player')).toEqual([town])

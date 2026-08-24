@@ -112,6 +112,68 @@ describe('saved games', () => {
     }
   })
 
+  it('round-trips completed buildings and an active City construction queue', () => {
+    const storage = new MemoryStorage()
+    const state = createInitialGameState('save-buildings')
+    const city = state.sites.find((site) => site.kind === 'city')!
+    city.buildings = ['wall', 'granary']
+    city.hp = 150
+    city.maxHp = 150
+    city.constructionQueue = {
+      buildingId: 'market',
+      turnsRemaining: 1,
+      startedTurn: state.turn,
+    }
+
+    expect(saveGame(state, storage).ok).toBe(true)
+    const loaded = loadGame(storage)
+    expect(loaded.ok).toBe(true)
+    if (loaded.ok) {
+      expect(
+        loaded.value.gameState.sites.find((site) => site.id === city.id),
+      ).toMatchObject({
+        buildings: ['wall', 'granary'],
+        hp: 150,
+        maxHp: 150,
+        constructionQueue: {
+          buildingId: 'market',
+          turnsRemaining: 1,
+          startedTurn: state.turn,
+        },
+      })
+    }
+  })
+
+  it('migrates schema 11 sites with empty building state', () => {
+    const storage = new MemoryStorage()
+    const current = createInitialGameState('schema-11-buildings')
+    const legacy = {
+      ...current,
+      schemaVersion: 11,
+      sites: current.sites.map(
+        ({ buildings: _buildings, constructionQueue: _queue, ...site }) => {
+          void _buildings
+          void _queue
+          return site
+        },
+      ),
+    }
+    storeEnvelope(storage, legacy, 11)
+
+    const loaded = loadGame(storage)
+    expect(loaded.ok).toBe(true)
+    if (loaded.ok) {
+      expect(loaded.value.schemaVersion).toBe(GAME_SCHEMA_VERSION)
+      expect(
+        loaded.value.gameState.sites.every(
+          (site) =>
+            site.buildings.length === 0 &&
+            site.constructionQueue === undefined,
+        ),
+      ).toBe(true)
+    }
+  })
+
   it('defaults schema 8 saves without a map type to balanced', () => {
     const storage = new MemoryStorage()
     const state = createSchema8State('legacy-map-type')
@@ -247,7 +309,7 @@ describe('saved games', () => {
     }
   })
 
-  it('migrates an eight-site schema 8 save to schema 11 without changing its map version or city footprints', () => {
+  it('migrates an eight-site schema 8 save to the current schema without changing its map version or city footprints', () => {
     const storage = new MemoryStorage()
     const state = createSchema8State('schema-8-migration')
     state.mapGenerationVersion = 21
@@ -260,8 +322,8 @@ describe('saved games', () => {
 
     expect(loaded.ok).toBe(true)
     if (loaded.ok) {
-      expect(loaded.value.schemaVersion).toBe(11)
-      expect(loaded.value.gameState.schemaVersion).toBe(11)
+      expect(loaded.value.schemaVersion).toBe(GAME_SCHEMA_VERSION)
+      expect(loaded.value.gameState.schemaVersion).toBe(GAME_SCHEMA_VERSION)
       expect(loaded.value.gameState.mapGenerationVersion).toBe(21)
       expect(loaded.value.gameState.sites).toHaveLength(8)
       expect(
@@ -301,8 +363,8 @@ describe('saved games', () => {
 
     expect(loaded.ok).toBe(true)
     if (loaded.ok) {
-      expect(loaded.value.schemaVersion).toBe(11)
-      expect(loaded.value.gameState.schemaVersion).toBe(11)
+      expect(loaded.value.schemaVersion).toBe(GAME_SCHEMA_VERSION)
+      expect(loaded.value.gameState.schemaVersion).toBe(GAME_SCHEMA_VERSION)
       expect(loaded.value.gameState.mapGenerationVersion).toBe(21)
       expect(loaded.value.gameState.sites.find((site) => site.id === city.id)?.footprint).toEqual(footprint)
       expect(loaded.value.gameState.sites.find((site) => site.id === farm.id)).toMatchObject({
@@ -365,7 +427,7 @@ describe('saved games', () => {
 
     expect(loaded.ok).toBe(true)
     if (loaded.ok) {
-      expect(loaded.value.schemaVersion).toBe(11)
+      expect(loaded.value.schemaVersion).toBe(GAME_SCHEMA_VERSION)
       expect(
         loaded.value.gameState.sites.find((site) => site.id === settlement.id),
       ).toMatchObject({ kind: 'town', footprint })
@@ -443,7 +505,22 @@ describe('saved games', () => {
     ['wrong fortified max hp', (state: GameState) => { state.sites.find((site) => site.kind === 'city')!.maxHp = 1 }],
     ['hp on nonfortified site', (state: GameState) => { state.sites.find((site) => site.kind === 'farm')!.hp = 1 }],
     ['max hp on nonfortified site', (state: GameState) => { state.sites.find((site) => site.kind === 'farm')!.maxHp = 1 }],
-  ])('rejects schema 11 sites with %s', (_, mutate) => {
+    ['duplicate buildings', (state: GameState) => {
+      state.sites.find((site) => site.kind === 'city')!.buildings = ['market', 'market']
+    }],
+    ['building on a non-City site', (state: GameState) => {
+      state.sites.find((site) => site.kind === 'farm')!.buildings = ['granary']
+    }],
+    ['queue duplicates a completed building', (state: GameState) => {
+      const city = state.sites.find((site) => site.kind === 'city')!
+      city.buildings = ['market']
+      city.constructionQueue = { buildingId: 'market', turnsRemaining: 1, startedTurn: state.turn }
+    }],
+    ['future construction turn', (state: GameState) => {
+      const city = state.sites.find((site) => site.kind === 'city')!
+      city.constructionQueue = { buildingId: 'market', turnsRemaining: 1, startedTurn: state.turn + 1 }
+    }],
+  ])('rejects current-schema sites with %s', (_, mutate) => {
     const storage = new MemoryStorage()
     const state = createInitialGameState('invalid-site-schema')
     mutate(state)

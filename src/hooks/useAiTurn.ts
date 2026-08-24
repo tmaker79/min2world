@@ -9,6 +9,7 @@ import {
 } from '../game/rules'
 import { getSiteDevelopmentTarget } from '../game/siteDevelopment'
 import { getSiteOccupiedPositions } from '../game/siteFootprint'
+import { BUILDING_DEFINITIONS } from '../game/cityAdministration'
 import type { GameAction, GameState } from '../game/types'
 
 type UseAiTurnOptions = {
@@ -99,6 +100,17 @@ export function getAiActionAnnouncement(
     return site && target
       ? `${site.name}을 ${SITE_TYPE_LABELS[target.kind]}(으)로 발전시킵니다.`
       : 'AI가 거점을 발전시킵니다.'
+  }
+
+  if (action.type === 'constructionStarted') {
+    const site = state.sites.find(
+      (candidate) => candidate.id === action.siteId,
+    )
+    return `${site?.name ?? '도시'}에 ${BUILDING_DEFINITIONS[action.buildingId].label} 건설을 시작합니다.`
+  }
+
+  if (action.type === 'constructionCancelled') {
+    return 'AI가 건설을 취소합니다.'
   }
 
   return ''

@@ -10,6 +10,7 @@ import { AppChrome } from './components/AppChrome'
 import type { ChromeMenuId } from './components/AppChrome'
 import { CityPanel } from './components/CityPanel'
 import type { CityPanelTab } from './components/CityPanel'
+import { ConstructionPanel } from './components/ConstructionPanel'
 import { DevelopmentPanel } from './components/DevelopmentPanel'
 import { GameResultPanel } from './components/GameResultPanel'
 import { GameMap } from './components/GameMap'
@@ -593,7 +594,8 @@ function GameApp({ initialState }: { initialState: GameState }) {
         event.key === 'Escape' &&
         (isMoveMode ||
           activeProductionUnitType ||
-          activeSiteTab === 'development')
+          activeSiteTab === 'development' ||
+          activeSiteTab === 'construction')
       ) {
         event.preventDefault()
         setActiveMoveUnitId(undefined)
@@ -1218,6 +1220,26 @@ function GameApp({ initialState }: { initialState: GameState }) {
                         }}
                       />
                     )}
+                    {activeSiteTab === 'construction' &&
+                      cityInfoSite.kind === 'city' && (
+                        <ConstructionPanel
+                          state={state}
+                          site={cityInfoSite}
+                          onStart={(buildingId) => {
+                            dispatch({
+                              type: 'constructionStarted',
+                              siteId: cityInfoSite.id,
+                              buildingId,
+                            })
+                          }}
+                          onCancel={() => {
+                            dispatch({
+                              type: 'constructionCancelled',
+                              siteId: cityInfoSite.id,
+                            })
+                          }}
+                        />
+                      )}
                   </CityPanel>
                 )}
                 {!sidebarPreviewTile && !activeProductionUnitType && selectedUnit && (

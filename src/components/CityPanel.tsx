@@ -51,6 +51,12 @@ export function CityPanel({
             <dt>소유</dt>
             <dd>{site.ownerId === 'neutral' ? '중립' : site.ownerId}</dd>
           </div>
+          {site.kind === 'city' && (
+            <div>
+              <dt>건물</dt>
+              <dd>{site.buildings.length} / 7</dd>
+            </div>
+          )}
           {combatStats && maxHp && (
             <>
               <div>
@@ -89,15 +95,18 @@ export function CityPanel({
         >
           발전
         </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={false}
-          disabled
-          title="준비 중인 기능입니다."
-        >
-          건설
-        </button>
+        {site.kind === 'city' && (
+          <button
+            id="site-tab-construction"
+            type="button"
+            role="tab"
+            aria-controls="site-panel-construction"
+            aria-selected={activeTab === 'construction'}
+            onClick={() => onTabChange('construction')}
+          >
+            건설
+          </button>
+        )}
         <button
           type="button"
           className="city-card__close"

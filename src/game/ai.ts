@@ -25,7 +25,13 @@ import {
   getSiteDevelopmentTarget,
 } from './siteDevelopment'
 import { MinPriorityQueue } from './priorityQueue'
+import {
+  BUILDING_DEFINITIONS,
+  canStartConstruction,
+  hasBuilding,
+} from './cityAdministration'
 import type {
+  BuildingId,
   FactionId,
   GameAction,
   GameState,
@@ -37,6 +43,22 @@ import type {
 } from './types'
 
 const AI_DEVELOPMENT_RESERVE = 5
+const AI_CONSTRUCTION_RESERVE = 10
+
+const AI_PEACEFUL_BUILDING_PRIORITY: readonly BuildingId[] = [
+  'granary',
+  'market',
+  'library',
+  'barracks',
+  'temple',
+  'wall',
+  'tavern',
+]
+const AI_THREATENED_BUILDING_PRIORITY: readonly BuildingId[] = [
+  'wall',
+  'tavern',
+  'barracks',
+]
 
 const AI_PRODUCTION_PRIORITY: readonly UnitType[] = [
   'spearman',
@@ -395,7 +417,7 @@ function chooseProduction(
       .filter(
         (type) =>
           canSiteProduceUnit(site, type) &&
-          getUnitProductionCost(state, factionId, type) <=
+          getUnitProductionCost(state, factionId, type, site) <=
             (state.resources[factionId] ?? 0),
       )
       .sort(
@@ -424,7 +446,11 @@ function chooseDevelopment(
 ): GameAction | undefined {
   const ownedSites = state.sites.filter((site) => site.ownerId === factionId)
   if (
-    ownedSites.some((site) => site.lastDevelopedTurn === state.turn)
+    ownedSites.some(
+      (site) =>
+        site.lastDevelopedTurn === state.turn ||
+        site.constructionQueue?.startedTurn === state.turn,
+    )
   ) {
     return undefined
   }
@@ -472,6 +498,51 @@ function chooseDevelopment(
     : undefined
 }
 
+function chooseConstruction(
+  state: GameState,
+  factionId: FactionId,
+): GameAction | undefined {
+  const ownedSites = state.sites.filter((site) => site.ownerId === factionId)
+  if (
+    ownedSites.some(
+      (site) =>
+        site.lastDevelopedTurn === state.turn ||
+        site.constructionQueue?.startedTurn === state.turn,
+    )
+  ) {
+    return undefined
+  }
+
+  const resources = state.resources[factionId] ?? 0
+  for (const city of ownedSites
+    .filter((site) => site.kind === 'city' && !site.constructionQueue)
+    .sort(compareIds)) {
+    const threatened = state.units.some(
+      (unit) =>
+        unit.factionId !== factionId &&
+        getSiteOccupiedPositions(city).some(
+          (position) => getHexDistance(unit.position, position) <= 2,
+        ),
+    )
+    const priorities = threatened
+      ? AI_THREATENED_BUILDING_PRIORITY
+      : AI_PEACEFUL_BUILDING_PRIORITY
+
+    for (const buildingId of priorities) {
+      if (hasBuilding(city, buildingId)) continue
+      const check = canStartConstruction(state, city.id, buildingId)
+      if (
+        check.ok &&
+        resources - BUILDING_DEFINITIONS[buildingId].cost >=
+          AI_CONSTRUCTION_RESERVE
+      ) {
+        return { type: 'constructionStarted', siteId: city.id, buildingId }
+      }
+    }
+  }
+  return undefined
+}
+
 export function chooseAiAction(
   state: GameState,
   factionId = state.activeFactionId,
@@ -499,6 +570,7 @@ export function chooseAiAction(
     return nextUnit
       ? { type: 'unitSelected', unitId: nextUnit.id }
       : (chooseDevelopment(state, factionId) ??
+          chooseConstruction(state, factionId) ??
           chooseProduction(state, factionId) ?? { type: 'turnEnded' })
   }
 

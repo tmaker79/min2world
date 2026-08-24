@@ -6,6 +6,13 @@ import {
   positionsEqual,
 } from './hex'
 import { MinPriorityQueue } from './priorityQueue'
+import {
+  getBarracksProductionDiscount,
+  getBuildingIncomeBonus,
+  hasBuilding,
+  MAX_PRODUCTION_DISCOUNT,
+  WALL_DEFENSE_BONUS,
+} from './cityAdministration'
 import { getSiteOccupiedPositions } from './siteFootprint'
 import {
   getSitePositionIndex,
@@ -90,7 +97,11 @@ export function getSiteCombatStats(
   siteOrKind: Site | SiteType,
 ): SiteCombatStats | undefined {
   const kind = typeof siteOrKind === 'string' ? siteOrKind : siteOrKind.kind
-  return isFortifiedSiteKind(kind) ? SITE_COMBAT_STATS[kind] : undefined
+  if (!isFortifiedSiteKind(kind)) return undefined
+  const stats = SITE_COMBAT_STATS[kind]
+  return typeof siteOrKind !== 'string' && hasBuilding(siteOrKind, 'wall')
+    ? { ...stats, maxHp: siteOrKind.maxHp ?? stats.maxHp, defense: stats.defense + WALL_DEFENSE_BONUS }
+    : stats
 }
 
 export function getSiteMaxHp(siteOrKind: Site | SiteType): number | undefined {
@@ -133,7 +144,7 @@ export function getSiteIncome(site: Site): number {
   const level = getSiteLevel(site)
   if (site.kind === 'farm' || site.kind === 'blacksmith') return level + 1
   if (site.kind === 'mine') return level + 2
-  return SITE_STATS[site.kind].income
+  return SITE_STATS[site.kind].income + getBuildingIncomeBonus(site)
 }
 
 export function getProducibleUnitTypes(site: Site): readonly UnitType[] {
@@ -171,11 +182,16 @@ export function getUnitProductionCost(
   state: GameState,
   factionId: FactionId,
   unitType: UnitType,
+  site?: Site,
 ): number {
+  const discount = Math.min(
+    MAX_PRODUCTION_DISCOUNT,
+    getBlacksmithProductionDiscount(state, factionId, unitType) +
+      getBarracksProductionDiscount(site, unitType),
+  )
   return Math.max(
-    0,
-    UNIT_STATS[unitType].cost -
-      getBlacksmithProductionDiscount(state, factionId, unitType),
+    1,
+    UNIT_STATS[unitType].cost - discount,
   )
 }
 

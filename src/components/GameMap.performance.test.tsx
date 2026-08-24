@@ -38,6 +38,7 @@ function createLargeRenderState(columns: number, rows: number): GameState {
         position: { q: 10, r: 10 },
         ownerId: 'f1',
         capitalFor: 'f1',
+        buildings: [],
       },
       {
         id: 'red-capital',
@@ -46,6 +47,7 @@ function createLargeRenderState(columns: number, rows: number): GameState {
         position: { q: 80, r: 80 },
         ownerId: 'f2',
         capitalFor: 'f2',
+        buildings: [],
       },
     ],
   }

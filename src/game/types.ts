@@ -14,7 +14,7 @@ export type Terrain =
 
 export type MapType = 'balanced' | 'plains' | 'mountainous' | 'forested'
 
-export const GAME_SCHEMA_VERSION = 11
+export const GAME_SCHEMA_VERSION = 12
 export const MAP_GENERATION_VERSION = 24
 export const SUPPORTED_MAP_GENERATION_VERSIONS: readonly number[] = [
   5,
@@ -64,7 +64,21 @@ export type SiteType =
   | 'mine'
   | 'blacksmith'
 export type UnitType = 'infantry' | 'cavalry' | 'archer' | 'spearman'
+export type BuildingId =
+  | 'granary'
+  | 'market'
+  | 'wall'
+  | 'barracks'
+  | 'tavern'
+  | 'temple'
+  | 'library'
 export type GamePhase = 'playing' | 'victory' | 'defeat'
+
+export type ConstructionQueueItem = {
+  buildingId: BuildingId
+  turnsRemaining: number
+  startedTurn: number
+}
 
 export type UnitStats = {
   movement: number
@@ -116,6 +130,8 @@ export type Site = {
   capitalFor?: FactionId
   hp?: number
   maxHp?: number
+  buildings: BuildingId[]
+  constructionQueue?: ConstructionQueueItem
   lastProducedTurn?: number
   lastDevelopedTurn?: number
 }
@@ -153,6 +169,8 @@ export type GameAction =
       destination: Position
     }
   | { type: 'siteDeveloped'; siteId: string; footprint?: Position[] }
+  | { type: 'constructionStarted'; siteId: string; buildingId: BuildingId }
+  | { type: 'constructionCancelled'; siteId: string }
   | { type: 'turnEnded' }
   | { type: 'gameLoaded'; state: GameState }
   | {

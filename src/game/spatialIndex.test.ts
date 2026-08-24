@@ -43,6 +43,7 @@ describe('spatial indexes', () => {
       ownerId: 'enemy',
       hp: 120,
       maxHp: 120,
+      buildings: [],
     }
     const state = { ...initial, units: [], sites: [city] }
     const enemyZone = getZoneOfControlIndex(state, 'player')

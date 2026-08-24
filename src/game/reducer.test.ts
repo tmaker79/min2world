@@ -191,6 +191,7 @@ describe('gameReducer on a hex map', () => {
       ownerId: 'enemy' as const,
       hp: 50,
       maxHp: 50,
+      buildings: [],
     }
     const state = {
       ...initial,
@@ -244,6 +245,7 @@ describe('gameReducer on a hex map', () => {
       kind: 'outpost' as const,
       position: { q: 0, r: 0 },
       ownerId,
+      buildings: [],
     }
     const blacksmith = {
       ...site,

@@ -2,6 +2,11 @@ import { createInitialGameState } from './initialState'
 import { cloneGameState } from './state'
 import { resolveSiteDevelopment } from './siteDevelopment'
 import {
+  resolveCityTurnStart,
+  resolveConstructionCancellation,
+  resolveConstructionStart,
+} from './cityAdministration'
+import {
   canSiteProduceUnit,
   captureSiteAt,
   getAttackableSites,
@@ -299,6 +304,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         state,
         state.activeFactionId,
         action.unitType,
+        site,
       )
 
       if (
@@ -363,6 +369,16 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'siteDeveloped':
       return resolveSiteDevelopment(state, action.siteId, action.footprint)
 
+    case 'constructionStarted':
+      return resolveConstructionStart(
+        state,
+        action.siteId,
+        action.buildingId,
+      )
+
+    case 'constructionCancelled':
+      return resolveConstructionCancellation(state, action.siteId)
+
     case 'turnEnded': {
       const endingFactionId = state.activeFactionId
       const endingIndex = state.factionOrder.indexOf(endingFactionId)
@@ -370,6 +386,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         state.factionOrder[(endingIndex + 1) % state.factionOrder.length] ??
         state.humanFactionId
       const completesRound = endingIndex === state.factionOrder.length - 1
+      const cityTurnStart = resolveCityTurnStart(state, nextFactionId)
 
       return {
         ...state,
@@ -382,7 +399,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             (state.resources[endingFactionId] ?? 0) +
             getFactionIncome(state, endingFactionId),
         },
-        units: state.units.map((unit) =>
+        sites: cityTurnStart.sites,
+        units: cityTurnStart.units.map((unit) =>
           unit.factionId === nextFactionId
             ? {
                 ...unit,

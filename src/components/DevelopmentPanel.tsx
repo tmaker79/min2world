@@ -35,7 +35,7 @@ export function DevelopmentPanel({
   onDevelop,
 }: DevelopmentPanelProps) {
   const target = getSiteDevelopmentTarget(site)
-  const cost = getSiteDevelopmentCost(site)
+  const cost = getSiteDevelopmentCost(site, state)
   const owned = site.ownerId === state.humanFactionId
   const requiresFootprint = site.kind === 'village' || site.kind === 'town'
   const selectedFootprint = footprints[selectedFootprintIndex]

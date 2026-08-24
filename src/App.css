@@ -532,6 +532,7 @@
 .info-card,
 .production-card,
 .development-card,
+.construction-card,
 .save-card,
 .legend-card,
 .help-card {
@@ -732,6 +733,7 @@
 .map-sidebar__selection .info-card,
 .map-sidebar__selection .production-card,
 .map-sidebar__selection .development-card,
+.map-sidebar__selection .construction-card,
 .map-sidebar__selection .city-card {
   margin: 0;
   padding: 10px;
@@ -785,6 +787,12 @@
   display: grid;
   align-content: start;
   gap: 10px;
+}
+
+.map-sidebar__selection .construction-card {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .map-sidebar__selection .city-stack > * {
@@ -2007,6 +2015,7 @@
 .info-card,
 .production-card,
 .development-card,
+.construction-card,
 .save-card,
 .legend-card,
 .help-card {
@@ -2355,6 +2364,105 @@
   color: #efc77a;
   font-size: 0.7rem;
   line-height: 1.45;
+}
+
+.construction-card {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.construction-queue {
+  display: grid;
+  padding: 10px;
+  gap: 7px;
+  background: rgba(86, 215, 194, 0.08);
+  border: 1px solid rgba(86, 215, 194, 0.4);
+  border-radius: 5px;
+}
+
+.construction-queue div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.construction-queue span,
+.construction-queue small {
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.construction-queue button {
+  padding: 7px 9px;
+  color: var(--ink);
+  background: #18232a;
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.construction-queue button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.construction-group {
+  display: grid;
+  gap: 6px;
+}
+
+.construction-group h3 {
+  margin: 0;
+  color: var(--gold);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+}
+
+.construction-list {
+  display: grid;
+  gap: 6px;
+}
+
+.construction-option {
+  display: grid;
+  padding: 9px;
+  gap: 4px;
+  color: var(--ink);
+  text-align: left;
+  background: #18232a;
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.construction-option strong {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--ink);
+  font-size: 0.74rem;
+}
+
+.construction-option > span,
+.construction-option small {
+  color: var(--muted);
+  font-size: 0.66rem;
+  line-height: 1.4;
+}
+
+.construction-option[data-building-status='completed'] {
+  border-color: rgba(86, 215, 194, 0.45);
+}
+
+.construction-option[data-building-status='queued'] {
+  border-color: rgba(240, 208, 118, 0.55);
+}
+
+.construction-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
 }
 
 .unit-details dt {

@@ -20,12 +20,18 @@ import {
   UNIT_STATS,
 } from '../game/rules'
 import {
+  BUILDING_DEFINITIONS,
+  BUILDING_IDS,
+  WALL_MAX_HP_BONUS,
+} from '../game/cityAdministration'
+import {
   GAME_SCHEMA_VERSION,
   MAP_GENERATION_VERSION,
   SUPPORTED_MAP_GENERATION_VERSIONS,
 } from '../game/types'
 import type {
   BoardSize,
+  BuildingId,
   FactionCount,
   FactionId,
   GameState,
@@ -90,6 +96,7 @@ const SITE_TYPES = new Set<SiteType>([
   'city',
 ])
 const MAP_TYPES = new Set<MapType>(['balanced', 'plains', 'mountainous', 'forested'])
+const BUILDINGS = new Set<BuildingId>(BUILDING_IDS)
 
 function success<T>(value: T): StorageResult<T> {
   return { ok: true, value }
@@ -207,14 +214,48 @@ function parseSite(value: unknown, boardSize: BoardSize): Site | undefined {
   }
   const position = parsePosition(value.position, boardSize)
   const kind = value.kind as SiteType
+  const buildings = Array.isArray(value.buildings) &&
+    value.buildings.every(
+      (buildingId) =>
+        typeof buildingId === 'string' &&
+        BUILDINGS.has(buildingId as BuildingId),
+    ) &&
+    hasUniqueValues(value.buildings as string[])
+      ? (value.buildings as BuildingId[])
+      : undefined
+  const queue = value.constructionQueue
+  const constructionQueue = queue === undefined
+    ? undefined
+    : isRecord(queue) &&
+        typeof queue.buildingId === 'string' &&
+        BUILDINGS.has(queue.buildingId as BuildingId) &&
+        isIntegerInRange(
+          queue.turnsRemaining,
+          1,
+          BUILDING_DEFINITIONS[queue.buildingId as BuildingId].turns,
+        ) &&
+        isIntegerInRange(queue.startedTurn, 1)
+      ? {
+          buildingId: queue.buildingId as BuildingId,
+          turnsRemaining: queue.turnsRemaining as number,
+          startedTurn: queue.startedTurn as number,
+        }
+      : null
   const requiresLevel = kind === 'farm' || kind === 'mine' || kind === 'blacksmith'
   const fortified = isFortifiedSiteKind(kind)
-  const expectedMaxHp = getSiteMaxHp(kind)!
+  const expectedMaxHp = getSiteMaxHp(kind)! +
+    (buildings?.includes('wall') ? WALL_MAX_HP_BONUS : 0)
   const footprint = Array.isArray(value.footprint)
     ? value.footprint.map((candidate) => parsePosition(candidate, boardSize))
     : undefined
   if (
     !position ||
+    !buildings ||
+    constructionQueue === null ||
+    (kind !== 'city' &&
+      (buildings.length > 0 || constructionQueue !== undefined)) ||
+    (constructionQueue !== undefined &&
+      buildings.includes(constructionQueue.buildingId)) ||
     (value.capitalFor !== undefined &&
       kind !== 'stronghold' &&
       kind !== 'city') ||
@@ -254,6 +295,8 @@ function parseSite(value: unknown, boardSize: BoardSize): Site | undefined {
       ? {}
       : { footprint: footprint as Position[] }),
     ownerId: value.ownerId as SiteOwnerId,
+    buildings,
+    ...(constructionQueue === undefined ? {} : { constructionQueue }),
     ...(fortified
       ? { hp: value.hp as number, maxHp: value.maxHp as number }
       : {}),
@@ -439,6 +482,11 @@ function parseGameState(value: unknown): StorageResult<GameState> {
   const developmentTurnsAreValid = parsedSites.every(
     (site) => site.lastDevelopedTurn === undefined || site.lastDevelopedTurn <= state.turn,
   )
+  const constructionTurnsAreValid = parsedSites.every(
+    (site) =>
+      site.constructionQueue === undefined ||
+      site.constructionQueue.startedTurn <= state.turn,
+  )
   const capitals = parsedSites.filter((site) => site.capitalFor)
   const capitalsAreValid =
     capitals.length === factionCount &&
@@ -452,6 +500,7 @@ function parseGameState(value: unknown): StorageResult<GameState> {
     !unitsAreValid ||
     !productionTurnsAreValid ||
     !developmentTurnsAreValid ||
+    !constructionTurnsAreValid ||
     !capitalsAreValid
   ) {
     return failure('invalidData', '지도 참조 관계가 올바르지 않습니다.')
@@ -647,6 +696,26 @@ function readSavedGame(storage?: StorageLike): StorageResult<SavedGame> {
       gameState: {
         ...legacyState,
         schemaVersion: 11,
+        sites: Array.isArray(legacyState.sites)
+          ? legacyState.sites.map(migrateSite)
+          : legacyState.sites,
+      },
+    }
+  }
+  const buildingRecord = parsed as Record<string, unknown>
+  if (
+    buildingRecord.schemaVersion === 11 &&
+    isRecord(buildingRecord.gameState)
+  ) {
+    const legacyState = buildingRecord.gameState
+    const migrateSite = (site: unknown) =>
+      isRecord(site) ? { ...site, buildings: [] } : site
+    parsed = {
+      ...buildingRecord,
+      schemaVersion: 12,
+      gameState: {
+        ...legacyState,
+        schemaVersion: 12,
         sites: Array.isArray(legacyState.sites)
           ? legacyState.sites.map(migrateSite)
           : legacyState.sites,

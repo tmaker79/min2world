@@ -19,6 +19,7 @@ function developmentState(
     kind,
     position: { q: 0, r: 0 },
     ownerId: initial.activeFactionId,
+    buildings: [],
     ...overrides,
   }
   return {

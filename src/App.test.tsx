@@ -474,7 +474,7 @@ describe('Milestone 07 UI', () => {
     expect(within(cityInfo).getByText(stronghold.name)).toBeVisible()
     expect(cityInfo).toHaveTextContent('체력120/120')
     expect(cityInfo).toHaveTextContent('방어력55')
-    expect(screen.getByRole('tab', { name: /건설/ })).toBeDisabled()
+    expect(screen.getByRole('tab', { name: /건설/ })).toBeEnabled()
     expect(screen.queryByText('미구현')).not.toBeInTheDocument()
     expect(container.querySelector('.production-card')).toBeNull()
 
@@ -540,6 +540,39 @@ describe('Milestone 07 UI', () => {
     expect(screen.queryByLabelText('부대 배치')).not.toBeInTheDocument()
     expect(container.querySelector('.production-card')).toBeInTheDocument()
     expect(container.querySelectorAll('.unit-token')).toHaveLength(6)
+  })
+
+  it('starts and cancels City construction without a slot limit or refund', async () => {
+    const user = userEvent.setup()
+    const state = createInitialGameState('ui-construction')
+    const city = state.sites.find(
+      (site) =>
+        site.ownerId === state.humanFactionId && site.kind === 'city',
+    )!
+    state.resources[state.humanFactionId] = 100
+    const { container } = renderApp(state)
+
+    await user.click(container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(city.position)}"]`,
+    )!)
+    await user.click(screen.getByRole('tab', { name: '건설' }))
+
+    const panel = screen.getByLabelText('도시 건설')
+    expect(within(panel).getAllByRole('button')).toHaveLength(7)
+    expect(within(panel).getByRole('button', { name: /곡창.*15 자원/ }))
+      .toBeEnabled()
+
+    await user.click(
+      within(panel).getByRole('button', { name: /곡창.*15 자원/ }),
+    )
+    expect(within(panel).getByText('곡창 건설 중')).toBeVisible()
+    expect(within(panel).getByText('남은 1턴')).toBeVisible()
+    expect(screen.getByLabelText('거점 정보')).toHaveTextContent('건물0 / 7')
+    expect(screen.getByLabelText('현재 게임 상태')).toHaveTextContent('자원 85')
+
+    await user.click(within(panel).getByRole('button', { name: '건설 취소' }))
+    expect(within(panel).queryByText('곡창 건설 중')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('현재 게임 상태')).toHaveTextContent('자원 85')
   })
 
   it('selects a unit on a stronghold first, then the stronghold on the next click', async () => {

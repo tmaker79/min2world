@@ -56,15 +56,17 @@
 - 지형 이동 비용과 언덕·숲·사막 언덕·툰드라 숲 전투력 보정(+3)
 - 군사 거점 공성, 일반 거점 점령, 다세력 수도 점령 승패
 - 턴 종료 시 소유 거점 수입과 유닛 생산
+- City 전용 건물 7종과 도시당 하나의 건설 대기열
+- 곡창·시장 수입, 성벽 방어, 병영 생산비, 선술집·신전 회복, 도서관 개발비 효과
 - 규칙 기반 AI 턴(활성 세력 순회)
-- localStorage 저장과 불러오기(스키마 11, 스키마 6~10 연쇄 마이그레이션)
+- localStorage 저장과 불러오기(스키마 12, 스키마 6~11 연쇄 마이그레이션)
 - 시작 화면·자동 무작위 지도·새 게임
 - 지도 휠 줌·드래그 팬·미니맵
 - 지형/유닛 사이드바 미리보기·고정 정보, 성·부대 정보창, 우클릭 이동
 
 ### 아직 제외
 
-- 건설·건물·생산 대기열(성 메뉴에 미구현 표시만)
+- 유닛 생산 대기열과 다중 건설 대기열
 - 무한 지도와 월드 스트리밍
 - 지도 편집기
 - 장수 성장과 장비
@@ -193,6 +195,14 @@ type SiteType =
   | 'mine'
   | 'blacksmith'
 type UnitType = 'infantry' | 'cavalry' | 'archer' | 'spearman'
+type BuildingId =
+  | 'granary'
+  | 'market'
+  | 'wall'
+  | 'barracks'
+  | 'tavern'
+  | 'temple'
+  | 'library'
 type GamePhase = 'playing' | 'victory' | 'defeat'
 
 type Tile = {
@@ -226,12 +236,18 @@ type Site = {
   capitalFor?: FactionId
   hp?: number
   maxHp?: number
+  buildings: BuildingId[]
+  constructionQueue?: {
+    buildingId: BuildingId
+    turnsRemaining: number
+    startedTurn: number
+  }
   lastProducedTurn?: number
   lastDevelopedTurn?: number
 }
 
 type GameState = {
-  schemaVersion: number // 10
+  schemaVersion: number // 12
   mapSeed: string
   mapType: MapType
   mapGenerationVersion: number // 24
@@ -269,6 +285,8 @@ type GameAction =
       destination: Position
     }
   | { type: 'siteDeveloped'; siteId: string; footprint?: Position[] }
+  | { type: 'constructionStarted'; siteId: string; buildingId: BuildingId }
+  | { type: 'constructionCancelled'; siteId: string }
   | { type: 'turnEnded' }
   | { type: 'gameLoaded'; state: GameState }
   | {
@@ -412,13 +430,14 @@ src/
 localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지만 사용자가 사이트 데이터를 삭제하거나 저장 공간이 제한되면 사라질 수 있다. 따라서 저장은 편의 기능으로 간주하며 영구 보관을 보장하지 않는다.
 
 - 저장 데이터에 `schemaVersion`, `mapSeed`, `mapType`, `mapGenerationVersion`, `boardSize`, `factionCount`, `humanFactionId`, `factionOrder`를 포함한다.
-- 현재 스키마는 10이다.
+- 현재 스키마는 12다.
 - 스키마 6은 `player`/`enemy`를 `f1`/`f2`로 바꾼 뒤 연쇄 마이그레이션한다.
 - 스키마 7은 기존 `city`(마을)를 `village`로, `village`(농장)를 `farm`으로 바꿔 불러온다.
 - 스키마 8 저장에 `mapType`이 없으면 기존 생성 방식인 `balanced`로 불러온다.
 - 스키마 8의 기존 거점은 종류와 4타일 수도 footprint를 보존하고 생산 특화 시설을 Lv.1로 채운 뒤 연쇄 마이그레이션한다.
 - 스키마 9의 군사 거점은 종류별 최대 HP로 채워 스키마 10으로 불러온다.
 - 스키마 10의 `city`는 `town`, `castle`은 `city`로 바꿔 스키마 11로 불러온다.
+- 스키마 11의 모든 거점은 빈 건물 목록과 건설 대기열 없음으로 채워 스키마 12로 불러온다.
 - 마이그레이션은 저장된 `mapGenerationVersion`을 바꾸지 않으며, 새 지도 생성 버전은 24를 사용한다.
 - 맵 생성 버전 5부터 현재 버전 24까지 저장된 타일을 재생성하지 않고 지원한다.
 - JSON을 읽은 뒤 필요한 필드와 값의 범위를 검증한다.
@@ -455,8 +474,8 @@ localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지
 | --- | --- | --- |
 | [09](milestones/09-terrain-expansion.md) | 사막·툰드라와 후속 지형 확장 | 완료 |
 | [10](milestones/10-site-development.md) | 역할별 거점 발전 | 완료 |
-| [11](milestones/11-city-administration.md) | City 전용 건물·대기열 | 다음 목표 |
-| [12](milestones/12-upkeep.md) | 유지비(소프트 제약) | 예정 |
+| [11](milestones/11-city-administration.md) | City 전용 건물·대기열 | 완료 |
+| [12](milestones/12-upkeep.md) | 유지비(소프트 제약) | 다음 목표 |
 | [13](milestones/13-ai-refinement.md) | 경제를 보는 AI | 예정 |
 | [14](milestones/14-settlement-construction.md) | 개척자·건설자의 신규 거점 건설 | 예정 |
 | [15](milestones/15-supply-and-morale.md) | 보급·사기(라이트) | 예정 |
@@ -470,9 +489,9 @@ localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지
 
 ## 12. 현재 개발 목표
 
-다음 구현 목표는 [Milestone 11: 도시 내정](milestones/11-city-administration.md)이다.
+다음 구현 목표는 [Milestone 12: 유지비](milestones/12-upkeep.md)다.
 
-Milestone 10에서 군사·방어 계열 `Outpost → Keep → Stronghold`, 정착 계열 `Village → Town → City`, 생산 특화 시설 `Farm`·`Mine`·`Blacksmith`를 구현했다. Milestone 11에서는 City에 슬롯 제한 없는 건물 7종과 도시당 하나의 건설 대기열을 추가한다. 이후 생산·경제·인구·보급·사기·연구 시스템은 이 건물 기반 위에서 단계적으로 확장한다.
+Milestone 11에서 City에 슬롯 제한 없는 건물 7종과 도시당 하나의 건설 대기열을 추가했다. 건물 효과는 수입·도시 방어·부대 생산비·회복·거점 개발비에 연결되며 AI도 위협과 경제 상황에 따라 건설한다. 이후 생산·경제·인구·보급·사기·연구 시스템은 이 건물 기반 위에서 단계적으로 확장한다.
 
 가변 지도·다세력·HUD까지 반영한 현재 기준 시나리오는 다음과 같다.
 

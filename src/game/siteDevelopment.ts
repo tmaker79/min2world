@@ -1,4 +1,5 @@
 import { positionKey } from './hex'
+import { getFactionLibraryDiscount } from './cityAdministration'
 import {
   getSiteMaxHp,
   isFortifiedSiteKind,
@@ -79,8 +80,13 @@ export function getSiteDevelopmentTarget(
   }
 }
 
-export function getSiteDevelopmentCost(site: Site): number | undefined {
-  return getSiteDevelopmentTarget(site)?.cost
+export function getSiteDevelopmentCost(
+  site: Site,
+  state?: GameState,
+): number | undefined {
+  const cost = getSiteDevelopmentTarget(site)?.cost
+  if (cost === undefined || !state || site.ownerId === 'neutral') return cost
+  return Math.max(1, cost - getFactionLibraryDiscount(state, site.ownerId))
 }
 
 function isFootprintAvailable(
@@ -165,7 +171,8 @@ export function canDevelopSite(
   if (site.lastDevelopedTurn === state.turn) {
     return { ok: false, reason: 'alreadyDeveloped' }
   }
-  if ((state.resources[site.ownerId] ?? 0) < target.cost) {
+  const cost = getSiteDevelopmentCost(site, state)!
+  if ((state.resources[site.ownerId] ?? 0) < cost) {
     return { ok: false, reason: 'insufficientResources' }
   }
 
@@ -190,7 +197,7 @@ export function canDevelopSite(
 
   return {
     ok: true,
-    cost: target.cost,
+    cost,
     footprint: selectedFootprint.map((position) => ({ ...position })),
   }
 }
@@ -221,7 +228,7 @@ export function resolveSiteDevelopment(
     resources: {
       ...state.resources,
       [state.activeFactionId]:
-        (state.resources[state.activeFactionId] ?? 0) - target.cost,
+        (state.resources[state.activeFactionId] ?? 0) - check.cost,
     },
     sites: state.sites.map((candidate) => {
       if (candidate.id !== site.id) return candidate

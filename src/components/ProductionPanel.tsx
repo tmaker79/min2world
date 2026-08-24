@@ -60,6 +60,7 @@ export function ProductionPanel({
                 state,
                 state.humanFactionId,
                 unitType,
+                site,
               )
               return (
                 <button

@@ -526,6 +526,7 @@ function chooseNeutralSites(
     kind,
     position: { ...position },
     ownerId: 'neutral',
+    buildings: [],
     ...(isFortifiedSiteKind(kind)
       ? { hp: getSiteMaxHp(kind)!, maxHp: getSiteMaxHp(kind)! }
       : {}),
@@ -828,6 +829,7 @@ function createSites(
         capitalFor: factionId,
         hp: maxHp,
         maxHp,
+        buildings: [],
       }
     }),
     ...neutrals,

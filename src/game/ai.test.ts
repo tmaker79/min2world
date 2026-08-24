@@ -384,4 +384,52 @@ describe('hex-map AI', () => {
       unitType: 'spearman',
     })
   })
+
+  it('constructs a granary in a peaceful City after unit actions', () => {
+    const initial = economyState('ai-city-construction')
+    const city = initial.sites.find(
+      (site) => site.ownerId === 'enemy' && site.kind === 'city',
+    )!
+    const state = {
+      ...initial,
+      resources: { ...initial.resources, enemy: 100 },
+      sites: [city],
+    }
+
+    expect(chooseAiAction(state)).toEqual({
+      type: 'constructionStarted',
+      siteId: city.id,
+      buildingId: 'granary',
+    })
+  })
+
+  it('prioritizes a wall when an enemy threatens a City', () => {
+    const initial = economyState('ai-threatened-city')
+    const city = initial.sites.find(
+      (site) => site.ownerId === 'enemy' && site.kind === 'city',
+    )!
+    const threat: Unit = {
+      id: 'nearby-player',
+      name: 'Nearby player',
+      factionId: 'player',
+      type: 'infantry',
+      position: city.position,
+      hp: 100,
+      maxHp: 100,
+      movementRemaining: 0,
+      hasActed: true,
+    }
+    const state = {
+      ...initial,
+      resources: { ...initial.resources, enemy: 100 },
+      sites: [city],
+      units: [threat],
+    }
+
+    expect(chooseAiAction(state)).toEqual({
+      type: 'constructionStarted',
+      siteId: city.id,
+      buildingId: 'wall',
+    })
+  })
 })
