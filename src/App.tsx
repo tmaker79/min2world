@@ -360,23 +360,32 @@ function GameApp({ initialState }: { initialState: GameState }) {
       const capitalTile = mapScrollElement.querySelector<HTMLElement>(
         `.map-tile[data-coordinate="${positionKey(playerCapitalPosition)}"]`,
       )
-      if (!capitalTile) return
+      const mapContent = mapScrollElement.querySelector<HTMLElement>(
+        '.map-zoom-shell',
+      )
+      if (!capitalTile || !mapContent) return
 
       const scrollBounds = mapScrollElement.getBoundingClientRect()
       const tileBounds = capitalTile.getBoundingClientRect()
+      const mapBounds = mapContent.getBoundingClientRect()
+      const focusBounds =
+        mapBounds.width <= mapScrollElement.clientWidth &&
+        mapBounds.height <= mapScrollElement.clientHeight
+          ? mapBounds
+          : tileBounds
       mapScrollElement.scrollLeft = Math.max(
         0,
         mapScrollElement.scrollLeft +
-          tileBounds.left +
-          tileBounds.width / 2 -
+          focusBounds.left +
+          focusBounds.width / 2 -
           scrollBounds.left -
           mapScrollElement.clientWidth / 2,
       )
       mapScrollElement.scrollTop = Math.max(
         0,
         mapScrollElement.scrollTop +
-          tileBounds.top +
-          tileBounds.height / 2 -
+          focusBounds.top +
+          focusBounds.height / 2 -
           scrollBounds.top -
           mapScrollElement.clientHeight / 2,
       )

@@ -272,7 +272,7 @@ describe('Milestone 07 UI', () => {
     ['2인용', BOARD_SIZE_PRESETS.tiny],
     ['초소형', BOARD_SIZE_PRESETS.small],
     ['소형', BOARD_SIZE_PRESETS.standard],
-  ])('centers the player capital when a %s game starts', (_, boardSize) => {
+  ])('centers the player capital when a %s game does not fit', (_, boardSize) => {
     const frames: FrameRequestCallback[] = []
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
       frames.push(callback)
@@ -291,6 +291,7 @@ describe('Milestone 07 UI', () => {
     const capitalTile = container.querySelector<HTMLElement>(
       `.map-tile[data-coordinate="${positionKey(capital.position)}"]`,
     )!
+    const mapContent = container.querySelector<HTMLElement>('.map-zoom-shell')!
 
     Object.defineProperties(mapScroll, {
       clientWidth: { configurable: true, value: 800 },
@@ -308,6 +309,12 @@ describe('Milestone 07 UI', () => {
       width: 58,
       height: 66,
     } as DOMRect)
+    vi.spyOn(mapContent, 'getBoundingClientRect').mockReturnValue({
+      left: 200,
+      top: 100,
+      width: 1200,
+      height: 900,
+    } as DOMRect)
 
     act(() => {
       for (const frame of frames.splice(0)) frame(0)
@@ -315,6 +322,54 @@ describe('Milestone 07 UI', () => {
 
     expect(mapScroll.scrollLeft).toBe(429)
     expect(mapScroll.scrollTop).toBe(233)
+  })
+
+  it('centers the whole map instead of the capital when it fits the viewport', () => {
+    const frames: FrameRequestCallback[] = []
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      frames.push(callback)
+      return frames.length
+    })
+    const state = createInitialGameState('center-whole-map')
+    const capital = state.sites.find(
+      (site) => site.capitalFor === state.humanFactionId,
+    )!
+    const { container } = renderApp(state)
+    const mapScroll = container.querySelector<HTMLElement>('.map-scroll')!
+    const capitalTile = container.querySelector<HTMLElement>(
+      `.map-tile[data-coordinate="${positionKey(capital.position)}"]`,
+    )!
+    const mapContent = container.querySelector<HTMLElement>('.map-zoom-shell')!
+
+    Object.defineProperties(mapScroll, {
+      clientWidth: { configurable: true, value: 800 },
+      clientHeight: { configurable: true, value: 600 },
+      scrollLeft: { configurable: true, writable: true, value: 0 },
+      scrollTop: { configurable: true, writable: true, value: 0 },
+    })
+    vi.spyOn(mapScroll, 'getBoundingClientRect').mockReturnValue({
+      left: 100,
+      top: 50,
+    } as DOMRect)
+    vi.spyOn(capitalTile, 'getBoundingClientRect').mockReturnValue({
+      left: 900,
+      top: 550,
+      width: 58,
+      height: 66,
+    } as DOMRect)
+    vi.spyOn(mapContent, 'getBoundingClientRect').mockReturnValue({
+      left: 300,
+      top: 200,
+      width: 600,
+      height: 400,
+    } as DOMRect)
+
+    act(() => {
+      for (const frame of frames.splice(0)) frame(0)
+    })
+
+    expect(mapScroll.scrollLeft).toBe(100)
+    expect(mapScroll.scrollTop).toBe(50)
   })
 
   it('shows unit and terrain details as a sidebar preview on hover', () => {
