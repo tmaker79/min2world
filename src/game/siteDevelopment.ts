@@ -139,7 +139,6 @@ export function getSiteDevelopmentFootprints(
         ? getCityFootprintCandidates(
             site.position,
             state.boardSize,
-            getSiteOccupiedPositions(site),
           )
         : [[...getSiteOccupiedPositions(site)]]
   return candidates.filter((footprint) =>
@@ -187,8 +186,11 @@ export function canDevelopSite(
     return { ok: false, reason: spending.reason }
   }
 
-  const requiresFootprint = site.kind === 'village' || site.kind === 'town'
-  const selectedFootprint = footprint ?? getSiteOccupiedPositions(site)
+  const selectedFootprint =
+    footprint ??
+    (site.kind === 'village' || site.kind === 'town'
+      ? [site.position]
+      : getSiteOccupiedPositions(site))
   const isExpectedShape =
     site.kind === 'village'
       ? isValidTownFootprint(site.position, selectedFootprint, state.boardSize)
@@ -199,7 +201,6 @@ export function canDevelopSite(
     (candidate) => footprintsEqual(candidate, selectedFootprint),
   )
   if (
-    (requiresFootprint && !footprint) ||
     !isExpectedShape ||
     !isCandidate
   ) {

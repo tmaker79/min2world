@@ -95,7 +95,7 @@ describe('saved games', () => {
     expect(loaded.ok).toBe(true)
     if (loaded.ok) {
       expect(loaded.value.gameState).toEqual(JSON.parse(JSON.stringify(state)))
-      expect(loaded.value.gameState.mapGenerationVersion).toBe(24)
+      expect(loaded.value.gameState.mapGenerationVersion).toBe(25)
       expect(loaded.value.gameState.tiles).toHaveLength(HEX_TILE_COUNT)
       expect(loaded.value.gameState.sites).toHaveLength(8)
       expect(loaded.value.gameState.mapSeed).toBe('save-roundtrip')
@@ -184,11 +184,51 @@ describe('saved games', () => {
 
     expect(loaded.ok).toBe(true)
     if (loaded.ok) {
-      expect(loaded.value.schemaVersion).toBe(13)
-      expect(loaded.value.gameState.schemaVersion).toBe(13)
+      expect(loaded.value.schemaVersion).toBe(14)
+      expect(loaded.value.gameState.schemaVersion).toBe(14)
       expect(
         loaded.value.gameState.sites.every((site) => site.foundedBy === undefined),
       ).toBe(true)
+    }
+  })
+
+  it('migrates schema 13 towns and cities to their anchor tile', () => {
+    const storage = new MemoryStorage()
+    const state = createInitialGameState('schema-13-single-tile-settlements')
+    state.schemaVersion = 13
+    const city = state.sites.find((site) => site.kind === 'city')!
+    const town = state.sites.find((site) => site.kind === 'farm')!
+    town.kind = 'town'
+    delete town.level
+    const freeTiles = state.tiles.filter((tile) => tile.siteId === undefined)
+    const cityExtra = freeTiles[0]
+    const townExtra = freeTiles[1]
+    city.footprint = [city.position, cityExtra.position]
+    town.footprint = [town.position, townExtra.position]
+    cityExtra.siteId = city.id
+    townExtra.siteId = town.id
+    storeEnvelope(storage, state, 13)
+
+    const loaded = loadGame(storage)
+
+    expect(loaded.ok).toBe(true)
+    if (loaded.ok) {
+      const loadedCity = loaded.value.gameState.sites.find(
+        (site) => site.id === city.id,
+      )!
+      const loadedTown = loaded.value.gameState.sites.find(
+        (site) => site.id === town.id,
+      )!
+      expect(loadedCity.footprint).toEqual([city.position])
+      expect(loadedTown.footprint).toEqual([town.position])
+      expect(
+        loaded.value.gameState.tiles.find((tile) => tile.id === cityExtra.id)
+          ?.siteId,
+      ).toBeUndefined()
+      expect(
+        loaded.value.gameState.tiles.find((tile) => tile.id === townExtra.id)
+          ?.siteId,
+      ).toBeUndefined()
     }
   })
 
@@ -245,7 +285,7 @@ describe('saved games', () => {
       )
       expect(saveGame(loaded.value.gameState, storage).ok).toBe(true)
     }
-    expect(MAP_GENERATION_VERSION).toBe(24)
+    expect(MAP_GENERATION_VERSION).toBe(25)
     },
   )
 
@@ -350,13 +390,10 @@ describe('saved games', () => {
     }
   })
 
-  it('migrates an eight-site schema 8 save to the current schema without changing its map version or city footprints', () => {
+  it('migrates an eight-site schema 8 save to the current schema with one-tile cities', () => {
     const storage = new MemoryStorage()
     const state = createSchema8State('schema-8-migration')
     state.mapGenerationVersion = 21
-    const cityFootprints = state.sites
-      .filter((site) => (site.kind as string) === 'castle')
-      .map((site) => site.footprint)
     storeEnvelope(storage, state, 8)
 
     const loaded = loadGame(storage)
@@ -376,7 +413,11 @@ describe('saved games', () => {
         loaded.value.gameState.sites
           .filter((site) => site.kind === 'city')
           .map((site) => site.footprint),
-      ).toEqual(cityFootprints)
+      ).toEqual(
+        loaded.value.gameState.sites
+          .filter((site) => site.kind === 'city')
+          .map((site) => [site.position]),
+      )
       expect(loaded.value.gameState.sites.every((site) => site.lastDevelopedTurn === undefined)).toBe(true)
     }
   })
@@ -387,7 +428,6 @@ describe('saved games', () => {
     state.schemaVersion = 9
     state.mapGenerationVersion = 21
     const city = state.sites.find((site) => site.kind === 'city')!
-    const footprint = city.footprint
     const farm = state.sites.find((site) => site.kind === 'farm')!
     farm.level = 2
     farm.lastDevelopedTurn = 1
@@ -407,7 +447,9 @@ describe('saved games', () => {
       expect(loaded.value.schemaVersion).toBe(GAME_SCHEMA_VERSION)
       expect(loaded.value.gameState.schemaVersion).toBe(GAME_SCHEMA_VERSION)
       expect(loaded.value.gameState.mapGenerationVersion).toBe(21)
-      expect(loaded.value.gameState.sites.find((site) => site.id === city.id)?.footprint).toEqual(footprint)
+      expect(loaded.value.gameState.sites.find((site) => site.id === city.id)?.footprint).toEqual([
+        city.position,
+      ])
       expect(loaded.value.gameState.sites.find((site) => site.id === farm.id)).toMatchObject({
         level: 2,
         lastDevelopedTurn: 1,
@@ -471,7 +513,7 @@ describe('saved games', () => {
       expect(loaded.value.schemaVersion).toBe(GAME_SCHEMA_VERSION)
       expect(
         loaded.value.gameState.sites.find((site) => site.id === settlement.id),
-      ).toMatchObject({ kind: 'town', footprint })
+      ).toMatchObject({ kind: 'town', footprint: [settlement.position] })
       expect(
         loaded.value.gameState.sites.find((site) => site.id === capital.id),
       ).toMatchObject({
@@ -532,7 +574,7 @@ describe('saved games', () => {
       const village = state.sites.find((site) => site.kind === 'farm')!
       village.kind = 'town'
       delete village.level
-      village.footprint = [village.position]
+      village.footprint = [village.position, { q: village.position.q + 1, r: village.position.r }]
     }],
     ['footprint on a one-tile site', (state: GameState) => { state.sites.find((site) => site.kind === 'farm')!.footprint = [state.sites.find((site) => site.kind === 'farm')!.position] }],
     ['future development turn', (state: GameState) => { state.sites[0].lastDevelopedTurn = state.turn + 1 }],

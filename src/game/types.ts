@@ -14,8 +14,8 @@ export type Terrain =
 
 export type MapType = 'balanced' | 'plains' | 'mountainous' | 'forested'
 
-export const GAME_SCHEMA_VERSION = 13
-export const MAP_GENERATION_VERSION = 24
+export const GAME_SCHEMA_VERSION = 14
+export const MAP_GENERATION_VERSION = 25
 export const SUPPORTED_MAP_GENERATION_VERSIONS: readonly number[] = [
   5,
   6,

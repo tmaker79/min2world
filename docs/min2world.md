@@ -106,10 +106,10 @@
 | 분류 | 발전 단계 | 점유 범위 |
 | --- | --- | --- |
 | 군사·방어 | `Outpost` → `Keep` → `Stronghold` | 모두 1타일 |
-| 정착 | `Village` → `Town` → `City` | Village 1타일, Town 3타일, City 4타일 |
+| 정착 | `Village` → `Town` → `City` | 모든 단계 1타일 |
 | 생산 특화 | `Farm`, `Mine`, `Blacksmith` | 종류를 유지하며 자체 개발 |
 
-City는 Stronghold의 상위 단계가 아니라 정착 계열의 최종 형태다. Village를 Town으로 발전시키면 기존 타일에 인접한 빈 2타일을 더해 위 1칸·아래 2칸의 삼각형 3타일을 사용한다. Town을 City로 발전시키면 기존 Town footprint에 빈 1타일을 더해 가로형 마름모 4타일을 완성한다. 수도 여부는 거점 종류와 별개로 `capitalFor`가 결정한다.
+City는 Stronghold의 상위 단계가 아니라 정착 계열의 최종 형태다. Village를 Town으로, Town을 City로 발전시켜도 기존 기준 타일 한 칸을 그대로 사용하며 별도의 footprint 방향 선택이나 인접 공간을 요구하지 않는다. 수도 여부는 거점 종류와 별개로 `capitalFor`가 결정한다.
 
 군사 거점의 전투 수치는 다음과 같다.
 
@@ -408,10 +408,11 @@ src/
 
 - Outpost → Keep → Stronghold와 Village → Town → City 발전 계열
 - Farm·Mine·Blacksmith 1~3레벨 및 수입·생산 보조 효과
-- Town 3칸·City 4칸 footprint 방향 선택과 지도 미리보기
+- Village·Town·City의 동일한 1타일 footprint 지도 미리보기
 - 거점별 병종 해금, AI 발전, 군사 거점 공성, 스키마 11·맵 생성 버전 22
 - 후속 맵 생성 버전 23에서 15×11 2인용 지도에 중앙 강과 두 다리를 추가
 - 맵 생성 버전 24에서 신규 중립 거점을 생산 특화 시설(Farm·Mine·Blacksmith)로 제한
+- 맵 생성 버전 25에서 Town·City를 기준 위치 한 칸만 점유하도록 변경
 
 ### Milestone 11–12: 도시 내정과 유지비
 
@@ -475,7 +476,7 @@ localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지
 - 스키마 6은 `player`/`enemy`를 `f1`/`f2`로 바꾼 뒤 연쇄 마이그레이션한다.
 - 스키마 7은 기존 `city`(마을)를 `village`로, `village`(농장)를 `farm`으로 바꿔 불러온다.
 - 스키마 8 저장에 `mapType`이 없으면 기존 생성 방식인 `balanced`로 불러온다.
-- 스키마 8의 기존 거점은 종류와 4타일 수도 footprint를 보존하고 생산 특화 시설을 Lv.1로 채운 뒤 연쇄 마이그레이션한다.
+- 스키마 8의 기존 거점은 종류와 생산 특화 시설 레벨을 연쇄 마이그레이션하고, 스키마 13 이하의 Town·City footprint는 기준 위치 한 칸으로 정규화한다.
 - 스키마 9의 군사 거점은 종류별 최대 HP로 채워 스키마 10으로 불러온다.
 - 스키마 10의 `city`는 `town`, `castle`은 `city`로 바꿔 스키마 11로 불러온다.
 - 스키마 11의 모든 거점은 빈 건물 목록과 건설 대기열 없음으로 채워 스키마 12로 불러온다.

@@ -2,43 +2,11 @@ import { isPositionOnBoard, positionKey } from './hex'
 import type { BoardSize, Position, Site, Tile } from './types'
 
 export const CITY_FOOTPRINT_OFFSETS: readonly (readonly Position[])[] = [
-  [
-    { q: 0, r: 0 },
-    { q: 1, r: 0 },
-    { q: 2, r: -1 },
-    { q: 1, r: -1 },
-  ],
-  [
-    { q: 0, r: 0 },
-    { q: 0, r: -1 },
-    { q: -1, r: -1 },
-    { q: -1, r: 0 },
-  ],
-  [
-    { q: 0, r: 0 },
-    { q: -1, r: 0 },
-    { q: -2, r: 1 },
-    { q: -1, r: 1 },
-  ],
-  [
-    { q: 0, r: 0 },
-    { q: 0, r: 1 },
-    { q: 1, r: 1 },
-    { q: 1, r: 0 },
-  ],
+  [{ q: 0, r: 0 }],
 ]
 
 const TOWN_FOOTPRINT_OFFSETS: readonly (readonly Position[])[] = [
-  [
-    { q: 0, r: 0 },
-    { q: 1, r: 0 },
-    { q: 1, r: -1 },
-  ],
-  [
-    { q: 0, r: 0 },
-    { q: 0, r: -1 },
-    { q: -1, r: 0 },
-  ],
+  [{ q: 0, r: 0 }],
 ]
 
 function applyOffsets(anchor: Position, offsets: readonly Position[]): Position[] {
@@ -77,18 +45,9 @@ export function getTownFootprintCandidates(
 export function getCityFootprintCandidates(
   anchor: Position,
   boardSize: BoardSize,
-  townFootprint?: readonly Position[],
 ): Position[][] {
-  const townKeys = townFootprint
-    ? new Set(townFootprint.map(positionKey))
-    : undefined
   return CITY_FOOTPRINT_OFFSETS.map((offsets) => applyOffsets(anchor, offsets)).filter(
-    (positions) =>
-      positions.every((position) => isPositionOnBoard(position, boardSize)) &&
-      (!townKeys ||
-        [...townKeys].every((key) =>
-          positions.some((position) => positionKey(position) === key),
-        )),
+    (positions) => positions.every((position) => isPositionOnBoard(position, boardSize)),
   )
 }
 
@@ -105,7 +64,7 @@ export function isValidTownFootprint(
   boardSize: BoardSize,
 ): boolean {
   return (
-    footprint.length === 3 &&
+    footprint.length === 1 &&
     new Set(footprint.map(positionKey)).size === footprint.length &&
     footprint.every((position) => isPositionOnBoard(position, boardSize)) &&
     matchesFootprint(anchor, footprint, TOWN_FOOTPRINT_OFFSETS)
@@ -118,7 +77,7 @@ export function isValidCityFootprint(
   boardSize: BoardSize,
 ): boolean {
   if (
-    footprint.length !== 4 ||
+    footprint.length !== 1 ||
     new Set(footprint.map(positionKey)).size !== footprint.length ||
     footprint.some((position) => !isPositionOnBoard(position, boardSize))
   ) {

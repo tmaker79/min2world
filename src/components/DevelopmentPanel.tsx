@@ -22,8 +22,8 @@ function developmentEffect(site: Site, targetKind?: Site['kind']) {
   if (site.kind === 'farm' || site.kind === 'mine') {
     return '턴당 자원 수입이 1 증가합니다.'
   }
-  if (site.kind === 'village') return '수입이 증가하고 3타일 소도시로 확장됩니다.'
-  if (site.kind === 'town') return '수입이 증가하고 병력 생산이 가능한 4타일 도시가 됩니다.'
+  if (site.kind === 'village') return '같은 타일에서 수입이 증가하는 소도시로 발전합니다.'
+  if (site.kind === 'town') return '수입이 증가하고 병력 생산이 가능한 1타일 도시가 됩니다.'
   return '수입과 생산 가능한 병종이 강화됩니다.'
 }
 
@@ -38,7 +38,7 @@ export function DevelopmentPanel({
   const target = getSiteDevelopmentTarget(site)
   const cost = getSiteDevelopmentCost(site, state)
   const owned = site.ownerId === state.humanFactionId
-  const requiresFootprint = site.kind === 'village' || site.kind === 'town'
+  const requiresFootprint = footprints.length > 1
   const selectedFootprint = footprints[selectedFootprintIndex]
   const check = canDevelopSite(state, site.id, selectedFootprint)
   const nextSite = target

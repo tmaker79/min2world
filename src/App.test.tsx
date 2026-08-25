@@ -1051,7 +1051,7 @@ describe('Milestone 07 UI', () => {
       .toHaveTextContent('최고 단계')
   })
 
-  it('reports missing footprint space for settlement development', async () => {
+  it('allows one-tile settlement development without surrounding space', async () => {
     const user = userEvent.setup()
     const state = createInitialGameState('ui-development-space')
     const village = state.sites.find((site) => site.kind === 'farm')!
@@ -1075,12 +1075,15 @@ describe('Milestone 07 UI', () => {
     )!)
     await user.click(screen.getByRole('tab', { name: '발전' }))
 
-    expect(within(screen.getByLabelText('거점 발전')).getByRole('status'))
-      .toHaveTextContent('footprint가 없습니다')
-    expect(container.querySelector('[data-development-footprint="true"]')).toBeNull()
+    expect(
+      within(screen.getByLabelText('거점 발전')).queryByRole('status'),
+    ).toBeNull()
+    expect(
+      container.querySelectorAll('[data-development-footprint="true"]'),
+    ).toHaveLength(1)
   })
 
-  it('previews a selected footprint, develops on confirmation, and cancels with Escape', () => {
+  it('previews a one-tile footprint, develops on confirmation, and cancels with Escape', () => {
     const state = createInitialGameState('ui-development-footprint')
     const village = state.sites.find((site) => site.kind === 'farm')!
     village.kind = 'village'
@@ -1090,7 +1093,9 @@ describe('Milestone 07 UI', () => {
     state.units = []
     state.resources[state.humanFactionId] = 100
     state.tiles = state.tiles.map((tile) => ({ ...tile, terrain: 'plain' }))
-    expect(getSiteDevelopmentFootprints(state, village).length).toBeGreaterThan(1)
+    expect(getSiteDevelopmentFootprints(state, village)).toEqual([
+      [village.position],
+    ])
     const { container } = renderApp(state)
     const anchor = container.querySelector<HTMLButtonElement>(
       `.map-tile[data-coordinate="${positionKey(village.position)}"]`,
@@ -1098,26 +1103,21 @@ describe('Milestone 07 UI', () => {
 
     fireEvent.click(anchor)
     fireEvent.click(screen.getByRole('tab', { name: '발전' }))
-    expect(container.querySelectorAll('[data-development-footprint="true"]').length)
-      .toBeGreaterThan(3)
+    expect(
+      container.querySelectorAll('[data-development-footprint="true"]'),
+    ).toHaveLength(1)
     expect(
       container.querySelectorAll('[data-development-footprint-selected="true"]'),
-    ).toHaveLength(3)
-
-    fireEvent.click(screen.getByRole('button', { name: '방향 2' }))
-    expect(screen.getByRole('button', { name: '방향 2' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    )
+    ).toHaveLength(1)
     fireEvent.click(screen.getByRole('button', { name: '발전 확인' }))
     expect(screen.getByLabelText('거점 정보')).toHaveTextContent('소도시')
     expect(container.querySelector('[data-development-footprint="true"]')).toBeNull()
     const cityMarker = container.querySelector<HTMLElement>('.site-marker--town')!
-    expect(cityMarker).toHaveClass('site-marker--multi')
+    expect(cityMarker).not.toHaveClass('site-marker--multi')
     expect(cityMarker.querySelector('[data-site-icon="town"]')).toBeInTheDocument()
     expect(cityMarker.parentElement).toHaveStyle({
-      width: '116px',
-      height: '115.5px',
+      width: '58px',
+      height: '66px',
     })
 
     fireEvent.click(screen.getByRole('tab', { name: '발전' }))

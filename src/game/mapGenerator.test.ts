@@ -483,7 +483,7 @@ describe('procedural map generation', () => {
       for (const city of state.sites.filter(
         (site) => site.kind === 'city',
       )) {
-        expect(city.footprint).toHaveLength(4)
+        expect(city.footprint).toEqual([city.position])
         expect(
           city.footprint?.every(
             (position) =>

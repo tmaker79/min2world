@@ -124,9 +124,10 @@ describe('hex-map AI', () => {
         capitalFor: capital ? 'player' : undefined,
       })
     const low = makeSite('a-low', { q: 1, r: 0 }, 1)
-    const capital = makeSite('z-capital', { q: 2, r: 0 }, 40, true)
+    const capital = makeSite('z-capital', { q: 2, r: 0 }, 50, true)
     const state = {
       ...initial, selectedUnitId: attacker.id, units: [attacker],
+      tiles: initial.tiles.map((tile) => ({ ...tile, terrain: 'plain' as const })),
       sites: [low, capital, enemyIncomeSite(initial)],
     }
 
@@ -391,7 +392,7 @@ describe('hex-map AI', () => {
     expect(chooseAiAction(state)).toEqual({ type: 'turnEnded' })
   })
 
-  it('skips settlement development when no valid footprint exists', () => {
+  it('develops a settlement on its own tile without surrounding land', () => {
     const initial = economyState('ai-no-footprint')
     const site = enemySite(initial, { kind: 'village' })
     const state = {
@@ -407,7 +408,11 @@ describe('hex-map AI', () => {
       sites: [site],
     }
 
-    expect(chooseAiAction(state)).toEqual({ type: 'turnEnded' })
+    expect(chooseAiAction(state)).toEqual({
+      type: 'siteDeveloped',
+      siteId: site.id,
+      footprint: [site.position],
+    })
   })
 
   it('allows at most one development for an AI faction each turn', () => {

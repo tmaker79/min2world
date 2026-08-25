@@ -366,11 +366,7 @@ function SiteMarker({
   return (
     <span className="map-overlay-cell" style={style}>
       <span
-        className={`site-marker${
-          site.kind === 'town' || site.kind === 'city'
-            ? ' site-marker--multi'
-            : ''
-        } site-marker--${site.kind} site-marker--${site.ownerId}${
+        className={`site-marker site-marker--${site.kind} site-marker--${site.ownerId}${
           selected ? ' site-marker--selected' : ''
         }${isHit ? ' site-marker--hit' : ''
         }`}

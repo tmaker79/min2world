@@ -35,7 +35,7 @@ function advanceToFactionStart(state: GameState): GameState {
 describe('city administration', () => {
   it('initializes every site without buildings or a construction queue', () => {
     const state = createInitialGameState('building-initial')
-    expect(state.schemaVersion).toBe(13)
+    expect(state.schemaVersion).toBe(14)
     expect(state.sites.every((site) => site.buildings.length === 0)).toBe(true)
     expect(
       state.sites.every((site) => site.constructionQueue === undefined),

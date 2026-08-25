@@ -748,6 +748,61 @@ function readSavedGame(storage?: StorageLike): StorageResult<SavedGame> {
       },
     }
   }
+  const singleTileSettlementRecord = parsed as Record<string, unknown>
+  if (
+    singleTileSettlementRecord.schemaVersion === 13 &&
+    isRecord(singleTileSettlementRecord.gameState)
+  ) {
+    const legacyState = singleTileSettlementRecord.gameState
+    const legacySites = Array.isArray(legacyState.sites)
+      ? legacyState.sites
+      : []
+    const settlementAnchors = new Map(
+      legacySites.flatMap((site) =>
+        isRecord(site) &&
+        (site.kind === 'town' || site.kind === 'city') &&
+        typeof site.id === 'string' &&
+        isRecord(site.position)
+          ? [[site.id, site.position] as const]
+          : [],
+      ),
+    )
+    const migrateSite = (site: unknown) =>
+      isRecord(site) && (site.kind === 'town' || site.kind === 'city')
+        ? { ...site, footprint: [site.position] }
+        : site
+    const migrateTile = (tile: unknown) => {
+      if (
+        !isRecord(tile) ||
+        typeof tile.siteId !== 'string' ||
+        !isRecord(tile.position)
+      ) {
+        return tile
+      }
+      const anchor = settlementAnchors.get(tile.siteId)
+      if (
+        !anchor ||
+        (tile.position.q === anchor.q && tile.position.r === anchor.r)
+      ) {
+        return tile
+      }
+      const { siteId: _siteId, ...withoutSiteId } = tile
+      void _siteId
+      return withoutSiteId
+    }
+    parsed = {
+      ...singleTileSettlementRecord,
+      schemaVersion: 14,
+      gameState: {
+        ...legacyState,
+        schemaVersion: 14,
+        sites: legacySites.map(migrateSite),
+        tiles: Array.isArray(legacyState.tiles)
+          ? legacyState.tiles.map(migrateTile)
+          : legacyState.tiles,
+      },
+    }
+  }
   const normalizedRecord = parsed as Record<string, unknown>
   if (normalizedRecord.schemaVersion !== GAME_SCHEMA_VERSION) {
     return failure(

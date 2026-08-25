@@ -94,46 +94,13 @@ describe('site development', () => {
     })
   })
 
-  it('returns every available town footprint and rejects blocked new cells', () => {
+  it('keeps a developed town on the village tile', () => {
     const state = developmentState()
     const candidates = getSiteDevelopmentFootprints(state, 'site-1')
-    expect(candidates).toHaveLength(2)
-    expect(candidates.every((candidate) => candidate.length === 3)).toBe(true)
-    expect(
-      candidates.every((candidate) => {
-        const rows = new Map<number, number>()
-        for (const position of candidate) {
-          rows.set(position.r, (rows.get(position.r) ?? 0) + 1)
-        }
-        return [...rows.values()].sort().join(',') === '1,2'
-      }),
-    ).toBe(true)
-
-    const blockedPosition = candidates[0].find(
-      (position) => position.q !== 0 || position.r !== 0,
-    )!
-    const blocked = {
-      ...state,
-      units: [
-        {
-          id: 'blocker',
-          name: 'blocker',
-          factionId: state.activeFactionId,
-          type: 'infantry' as const,
-          position: blockedPosition,
-          hp: 100,
-          maxHp: 100,
-          movementRemaining: 2,
-          hasActed: false,
-        },
-      ],
-    }
-    expect(getSiteDevelopmentFootprints(blocked, 'site-1').length).toBeLessThan(
-      candidates.length,
-    )
-    expect(canDevelopSite(blocked, 'site-1', candidates[0])).toEqual({
-      ok: false,
-      reason: 'invalidFootprint',
+    expect(candidates).toEqual([[state.sites[0].position]])
+    expect(canDevelopSite(state, 'site-1')).toMatchObject({
+      ok: true,
+      footprint: [state.sites[0].position],
     })
   })
 
@@ -162,7 +129,7 @@ describe('site development', () => {
     ).toBe(true)
   })
 
-  it('only offers city footprints that contain the existing town', () => {
+  it('collapses a town footprint to its anchor when developing a city', () => {
     const village = developmentState()
     const townFootprint = getSiteDevelopmentFootprints(village, 'site-1')[0]
     const town = resolveSiteDevelopment(village, 'site-1', townFootprint)
@@ -172,20 +139,11 @@ describe('site development', () => {
     }
     const candidates = getSiteDevelopmentFootprints(nextTurn, 'site-1')
 
-    expect(candidates.length).toBeGreaterThan(0)
-    expect(
-      candidates.every((candidate) =>
-        townFootprint.every((position) =>
-          candidate.some(
-            (occupied) =>
-              occupied.q === position.q && occupied.r === position.r,
-          ),
-        ),
-      ),
-    ).toBe(true)
-    expect(resolveSiteDevelopment(nextTurn, 'site-1', candidates[0]).sites[0].kind).toBe(
-      'city',
-    )
+    expect(candidates).toEqual([[nextTurn.sites[0].position]])
+    expect(resolveSiteDevelopment(nextTurn, 'site-1').sites[0]).toMatchObject({
+      kind: 'city',
+      footprint: [nextTurn.sites[0].position],
+    })
   })
 
   it('distinguishes ownership, phase, turn, resource, maximum, and footprint failures', () => {
@@ -226,7 +184,10 @@ describe('site development', () => {
       ok: false,
       reason: 'maxLevel',
     })
-    expect(canDevelopSite(developmentState('village'), 'site-1')).toEqual({
+    expect(canDevelopSite(developmentState('village'), 'site-1', [
+      { q: 0, r: 0 },
+      { q: 1, r: 0 },
+    ])).toEqual({
       ok: false,
       reason: 'invalidFootprint',
     })
