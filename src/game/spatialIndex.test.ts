@@ -100,4 +100,21 @@ describe('spatial indexes', () => {
     const changedSites = { ...state, sites: [...state.sites] }
     expect(getZoneOfControlIndex(changedSites, 'player')).not.toBe(first)
   })
+
+  it('does not create control zones for civilian units', () => {
+    const initial = createInitialGameState('civilian-zoc')
+    const civilian = {
+      ...initial.units[0],
+      id: 'enemy-builder',
+      factionId: 'enemy' as const,
+      type: 'builder' as const,
+    }
+
+    expect(
+      getZoneOfControlIndex(
+        { ...initial, sites: [], units: [civilian] },
+        'player',
+      ).size,
+    ).toBe(0)
+  })
 })

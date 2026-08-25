@@ -19,6 +19,7 @@ import type {
   CombatAnimationPhase,
 } from './components/GameMap'
 import { InfoPanel } from './components/InfoPanel'
+import type { FoundingKind } from './components/InfoPanel'
 import { Legend } from './components/Legend'
 import { MapInfoPanel } from './components/MapInfoPanel'
 import { Minimap } from './components/Minimap'
@@ -30,6 +31,10 @@ import { createInitialGameState } from './game/initialState'
 import { createRandomMapSeed } from './game/mapGenerator'
 import { gameReducer } from './game/reducer'
 import { getSiteDevelopmentFootprints } from './game/siteDevelopment'
+import {
+  getConstructiblePositions,
+  getSettleablePositions,
+} from './game/settlement'
 import {
   getDeployablePositions,
   getFactionIncome,
@@ -129,6 +134,10 @@ function GameApp({ initialState }: { initialState: GameState }) {
     message: string
   }>()
   const [activeMoveUnitId, setActiveMoveUnitId] = useState<string>()
+  const [foundingSelection, setFoundingSelection] = useState<{
+    unitId: string
+    kind: FoundingKind
+  }>()
   const [previewTileKey, setPreviewTileKey] = useState<string>()
   const [inspectedTileKey, setInspectedTileKey] = useState<string>()
   const [mobileInfoExpanded, setMobileInfoExpanded] = useState(
@@ -228,6 +237,18 @@ function GameApp({ initialState }: { initialState: GameState }) {
       ? productionUnitType
       : undefined
   const selectedUnit = getSelectedUnit(state)
+  const foundingKind =
+    foundingSelection && foundingSelection.unitId === selectedUnit?.id
+      ? foundingSelection.kind
+      : undefined
+  const setFoundingKind = useCallback(
+    (kind: FoundingKind | undefined) => {
+      setFoundingSelection(
+        kind && selectedUnit ? { unitId: selectedUnit.id, kind } : undefined,
+      )
+    },
+    [selectedUnit],
+  )
   const canPreviewMapInfo =
     !activeProductionUnitType &&
     !activeCombat &&
@@ -352,6 +373,24 @@ function GameApp({ initialState }: { initialState: GameState }) {
       ),
     [state],
   )
+  const foundingCandidateKeys = useMemo(() => {
+    if (!selectedUnit) return new Set<string>()
+    if (selectedUnit.type === 'settler') {
+      return new Set(
+        getSettleablePositions(state, selectedUnit.factionId).map(positionKey),
+      )
+    }
+    if (selectedUnit.type === 'builder' && foundingKind && foundingKind !== 'village') {
+      return new Set(
+        getConstructiblePositions(
+          state,
+          selectedUnit.factionId,
+          foundingKind,
+        ).map(positionKey),
+      )
+    }
+    return new Set<string>()
+  }, [foundingKind, selectedUnit, state])
 
   useEffect(() => {
     if (!mapScrollElement || !playerCapitalPosition) return
@@ -664,6 +703,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
         event.key === 'Escape' &&
         (isMoveMode ||
           activeProductionUnitType ||
+          foundingKind ||
           activeSiteTab === 'development' ||
           activeSiteTab === 'construction')
       ) {
@@ -671,6 +711,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
         setActiveMoveUnitId(undefined)
         setProductionUnitType(undefined)
         setProductionFeedback(undefined)
+        setFoundingKind(undefined)
         setActiveSiteTab(undefined)
         setDevelopmentFootprintIndex(0)
         openSidebarInfo()
@@ -705,6 +746,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
       event.preventDefault()
       setActiveMoveUnitId(undefined)
       setProductionUnitType(undefined)
+      setFoundingKind(undefined)
       setActiveSiteTab(undefined)
       setDevelopmentFootprintIndex(0)
       setCityInfoSiteId(undefined)
@@ -722,9 +764,11 @@ function GameApp({ initialState }: { initialState: GameState }) {
     activeSiteAttack,
     activeProductionUnitType,
     activeSiteTab,
+    foundingKind,
     isMoveMode,
     mobileInfoExpanded,
     openSidebarInfo,
+    setFoundingKind,
     state.activeFactionId,
     state.humanFactionId,
     state.phase,
@@ -1119,6 +1163,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
                   attackableSiteKeys={attackableSiteKeys}
                   deployableKeys={deployableKeys}
                   developmentFootprintKeys={developmentFootprintKeys}
+                  foundingCandidateKeys={foundingCandidateKeys}
                   selectedDevelopmentFootprintKeys={
                     selectedDevelopmentFootprintKeys
                   }
@@ -1357,6 +1402,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
                 )}
                 {sidebarContent.kind === 'unit' && (
                   <InfoPanel
+                    state={state}
                     unit={sidebarContent.unit}
                     canMove={canEnterMoveMode}
                     moveMode={isMoveMode}
@@ -1387,8 +1433,31 @@ function GameApp({ initialState }: { initialState: GameState }) {
                         unitId: sidebarContent.unit.id,
                       })
                     }}
+                    foundingKind={foundingKind}
+                    onFoundingKindSelected={(kind) => {
+                      setFoundingKind(kind)
+                      setActiveMoveUnitId(undefined)
+                    }}
+                    onFoundingCancel={() => setFoundingKind(undefined)}
+                    onFoundingConfirm={() => {
+                      if (foundingKind === 'village') {
+                        dispatch({
+                          type: 'siteSettled',
+                          unitId: sidebarContent.unit.id,
+                        })
+                      } else if (foundingKind) {
+                        dispatch({
+                          type: 'siteConstructed',
+                          unitId: sidebarContent.unit.id,
+                          siteKind: foundingKind,
+                        })
+                      }
+                      setFoundingKind(undefined)
+                      setActiveMoveUnitId(undefined)
+                    }}
                     onClose={() => {
                       setActiveMoveUnitId(undefined)
+                      setFoundingKind(undefined)
                       setMobileInfoExpanded(false)
                       dispatch({ type: 'selectionCleared' })
                     }}

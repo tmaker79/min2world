@@ -21,9 +21,11 @@ import {
   getZoneOfControlIndex,
 } from './spatialIndex'
 import type {
+  CivilianUnitType,
   FactionId,
   GamePhase,
   GameState,
+  MilitaryUnitType,
   Position,
   Site,
   SiteCombatStats,
@@ -44,20 +46,40 @@ export const UNIT_STATS: Record<UnitType, UnitStats> = {
   spearman: { movement: 2, melee: 45, ranged: 0, range: 1, cost: 13 },
   archer: { movement: 2, melee: 30, ranged: 40, range: 2, cost: 15 },
   cavalry: { movement: 4, melee: 50, ranged: 0, range: 1, cost: 18 },
+  settler: { movement: 2, melee: 0, ranged: 0, range: 0, cost: 30 },
+  builder: { movement: 2, melee: 0, ranged: 0, range: 0, cost: 15 },
 }
 
-export const UNIT_TYPES: readonly UnitType[] = [
+export const MILITARY_UNIT_TYPES: readonly MilitaryUnitType[] = [
   'infantry',
   'cavalry',
   'archer',
   'spearman',
 ]
+export const CIVILIAN_UNIT_TYPES: readonly CivilianUnitType[] = [
+  'settler',
+  'builder',
+]
+export const UNIT_TYPES: readonly UnitType[] = [
+  ...MILITARY_UNIT_TYPES,
+  ...CIVILIAN_UNIT_TYPES,
+]
+
+export function isMilitaryUnitType(type: UnitType): type is MilitaryUnitType {
+  return MILITARY_UNIT_TYPES.includes(type as MilitaryUnitType)
+}
+
+export function isCivilianUnitType(type: UnitType): type is CivilianUnitType {
+  return CIVILIAN_UNIT_TYPES.includes(type as CivilianUnitType)
+}
 
 export const UNIT_TYPE_LABELS: Record<UnitType, string> = {
   infantry: '보병',
   cavalry: '기병',
   archer: '궁병',
   spearman: '창병',
+  settler: '개척자',
+  builder: '건설자',
 }
 
 export const SITE_STATS: Record<SiteType, SiteStats> = {
@@ -127,7 +149,7 @@ export const SITE_TYPE_LABELS: Record<SiteType, string> = {
 const PRODUCIBLE_UNIT_TYPES: Record<SiteType, readonly UnitType[]> = {
   outpost: ['infantry'],
   keep: ['infantry', 'spearman', 'archer'],
-  stronghold: UNIT_TYPES,
+  stronghold: MILITARY_UNIT_TYPES,
   village: [],
   town: [],
   city: UNIT_TYPES,
@@ -160,6 +182,7 @@ export function getBlacksmithProductionDiscount(
   factionId: FactionId,
   unitType: UnitType,
 ): number {
+  if (isCivilianUnitType(unitType)) return 0
   const level = Math.max(
     0,
     ...state.sites
@@ -382,7 +405,8 @@ export function getAttackableUnits(state: GameState, unit: Unit): Unit[] {
   if (
     state.phase !== 'playing' ||
     unit.hasActed ||
-    unit.factionId !== state.activeFactionId
+    unit.factionId !== state.activeFactionId ||
+    isCivilianUnitType(unit.type)
   ) {
     return []
   }
@@ -399,7 +423,8 @@ export function getAttackableSites(state: GameState, unit: Unit): Site[] {
   if (
     state.phase !== 'playing' ||
     unit.hasActed ||
-    unit.factionId !== state.activeFactionId
+    unit.factionId !== state.activeFactionId ||
+    isCivilianUnitType(unit.type)
   ) {
     return []
   }
@@ -486,7 +511,7 @@ export function resolveCombat(
   // Melee exchanges apply both sides' damage at once from pre-combat strength.
   // Archer attacks stay one-way (no return damage).
   const damageToAttacker =
-    attacker.type === 'archer'
+    attacker.type === 'archer' || isCivilianUnitType(defender.type)
       ? 0
       : getCombatDamage(defenderStrength, attackerStrength)
 
@@ -508,6 +533,9 @@ export function resolveSiteCombat(
   const siteStats = getSiteCombatStats(site)
   if (!siteStats) {
     return { siteHp: site.hp ?? 0 }
+  }
+  if (isCivilianUnitType(attacker.type)) {
+    return { siteHp: site.hp ?? siteStats.maxHp }
   }
 
   const attackerStats = UNIT_STATS[attacker.type]

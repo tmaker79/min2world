@@ -174,6 +174,47 @@ describe('saved games', () => {
     }
   })
 
+  it('migrates schema 12 without inventing founders for existing sites', () => {
+    const storage = new MemoryStorage()
+    const current = createInitialGameState('schema-12-settlement')
+    const legacy = { ...current, schemaVersion: 12 }
+    storeEnvelope(storage, legacy, 12)
+
+    const loaded = loadGame(storage)
+
+    expect(loaded.ok).toBe(true)
+    if (loaded.ok) {
+      expect(loaded.value.schemaVersion).toBe(13)
+      expect(loaded.value.gameState.schemaVersion).toBe(13)
+      expect(
+        loaded.value.gameState.sites.every((site) => site.foundedBy === undefined),
+      ).toBe(true)
+    }
+  })
+
+  it('round-trips civilian units and founded site ownership metadata', () => {
+    const storage = new MemoryStorage()
+    const state = createInitialGameState('schema-13-settlement')
+    const unit = state.units.find((candidate) => candidate.factionId === 'player')!
+    unit.type = 'builder'
+    unit.movementRemaining = 2
+    const site = state.sites.find((candidate) => candidate.ownerId === 'player')!
+    site.foundedBy = 'player'
+
+    expect(saveGame(state, storage).ok).toBe(true)
+    const loaded = loadGame(storage)
+
+    expect(loaded.ok).toBe(true)
+    if (loaded.ok) {
+      expect(loaded.value.gameState.units.find(({ id }) => id === unit.id)?.type).toBe(
+        'builder',
+      )
+      expect(
+        loaded.value.gameState.sites.find(({ id }) => id === site.id)?.foundedBy,
+      ).toBe('player')
+    }
+  })
+
   it('defaults schema 8 saves without a map type to balanced', () => {
     const storage = new MemoryStorage()
     const state = createSchema8State('legacy-map-type')
@@ -495,6 +536,7 @@ describe('saved games', () => {
     }],
     ['footprint on a one-tile site', (state: GameState) => { state.sites.find((site) => site.kind === 'farm')!.footprint = [state.sites.find((site) => site.kind === 'farm')!.position] }],
     ['future development turn', (state: GameState) => { state.sites[0].lastDevelopedTurn = state.turn + 1 }],
+    ['invalid founder', (state: GameState) => { state.sites[0].foundedBy = 'neutral' as never }],
     ['missing fortified hp', (state: GameState) => { delete state.sites.find((site) => site.kind === 'city')!.hp }],
     ['fractional fortified hp', (state: GameState) => { state.sites.find((site) => site.kind === 'city')!.hp = 1.5 }],
     ['zero fortified hp', (state: GameState) => { state.sites.find((site) => site.kind === 'city')!.hp = 0 }],

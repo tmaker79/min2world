@@ -2,6 +2,11 @@ import { createInitialGameState } from './initialState'
 import { cloneGameState } from './state'
 import { resolveSiteDevelopment } from './siteDevelopment'
 import {
+  canProduceCivilianUnit,
+  resolveSiteConstruction,
+  resolveSiteSettlement,
+} from './settlement'
+import {
   resolveCityTurnStart,
   resolveConstructionCancellation,
   resolveConstructionStart,
@@ -18,6 +23,7 @@ import {
   getSiteAt,
   getSiteMaxHp,
   getUnitProductionCost,
+  isCivilianUnitType,
   isPositionInEnemyZoneOfControl,
   isFortifiedSite,
   resolveCombat,
@@ -114,11 +120,13 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ? 0
         : movementAfterCost
 
-      const sites = captureSiteAt(
-        state.sites,
-        action.destination,
-        unit.factionId,
-      )
+      const sites = isCivilianUnitType(unit.type)
+        ? state.sites
+        : captureSiteAt(
+            state.sites,
+            action.destination,
+            unit.factionId,
+          )
       const defeatedFactionId = sites.find(
         (site) =>
           site.capitalFor &&
@@ -300,6 +308,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       }
     }
 
+    case 'siteSettled':
+      return resolveSiteSettlement(state, action.unitId)
+
+    case 'siteConstructed':
+      return resolveSiteConstruction(state, action.unitId, action.siteKind)
+
     case 'unitProduced': {
       const site = state.sites.find(
         (candidate) => candidate.id === action.siteId,
@@ -324,6 +338,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         site.lastProducedTurn === state.turn ||
         !stats ||
         !canSiteProduceUnit(site, action.unitType) ||
+        (isCivilianUnitType(action.unitType) &&
+          !canProduceCivilianUnit(
+            state,
+            state.activeFactionId,
+            action.unitType,
+          ).ok) ||
         !spending.ok ||
         !getDeployablePositions(state, site).some(
           (position) =>

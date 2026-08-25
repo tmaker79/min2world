@@ -1,32 +1,92 @@
 import {
   getDisplayedCombatStrength,
+  isCivilianUnitType,
+  SITE_TYPE_LABELS,
   UNIT_STATS,
   UNIT_TYPE_LABELS,
 } from '../game/rules'
-import type { Unit } from '../game/types'
+import {
+  BUILDABLE_SITE_TYPES,
+  canConstruct,
+  canSettle,
+  SITE_CONSTRUCTION_COSTS,
+} from '../game/settlement'
+import type { SiteActionFailure } from '../game/settlement'
+import type {
+  BuildableSiteType,
+  GameState,
+  Unit,
+} from '../game/types'
 import { UNIT_UPKEEP } from '../game/upkeep'
 import { UnitIcon } from './UnitIcon'
 
 type InfoPanelProps = {
+  state: GameState
   unit: Unit
   canMove: boolean
   moveMode: boolean
   onMoveModeChange: (active: boolean) => void
   canDisband: boolean
   onDisband: () => void
+  foundingKind?: FoundingKind
+  onFoundingKindSelected: (kind: FoundingKind) => void
+  onFoundingCancel: () => void
+  onFoundingConfirm: () => void
   onClose: () => void
 }
 
+export type FoundingKind = 'village' | BuildableSiteType
+
+function failureMessage(reason: SiteActionFailure) {
+  switch (reason) {
+    case 'invalidTerrain':
+      return '현재 지형에는 이 거점을 건설할 수 없습니다.'
+    case 'siteOccupied':
+      return '현재 타일에 이미 거점이 있습니다.'
+    case 'tooCloseToSite':
+      return '기존 거점과의 최소 거리가 부족합니다.'
+    case 'notConnected':
+      return '아군 소도시·도시·요새·성채에서 연결 거리 3 이내여야 합니다.'
+    case 'capacityReached':
+      return '이 맵에서 건설 가능한 누적 상한에 도달했습니다.'
+    case 'insufficientResources':
+      return '건설 비용을 지불할 자원이 부족합니다.'
+    case 'insufficientUpkeepReserve':
+      return '다음 유지비 예약액을 남겨야 합니다.'
+    case 'alreadyActed':
+      return '이 유닛은 이번 턴 행동을 마쳤습니다.'
+    case 'notSelected':
+    case 'inactiveFaction':
+    case 'notPlaying':
+      return '현재는 이 행동을 실행할 수 없습니다.'
+    case 'tileNotFound':
+    case 'unitNotFound':
+    case 'wrongUnitType':
+      return '정착·건설 대상을 확인할 수 없습니다.'
+  }
+}
+
 export function InfoPanel({
+  state,
   unit,
   canMove,
   moveMode,
   onMoveModeChange,
   canDisband,
   onDisband,
+  foundingKind,
+  onFoundingKindSelected,
+  onFoundingCancel,
+  onFoundingConfirm,
   onClose,
 }: InfoPanelProps) {
   const stats = UNIT_STATS[unit.type]
+  const civilian = isCivilianUnitType(unit.type)
+  const foundingCheck = foundingKind === 'village'
+    ? canSettle(state, unit.id)
+    : foundingKind
+      ? canConstruct(state, unit.id, foundingKind)
+      : undefined
 
   return (
     <div className="city-stack">
@@ -64,10 +124,17 @@ export function InfoPanel({
               {unit.movementRemaining} / {stats.movement}
             </dd>
           </div>
-          <div>
-            <dt>근접</dt>
-            <dd>{getDisplayedCombatStrength(unit, 'melee')}</dd>
-          </div>
+          {civilian ? (
+            <div>
+              <dt>역할</dt>
+              <dd>비전투</dd>
+            </div>
+          ) : (
+            <div>
+              <dt>근접</dt>
+              <dd>{getDisplayedCombatStrength(unit, 'melee')}</dd>
+            </div>
+          )}
           <div>
             <dt>유지비</dt>
             <dd>{UNIT_UPKEEP[unit.type]} 자원/턴</dd>
@@ -91,6 +158,15 @@ export function InfoPanel({
         >
           이동
         </button>
+        {unit.type === 'settler' && (
+          <button
+            type="button"
+            aria-pressed={foundingKind === 'village'}
+            onClick={() => onFoundingKindSelected('village')}
+          >
+            마을 건설
+          </button>
+        )}
         <button
           type="button"
           disabled={!canDisband}
@@ -100,6 +176,52 @@ export function InfoPanel({
           해산
         </button>
       </div>
+
+      {unit.type === 'builder' && !foundingKind && (
+        <section className="civilian-action-card" aria-label="거점 종류 선택">
+          <h3>건설할 거점</h3>
+          <div className="civilian-action-card__options">
+            {BUILDABLE_SITE_TYPES.map((siteKind) => (
+              <button
+                key={siteKind}
+                type="button"
+                onClick={() => onFoundingKindSelected(siteKind)}
+              >
+                <strong>{SITE_TYPE_LABELS[siteKind]}</strong>
+                <span>{SITE_CONSTRUCTION_COSTS[siteKind]} 자원</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {foundingKind && (
+        <section className="civilian-action-card" aria-label="정착 및 건설 확인">
+          <h3>{SITE_TYPE_LABELS[foundingKind]} 건설</h3>
+          <p>
+            {foundingKind === 'village'
+              ? '개척자가 소모됩니다.'
+              : `${SITE_CONSTRUCTION_COSTS[foundingKind]} 자원을 지불하고 건설자는 행동을 종료합니다.`}
+          </p>
+          {foundingCheck && !foundingCheck.ok && (
+            <p className="civilian-action-card__error" role="alert">
+              {failureMessage(foundingCheck.reason)}
+            </p>
+          )}
+          <div className="civilian-action-card__confirm">
+            <button
+              type="button"
+              disabled={!foundingCheck?.ok}
+              onClick={onFoundingConfirm}
+            >
+              건설 확인
+            </button>
+            <button type="button" onClick={onFoundingCancel}>
+              취소 <kbd>Esc</kbd>
+            </button>
+          </div>
+        </section>
+      )}
     </div>
   )
 }

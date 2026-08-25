@@ -14,7 +14,7 @@ export type Terrain =
 
 export type MapType = 'balanced' | 'plains' | 'mountainous' | 'forested'
 
-export const GAME_SCHEMA_VERSION = 12
+export const GAME_SCHEMA_VERSION = 13
 export const MAP_GENERATION_VERSION = 24
 export const SUPPORTED_MAP_GENERATION_VERSIONS: readonly number[] = [
   5,
@@ -63,7 +63,10 @@ export type SiteType =
   | 'farm'
   | 'mine'
   | 'blacksmith'
-export type UnitType = 'infantry' | 'cavalry' | 'archer' | 'spearman'
+export type BuildableSiteType = 'outpost' | 'farm' | 'mine' | 'blacksmith'
+export type MilitaryUnitType = 'infantry' | 'cavalry' | 'archer' | 'spearman'
+export type CivilianUnitType = 'settler' | 'builder'
+export type UnitType = MilitaryUnitType | CivilianUnitType
 export type BuildingId =
   | 'granary'
   | 'market'
@@ -127,6 +130,7 @@ export type Site = {
   footprint?: Position[]
   level?: 1 | 2 | 3
   ownerId: SiteOwnerId
+  foundedBy?: FactionId
   capitalFor?: FactionId
   hp?: number
   maxHp?: number
@@ -163,6 +167,12 @@ export type GameAction =
   | { type: 'siteAttacked'; attackerId: string; siteId: string }
   | { type: 'unitWaited'; unitId: string }
   | { type: 'unitDisbanded'; unitId: string }
+  | { type: 'siteSettled'; unitId: string }
+  | {
+      type: 'siteConstructed'
+      unitId: string
+      siteKind: BuildableSiteType
+    }
   | {
       type: 'unitProduced'
       siteId: string

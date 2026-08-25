@@ -17,8 +17,8 @@
 | [11](11-city-administration.md) | 도시 내정 (City 전용 건물, 대기열) | 완료 |
 | [12](12-upkeep.md) | 유지비 | 완료 |
 | [13](13-ai-refinement.md) | AI 고도화 | 완료 |
-| [14](14-settlement-construction.md) | 거점 건설 (개척자·건설자) | 다음 목표 |
-| [15](15-supply-and-morale.md) | 보급, 사기 | 예정 |
+| [14](14-settlement-construction.md) | 거점 건설 (개척자·건설자) | 완료 |
+| [15](15-supply-and-morale.md) | 보급, 사기 | 다음 목표 |
 | [16](16-site-expansion.md) | 거점 확장 (농장과 인접 농지) | 예정 |
 
 새 목표를 구체화할 때 `NN-kebab-case.md` 형식으로 문서를 추가한다. 기존 마일스톤 문서는 덮어쓰지 않는다.

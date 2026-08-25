@@ -14,7 +14,9 @@ import {
   getTileAt,
   getUnitAt,
   getUnitProductionCost,
+  isCivilianUnitType,
   isFortifiedSite,
+  isMilitaryUnitType,
   isPositionInEnemyZoneOfControl,
   positionKey,
   resolveCombat,
@@ -23,6 +25,16 @@ import {
   TERRAIN_MOVEMENT_COST,
   UNIT_STATS,
 } from './rules'
+import {
+  BUILDABLE_SITE_TYPES,
+  canConstruct,
+  canProduceCivilianUnit,
+  canSettle,
+  getConstructiblePositions,
+  getOwnedAnchorGraphDistance,
+  getSettleablePositions,
+  SITE_CONSTRUCTION_COSTS,
+} from './settlement'
 import { getHexDistance } from './hex'
 import { getSiteOccupiedPositions } from './siteFootprint'
 import {
@@ -38,14 +50,15 @@ import {
   hasBuilding,
 } from './cityAdministration'
 import type {
+  BuildableSiteType,
   FactionId,
   GameAction,
   GameState,
+  MilitaryUnitType,
   Position,
   Site,
   SiteType,
   Unit,
-  UnitType,
 } from './types'
 import {
   canSpendWithUpkeepReserve,
@@ -63,6 +76,8 @@ export type AiDecisionReason =
   | 'offense'
   | 'investment'
   | 'production'
+  | 'settlement'
+  | 'siteConstruction'
   | 'endTurn'
 
 export type AiDecision = {
@@ -70,7 +85,7 @@ export type AiDecision = {
   reason: AiDecisionReason
 }
 
-const AI_PRODUCTION_PRIORITY: readonly UnitType[] = [
+const AI_PRODUCTION_PRIORITY: readonly MilitaryUnitType[] = [
   'spearman',
   'archer',
   'cavalry',
@@ -148,6 +163,7 @@ function getCapitalThreats(state: GameState, factionId: FactionId) {
     .filter(
       (unit) =>
         unit.factionId !== factionId &&
+        isMilitaryUnitType(unit.type) &&
         positions.some((position) => getHexDistance(unit.position, position) <= 2),
     )
     .sort(compareIds)
@@ -249,6 +265,210 @@ function getWeightedPathSearch(state: GameState, unit: Unit, start: Position): P
     }
   }
   return { costs, previous }
+}
+
+function getReverseTerrainCosts(
+  state: GameState,
+  destinations: readonly Position[],
+) {
+  const costs = new Map<string, number>()
+  const frontier = new MinPriorityQueue<{ position: Position; cost: number }>(
+    (left, right) => left.cost - right.cost || comparePositions(left.position, right.position),
+  )
+  for (const position of destinations) {
+    costs.set(positionKey(position), 0)
+    frontier.push({ position, cost: 0 })
+  }
+  while (frontier.size > 0) {
+    const current = frontier.pop()!
+    const currentKey = positionKey(current.position)
+    if (current.cost !== costs.get(currentKey)) continue
+    const currentTile = getTileAt(state, current.position)
+    const reverseStep = currentTile
+      ? TERRAIN_MOVEMENT_COST[currentTile.terrain]
+      : null
+    if (reverseStep === null) continue
+    for (const neighbor of getHexNeighbors(current.position, state.boardSize)) {
+      const neighborTile = getTileAt(state, neighbor)
+      if (!neighborTile || TERRAIN_MOVEMENT_COST[neighborTile.terrain] === null) continue
+      const key = positionKey(neighbor)
+      const nextCost = current.cost + reverseStep
+      if (nextCost >= (costs.get(key) ?? Infinity)) continue
+      costs.set(key, nextCost)
+      frontier.push({ position: neighbor, cost: nextCost })
+    }
+  }
+  return costs
+}
+
+function civilianAt(
+  factionId: FactionId,
+  type: 'settler' | 'builder',
+  position: Position,
+  id: string,
+): Unit {
+  return {
+    id,
+    name: id,
+    factionId,
+    type,
+    position,
+    hp: 100,
+    maxHp: 100,
+    movementRemaining: UNIT_STATS[type].movement,
+    hasActed: false,
+  }
+}
+
+type CivilianOrigin = {
+  unit: Unit
+  search: PathSearch
+}
+
+function getCivilianOrigins(
+  state: GameState,
+  units: readonly Unit[],
+): CivilianOrigin[] {
+  return units.map((unit) => ({
+    unit,
+    search: getWeightedPathSearch(state, unit, unit.position),
+  }))
+}
+
+function closestOrigin(
+  origins: readonly CivilianOrigin[],
+  position: Position,
+) {
+  return origins
+    .flatMap((origin) => {
+      const cost = origin.search.costs.get(positionKey(position))
+      return cost === undefined ? [] : [{ origin, cost }]
+    })
+    .sort(
+      (left, right) =>
+        left.cost - right.cost || comparePositions(left.origin.unit.position, right.origin.unit.position),
+    )[0]
+}
+
+type AiSettlementCandidate = {
+  position: Position
+  pathCost: number
+  enemyCapitalCost: number
+  origin: Unit
+}
+
+function chooseSettlementCandidate(
+  state: GameState,
+  factionId: FactionId,
+  units: readonly Unit[],
+): AiSettlementCandidate | undefined {
+  const origins = getCivilianOrigins(state, units)
+  const enemyCapitalPositions = state.sites
+    .filter(
+      (site) =>
+        Boolean(site.capitalFor) &&
+        site.ownerId !== 'neutral' &&
+        site.ownerId !== factionId,
+    )
+    .flatMap((site) => [...getSiteOccupiedPositions(site)])
+  const capitalCosts = getReverseTerrainCosts(state, enemyCapitalPositions)
+  return getSettleablePositions(state, factionId)
+    .flatMap((position) => {
+      const nearest = closestOrigin(origins, position)
+      return nearest
+        ? [{
+            position,
+            pathCost: nearest.cost,
+            enemyCapitalCost: capitalCosts.get(positionKey(position)) ?? Infinity,
+            origin: nearest.origin.unit,
+          }]
+        : []
+    })
+    .sort(
+      (left, right) =>
+        left.enemyCapitalCost - right.enemyCapitalCost ||
+        left.pathCost - right.pathCost ||
+        comparePositions(left.position, right.position),
+    )[0]
+}
+
+function isFrontlineOutpost(
+  state: GameState,
+  factionId: FactionId,
+  position: Position,
+) {
+  return (
+    state.units.some(
+      (unit) =>
+        unit.factionId !== factionId &&
+        isMilitaryUnitType(unit.type) &&
+        getHexDistance(unit.position, position) <= 3,
+    ) ||
+    state.sites.some(
+      (site) =>
+        site.ownerId !== 'neutral' &&
+        site.ownerId !== factionId &&
+        isFortifiedSite(site) &&
+        getSiteOccupiedPositions(site).some(
+          (occupied) => getHexDistance(occupied, position) <= 3,
+        ),
+    )
+  )
+}
+
+function constructionPriority(
+  state: GameState,
+  factionId: FactionId,
+  siteKind: BuildableSiteType,
+  position: Position,
+) {
+  if (siteKind === 'outpost') {
+    return isFrontlineOutpost(state, factionId, position) ? 0 : 4
+  }
+  return siteKind === 'mine' ? 1 : siteKind === 'farm' ? 2 : 3
+}
+
+type AiConstructionCandidate = {
+  position: Position
+  siteKind: BuildableSiteType
+  priority: number
+  pathCost: number
+  anchorDistance: number
+  origin: Unit
+}
+
+function chooseConstructionCandidate(
+  state: GameState,
+  factionId: FactionId,
+  units: readonly Unit[],
+): AiConstructionCandidate | undefined {
+  const origins = getCivilianOrigins(state, units)
+  return BUILDABLE_SITE_TYPES.flatMap((siteKind) =>
+    getConstructiblePositions(state, factionId, siteKind).flatMap((position) => {
+      const nearest = closestOrigin(origins, position)
+      const anchorDistance = getOwnedAnchorGraphDistance(
+        state,
+        factionId,
+        position,
+      )
+      return nearest && anchorDistance !== undefined
+        ? [{
+            position,
+            siteKind,
+            priority: constructionPriority(state, factionId, siteKind, position),
+            pathCost: nearest.cost,
+            anchorDistance,
+            origin: nearest.origin.unit,
+          }]
+        : []
+    }),
+  ).sort(
+    (left, right) =>
+      left.priority - right.priority ||
+      left.pathCost - right.pathCost ||
+      left.anchorDistance - right.anchorDistance ||
+      comparePositions(left.position, right.position),
+  )[0]
 }
 
 type TargetKind = 'capitalDefense' | 'economicExpansion' | 'offense'
@@ -516,7 +736,10 @@ function chooseCapitalDefense(state: GameState, factionId: FactionId): DefenseAs
   return state.units
     .filter(
       (unit) =>
-        unit.factionId === factionId && !unit.hasActed && unit.movementRemaining > 0,
+        unit.factionId === factionId &&
+        isMilitaryUnitType(unit.type) &&
+        !unit.hasActed &&
+        unit.movementRemaining > 0,
     )
     .sort(compareIds)
     .flatMap((unit) => {
@@ -642,6 +865,88 @@ function chooseMovement(state: GameState, unit: Unit, target: Target) {
     : undefined
 }
 
+function chooseCivilianMovement(
+  state: GameState,
+  unit: Unit,
+  destination: Position,
+) {
+  const reachable = getReachablePositionCosts(state, unit)
+  const best = [...reachable.keys()]
+    .map((key) => {
+      const [q, r] = key.split(',').map(Number)
+      const position = { q, r }
+      const remaining = getWeightedPathSearch(state, unit, position).costs.get(
+        positionKey(destination),
+      )
+      return remaining === undefined ? undefined : { position, remaining }
+    })
+    .filter((candidate): candidate is { position: Position; remaining: number } =>
+      Boolean(candidate),
+    )
+    .sort(
+      (left, right) =>
+        left.remaining - right.remaining ||
+        comparePositions(left.position, right.position),
+    )[0]
+  return best
+    ? { type: 'unitMoved' as const, unitId: unit.id, destination: best.position }
+    : undefined
+}
+
+function chooseCivilianDecision(
+  state: GameState,
+  unit: Unit,
+): AiDecision {
+  if (unit.type === 'settler') {
+    if (canSettle(state, unit.id).ok) {
+      return {
+        action: { type: 'siteSettled', unitId: unit.id },
+        reason: 'settlement',
+      }
+    }
+    const candidate = chooseSettlementCandidate(state, unit.factionId, [unit])
+    const movement = candidate
+      ? chooseCivilianMovement(state, unit, candidate.position)
+      : undefined
+    return {
+      action: movement ?? { type: 'unitWaited', unitId: unit.id },
+      reason: 'settlement',
+    }
+  }
+
+  const immediate = BUILDABLE_SITE_TYPES
+    .filter((siteKind) => canConstruct(state, unit.id, siteKind).ok)
+    .sort(
+      (left, right) =>
+        constructionPriority(state, unit.factionId, left, unit.position) -
+          constructionPriority(state, unit.factionId, right, unit.position) ||
+        left.localeCompare(right),
+    )[0]
+  if (immediate) {
+    return {
+      action: { type: 'siteConstructed', unitId: unit.id, siteKind: immediate },
+      reason: 'siteConstruction',
+    }
+  }
+  const candidate = chooseConstructionCandidate(state, unit.factionId, [unit])
+  if (
+    candidate &&
+    positionKey(candidate.position) === positionKey(unit.position)
+  ) {
+    return {
+      action: { type: 'unitWaited', unitId: unit.id },
+      reason: 'siteConstruction',
+    }
+  }
+  const movement = candidate
+    ? chooseCivilianMovement(state, unit, candidate.position)
+    : undefined
+  return {
+    action: movement ?? { type: 'unitWaited', unitId: unit.id },
+    reason: 'siteConstruction',
+  }
+}
+
 export function getAiUnitCap(state: GameState, factionId: FactionId) {
   const sites = state.sites.filter((site) => site.ownerId === factionId)
   return (
@@ -653,19 +958,100 @@ export function getAiUnitCap(state: GameState, factionId: FactionId) {
   )
 }
 
-function chooseProduction(state: GameState, factionId: FactionId) {
-  const unitCount = state.units.filter((unit) => unit.factionId === factionId).length
-  if (unitCount >= getAiUnitCap(state, factionId)) return undefined
-  const sites = state.sites
+function getAvailableProductionSites(state: GameState, factionId: FactionId) {
+  return state.sites
     .filter(
       (site) =>
         site.ownerId === factionId &&
         site.lastProducedTurn !== state.turn &&
-        getProducibleUnitTypes(site).length > 0 &&
         getDeployablePositions(state, site).length > 0,
     )
     .sort(compareIds)
-  const counts = new Map<UnitType, number>(
+}
+
+function chooseBuilderProduction(state: GameState, factionId: FactionId) {
+  if (!canProduceCivilianUnit(state, factionId, 'builder').ok) return undefined
+  const livingBuilders = state.units.filter(
+    (unit) => unit.factionId === factionId && unit.type === 'builder',
+  )
+  if (
+    livingBuilders.length > 0 &&
+    chooseConstructionCandidate(state, factionId, livingBuilders)
+  ) {
+    return undefined
+  }
+
+  for (const city of getAvailableProductionSites(state, factionId).filter(
+    (site) => site.kind === 'city',
+  )) {
+    const origins = getDeployablePositions(state, city).map((position, index) =>
+      civilianAt(factionId, 'builder', position, `builder-origin-${index}`),
+    )
+    const candidate = chooseConstructionCandidate(state, factionId, origins)
+    if (!candidate) continue
+    const productionCost = getUnitProductionCost(
+      state,
+      factionId,
+      'builder',
+      city,
+    )
+    if (
+      !canSpendWithUpkeepReserve(
+        state,
+        factionId,
+        productionCost + SITE_CONSTRUCTION_COSTS[candidate.siteKind],
+        { upkeepDelta: UNIT_UPKEEP.builder },
+      ).ok
+    ) {
+      continue
+    }
+    return {
+      type: 'unitProduced' as const,
+      siteId: city.id,
+      unitType: 'builder' as const,
+      destination: candidate.origin.position,
+    }
+  }
+  return undefined
+}
+
+function chooseSettlerProduction(state: GameState, factionId: FactionId) {
+  if (!canProduceCivilianUnit(state, factionId, 'settler').ok) return undefined
+  for (const city of getAvailableProductionSites(state, factionId).filter(
+    (site) => site.kind === 'city',
+  )) {
+    const origins = getDeployablePositions(state, city).map((position, index) =>
+      civilianAt(factionId, 'settler', position, `settler-origin-${index}`),
+    )
+    const candidate = chooseSettlementCandidate(state, factionId, origins)
+    if (!candidate) continue
+    const cost = getUnitProductionCost(state, factionId, 'settler', city)
+    if (
+      !canSpendWithUpkeepReserve(state, factionId, cost, {
+        upkeepDelta: UNIT_UPKEEP.settler,
+      }).ok
+    ) {
+      continue
+    }
+    return {
+      type: 'unitProduced' as const,
+      siteId: city.id,
+      unitType: 'settler' as const,
+      destination: candidate.origin.position,
+    }
+  }
+  return undefined
+}
+
+function chooseMilitaryProduction(state: GameState, factionId: FactionId) {
+  const unitCount = state.units.filter(
+    (unit) => unit.factionId === factionId && isMilitaryUnitType(unit.type),
+  ).length
+  if (unitCount >= getAiUnitCap(state, factionId)) return undefined
+  const sites = getAvailableProductionSites(state, factionId).filter((site) =>
+    getProducibleUnitTypes(site).some(isMilitaryUnitType),
+  )
+  const counts = new Map<MilitaryUnitType, number>(
     AI_PRODUCTION_PRIORITY.map((type) => [
       type,
       state.units.filter((unit) => unit.factionId === factionId && unit.type === type).length,
@@ -673,6 +1059,7 @@ function chooseProduction(state: GameState, factionId: FactionId) {
   )
   for (const site of sites) {
     const unitType = getProducibleUnitTypes(site)
+      .filter(isMilitaryUnitType)
       .filter(
         (type) =>
           canSiteProduceUnit(site, type) &&
@@ -729,7 +1116,7 @@ function hasProductionOpportunity(state: GameState, factionId: FactionId) {
   return state.sites.some(
     (site) =>
       site.ownerId === factionId &&
-      getProducibleUnitTypes(site).length > 0 &&
+      getProducibleUnitTypes(site).some(isMilitaryUnitType) &&
       getDeployablePositions(state, site).length > 0,
   )
 }
@@ -738,6 +1125,7 @@ function isCityThreatened(state: GameState, city: Site, factionId: FactionId) {
   return state.units.some(
     (unit) =>
       unit.factionId !== factionId &&
+      isMilitaryUnitType(unit.type) &&
       getSiteOccupiedPositions(city).some(
         (position) => getHexDistance(unit.position, position) <= 2,
       ),
@@ -753,7 +1141,9 @@ function chooseInvestment(state: GameState, factionId: FactionId) {
         site.constructionQueue?.startedTurn === state.turn,
     )
   ) return undefined
-  const unitCount = state.units.filter((unit) => unit.factionId === factionId).length
+  const unitCount = state.units.filter(
+    (unit) => unit.factionId === factionId && isMilitaryUnitType(unit.type),
+  ).length
   const needsCapacity =
     unitCount >= getAiUnitCap(state, factionId) && hasProductionOpportunity(state, factionId)
   const candidates: InvestmentCandidate[] = []
@@ -885,21 +1275,36 @@ export function chooseAiDecision(
       .filter((unit) => unit.factionId === factionId && !unit.hasActed)
       .sort(compareIds)[0]
     if (nextUnit) {
-      const target = chooseStrategicTarget(
-        state,
-        nextUnit,
-        getWeightedPathSearch(state, nextUnit, nextUnit.position),
-      )
+      const target = isMilitaryUnitType(nextUnit.type)
+        ? chooseStrategicTarget(
+            state,
+            nextUnit,
+            getWeightedPathSearch(state, nextUnit, nextUnit.position),
+          )
+        : undefined
       return {
         action: { type: 'unitSelected', unitId: nextUnit.id },
-        reason: target ? movementReason(target) : 'tacticalMove',
+        reason: nextUnit.type === 'settler'
+          ? 'settlement'
+          : nextUnit.type === 'builder'
+            ? 'siteConstruction'
+            : target
+              ? movementReason(target)
+              : 'tacticalMove',
       }
     }
     const investment = chooseInvestment(state, factionId)
     if (investment) return { action: investment, reason: 'investment' }
-    const production = chooseProduction(state, factionId)
+    const production =
+      chooseBuilderProduction(state, factionId) ??
+      chooseSettlerProduction(state, factionId) ??
+      chooseMilitaryProduction(state, factionId)
     if (production) return { action: production, reason: 'production' }
     return { action: { type: 'turnEnded' }, reason: 'endTurn' }
+  }
+
+  if (isCivilianUnitType(selectedUnit.type)) {
+    return chooseCivilianDecision(state, selectedUnit)
   }
 
   const target = chooseStrategicTarget(

@@ -20,6 +20,8 @@ import {
   resolveCombat,
   resolveSiteCombat,
   SITE_STATS,
+  CIVILIAN_UNIT_TYPES,
+  MILITARY_UNIT_TYPES,
   UNIT_MAX_HP,
   UNIT_STATS,
 } from './rules'
@@ -217,6 +219,31 @@ describe('hex combat rules', () => {
     expect(result.attackerHp).toBe(84)
   })
 
+  it('keeps civilian units noncombatant while allowing them to take damage', () => {
+    const attacker = unit('p1', 'player', 'infantry', { q: 0, r: 0 })
+    const settler = unit('e1', 'enemy', 'settler', { q: 1, r: 0 })
+    const state = rulesState([attacker, settler])
+
+    expect(getAttackableUnits(state, settler)).toEqual([])
+    expect(getAttackableSites(state, settler)).toEqual([])
+    expect(resolveCombat(state, attacker, settler)).toMatchObject({
+      attackerHp: 100,
+      defenderHp: 0,
+    })
+    expect(
+      resolveSiteCombat(state, settler, {
+        id: 'outpost',
+        name: 'Outpost',
+        kind: 'outpost',
+        position: { q: 1, r: 0 },
+        ownerId: 'enemy',
+        hp: 50,
+        maxHp: 50,
+        buildings: [],
+      }),
+    ).toEqual({ siteHp: 50 })
+  })
+
   it('applies infantry bonus against spearmen on both sides of an exchange', () => {
     const infantry = unit('p1', 'player', 'infantry', { q: 0, r: 0 })
     const spearman = unit('e1', 'enemy', 'spearman', { q: 1, r: 0 })
@@ -377,6 +404,7 @@ describe('sites', () => {
       buildings: [],
     }
     const keep = { ...blacksmith, id: 'keep', kind: 'keep' as const, level: undefined }
+    const city = { ...keep, id: 'city', kind: 'city' as const }
     const discounted = { ...state, sites: [blacksmith, keep] }
 
     expect(getSiteIncome(blacksmith)).toBe(3)
@@ -385,9 +413,15 @@ describe('sites', () => {
       'spearman',
       'archer',
     ])
+    expect(getProducibleUnitTypes(city)).toEqual([
+      ...MILITARY_UNIT_TYPES,
+      ...CIVILIAN_UNIT_TYPES,
+    ])
     expect(getUnitProductionCost(discounted, ownerId, 'infantry')).toBe(9)
     expect(getUnitProductionCost(discounted, ownerId, 'archer')).toBe(14)
     expect(getUnitProductionCost(discounted, ownerId, 'cavalry')).toBe(18)
+    expect(getUnitProductionCost(discounted, ownerId, 'settler')).toBe(30)
+    expect(getUnitProductionCost(discounted, ownerId, 'builder')).toBe(15)
   })
 
   it('captures ordinary sites but requires combat for fortified sites', () => {

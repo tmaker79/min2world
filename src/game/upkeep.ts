@@ -6,6 +6,8 @@ export const UNIT_UPKEEP: Record<UnitType, number> = {
   spearman: 1,
   archer: 1,
   cavalry: 2,
+  settler: 1,
+  builder: 1,
 }
 
 export function getFactionUpkeep(

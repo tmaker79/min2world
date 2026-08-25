@@ -518,8 +518,8 @@ localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지
 | [11](milestones/11-city-administration.md) | City 전용 건물·대기열 | 완료 |
 | [12](milestones/12-upkeep.md) | 유지비(소프트 제약) | 완료 |
 | [13](milestones/13-ai-refinement.md) | 경제를 보는 AI | 완료 |
-| [14](milestones/14-settlement-construction.md) | 개척자·건설자의 신규 거점 건설 | 다음 목표 |
-| [15](milestones/15-supply-and-morale.md) | 보급·사기(라이트) | 예정 |
+| [14](milestones/14-settlement-construction.md) | 개척자·건설자의 신규 거점 건설 | 완료 |
+| [15](milestones/15-supply-and-morale.md) | 보급·사기(라이트) | 다음 목표 |
 | [16](milestones/16-site-expansion.md) | 농장 본체와 인접 농지 확장 | 예정 |
 
 ### 로드맵 밖 후보
@@ -530,9 +530,9 @@ localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지
 
 ## 12. 현재 개발 목표
 
-다음 구현 목표는 [Milestone 14: 거점 건설](milestones/14-settlement-construction.md)이다.
+다음 구현 목표는 [Milestone 15: 보급, 사기](milestones/15-supply-and-morale.md)이다.
 
-Milestone 11에서 City에 슬롯 제한 없는 건물 7종과 도시당 하나의 건설 대기열을 추가했다. Milestone 12에서는 병종별 유지비와 적자 해산을 연결했고, Milestone 13에서는 전투·방어·경제 확장·투자·병력 상한을 함께 판단하는 결정론적 AI로 확장했다. 이후 신규 거점·보급·사기 시스템은 이 기반 위에서 단계적으로 추가한다.
+Milestone 11에서 City에 슬롯 제한 없는 건물 7종과 도시당 하나의 건설 대기열을 추가했다. Milestone 12에서는 병종별 유지비와 적자 해산을 연결했고, Milestone 13에서는 전투·방어·경제 확장·투자·병력 상한을 함께 판단하는 결정론적 AI로 확장했다. Milestone 14에서는 개척자·영구 건설자, 신규 거점 건설, 민간 유닛 규칙과 AI 확장을 추가했다. 다음 단계에서는 이 거점망 위에 보급·사기 시스템을 연결한다.
 
 가변 지도·다세력·HUD까지 반영한 현재 기준 시나리오는 다음과 같다.
 

@@ -1,10 +1,13 @@
 import {
+  CIVILIAN_UNIT_TYPES,
   getProducibleUnitTypes,
   getUnitProductionCost,
+  isCivilianUnitType,
+  MILITARY_UNIT_TYPES,
   UNIT_STATS,
   UNIT_TYPE_LABELS,
-  UNIT_TYPES,
 } from '../game/rules'
+import { canProduceCivilianUnit } from '../game/settlement'
 import type { GameState, Site, UnitType } from '../game/types'
 import {
   canSpendWithUpkeepReserve,
@@ -43,6 +46,12 @@ export function ProductionPanel({
   const unavailable =
     disabled || !site || site.lastProducedTurn === turn || deployableCount === 0
   const unlockedTypes = site ? getProducibleUnitTypes(site) : []
+  const groups = site?.kind === 'city'
+    ? [
+        { label: '군사 유닛', types: MILITARY_UNIT_TYPES },
+        { label: '민간 유닛', types: CIVILIAN_UNIT_TYPES },
+      ]
+    : [{ label: '군사 유닛', types: MILITARY_UNIT_TYPES }]
 
   return (
     <section
@@ -55,56 +64,81 @@ export function ProductionPanel({
       {site ? (
         <>
           <div className="production-list">
-            {UNIT_TYPES.map((unitType) => {
-              const stats = UNIT_STATS[unitType]
-              const unlocked = unlockedTypes.includes(unitType)
-              const cost = getUnitProductionCost(
-                state,
-                state.humanFactionId,
-                unitType,
-                site,
-              )
-              const spending = canSpendWithUpkeepReserve(
-                state,
-                state.humanFactionId,
-                cost,
-                { upkeepDelta: UNIT_UPKEEP[unitType] },
-              )
-              return (
-                <button
-                  key={unitType}
-                  className={
-                    selectedUnitType === unitType
-                      ? 'production-option production-option--selected'
-                      : 'production-option'
-                  }
-                  type="button"
-                  aria-pressed={selectedUnitType === unitType}
-                  disabled={!unlocked || unavailable || !spending.ok}
-                  onClick={() => onUnitTypeSelected(unitType)}
-                >
-                  <strong>
-                    <UnitIcon type={unitType} />
-                    {UNIT_TYPE_LABELS[unitType]}
-                  </strong>
-                  <span>{cost} 자원</span>
-                  <small>
-                    {!unlocked
-                      ? `${site.kind} 단계에서는 해금되지 않은 병종입니다.`
-                      : !spending.ok &&
-                          spending.reason === 'insufficientUpkeepReserve'
-                        ? `다음 유지비 ${spending.reserve} 자원을 남겨야 합니다.`
-                        : !spending.ok
-                          ? '자원이 부족합니다.'
-                        : unlocked
-                      ? `이동 ${stats.movement} · 근접 ${stats.melee}${
-                          stats.ranged > 0 ? ` · 원거리 ${stats.ranged}` : ''
-                        } · 사거리 ${stats.range}`
-                      : ''}
-                  </small>
-                </button>
-              )
-            })}
+            {groups.map((group) => (
+              <section className="production-group" key={group.label}>
+                <h3>{group.label}</h3>
+                <div className="production-group__options">
+                  {group.types.map((unitType) => {
+                    const stats = UNIT_STATS[unitType]
+                    const unlocked = unlockedTypes.includes(unitType)
+                    const cost = getUnitProductionCost(
+                      state,
+                      state.humanFactionId,
+                      unitType,
+                      site,
+                    )
+                    const spending = canSpendWithUpkeepReserve(
+                      state,
+                      state.humanFactionId,
+                      cost,
+                      { upkeepDelta: UNIT_UPKEEP[unitType] },
+                    )
+                    const capacity = isCivilianUnitType(unitType)
+                      ? canProduceCivilianUnit(
+                          state,
+                          state.humanFactionId,
+                          unitType,
+                        )
+                      : { ok: true as const }
+                    return (
+                      <button
+                        key={unitType}
+                        className={
+                          selectedUnitType === unitType
+                            ? 'production-option production-option--selected'
+                            : 'production-option'
+                        }
+                        type="button"
+                        aria-pressed={selectedUnitType === unitType}
+                        disabled={
+                          !unlocked ||
+                          unavailable ||
+                          !spending.ok ||
+                          !capacity.ok
+                        }
+                        onClick={() => onUnitTypeSelected(unitType)}
+                      >
+                        <strong>
+                          <UnitIcon type={unitType} />
+                          {UNIT_TYPE_LABELS[unitType]}
+                        </strong>
+                        <span>{cost} 자원</span>
+                        <small>
+                          {!unlocked
+                            ? `${site.kind} 단계에서는 해금되지 않은 병종입니다.`
+                            : !capacity.ok
+                              ? capacity.reason === 'settlementCapacityReached'
+                                ? '남은 개척 가능량이 없습니다.'
+                                : '건설 가능한 거점 상한에 도달했습니다.'
+                              : !spending.ok &&
+                                  spending.reason === 'insufficientUpkeepReserve'
+                                ? `다음 유지비 ${spending.reserve} 자원을 남겨야 합니다.`
+                                : !spending.ok
+                                  ? '자원이 부족합니다.'
+                                  : isCivilianUnitType(unitType)
+                                    ? `이동 ${stats.movement} · 비전투 · 유지비 ${UNIT_UPKEEP[unitType]}`
+                                    : `이동 ${stats.movement} · 근접 ${stats.melee}${
+                                        stats.ranged > 0
+                                          ? ` · 원거리 ${stats.ranged}`
+                                          : ''
+                                      } · 사거리 ${stats.range}`}
+                        </small>
+                      </button>
+                    )
+                  })}
+                </div>
+              </section>
+            ))}
           </div>
 
           {selectedUnitType && (

@@ -23,6 +23,7 @@ import {
   getSiteCombatStats,
   getSiteMaxHp,
   getUnitAt,
+  isCivilianUnitType,
   positionKey,
   SITE_TYPE_LABELS,
   TERRAIN_LABELS,
@@ -106,6 +107,7 @@ type GameMapProps = {
   attackableSiteKeys?: Set<string>
   deployableKeys: Set<string>
   developmentFootprintKeys?: Set<string>
+  foundingCandidateKeys?: Set<string>
   selectedDevelopmentFootprintKeys?: Set<string>
   zoneOfControlKeys: Set<string>
   selectedSiteId?: string
@@ -133,6 +135,7 @@ type TileButtonProps = {
   attackableSite: boolean
   deployable: boolean
   developmentFootprint: boolean
+  foundingCandidate: boolean
   selectedDevelopmentFootprint: boolean
   inZoneOfControl: boolean
   disabled: boolean
@@ -165,6 +168,7 @@ function getTileLabel(
   deployable = false,
   developmentFootprint = false,
   selectedDevelopmentFootprint = false,
+  foundingCandidate = false,
 ) {
   const parts = [
     `육각 좌표 ${tile.position.q}, ${tile.position.r}`,
@@ -172,6 +176,7 @@ function getTileLabel(
   ]
   if (inZoneOfControl) parts.push('적 통제 구역')
   if (deployable) parts.push('생산 배치 가능')
+  if (foundingCandidate) parts.push('정착·건설 가능')
   if (developmentFootprint) {
     parts.push(
       selectedDevelopmentFootprint ? '선택한 발전 footprint' : '발전 footprint 후보',
@@ -189,6 +194,8 @@ function getTileLabel(
     parts.push(
       unit.hasActed
         ? '행동 완료'
+        : isCivilianUnitType(unit.type)
+          ? '행동 가능'
         : unit.movementRemaining === 0
           ? '공격만 가능'
           : '행동 가능',
@@ -238,6 +245,7 @@ const TileButton = memo(function TileButton({
   attackableSite,
   deployable,
   developmentFootprint,
+  foundingCandidate,
   selectedDevelopmentFootprint,
   inZoneOfControl,
   disabled,
@@ -259,6 +267,7 @@ const TileButton = memo(function TileButton({
     attackableSite ? 'map-tile--attackable-site' : '',
     deployable ? 'map-tile--deployable' : '',
     developmentFootprint ? 'map-tile--development-footprint' : '',
+    foundingCandidate ? 'map-tile--founding-candidate' : '',
     selectedDevelopmentFootprint
       ? 'map-tile--development-footprint-selected'
       : '',
@@ -281,6 +290,7 @@ const TileButton = memo(function TileButton({
         deployable,
         developmentFootprint,
         selectedDevelopmentFootprint,
+        foundingCandidate,
       )}
       aria-pressed={
         selected || siteSelected ? true : unit ? false : undefined
@@ -291,6 +301,7 @@ const TileButton = memo(function TileButton({
       data-attackable-site={attackableSite ? 'true' : undefined}
       data-deployable={deployable ? 'true' : undefined}
       data-development-footprint={developmentFootprint ? 'true' : undefined}
+      data-founding-candidate={foundingCandidate ? 'true' : undefined}
       data-development-footprint-selected={
         selectedDevelopmentFootprint ? 'true' : undefined
       }
@@ -515,6 +526,7 @@ function GameMapComponent({
   attackableSiteKeys = new Set(),
   deployableKeys,
   developmentFootprintKeys = new Set(),
+  foundingCandidateKeys = new Set(),
   selectedDevelopmentFootprintKeys = new Set(),
   zoneOfControlKeys,
   selectedSiteId,
@@ -679,6 +691,7 @@ function GameMapComponent({
       ...attackableSiteKeys,
       ...deployableKeys,
       ...developmentFootprintKeys,
+      ...foundingCandidateKeys,
       ...selectedDevelopmentFootprintKeys,
       ...zoneOfControlKeys,
     ]) {
@@ -697,6 +710,7 @@ function GameMapComponent({
     attackableSiteKeys,
     deployableKeys,
     developmentFootprintKeys,
+    foundingCandidateKeys,
     reachableKeys,
     selectedDevelopmentFootprintKeys,
     siteAssetPreviews,
@@ -784,6 +798,9 @@ function GameMapComponent({
           const developmentFootprint = developmentFootprintKeys.has(
             positionKey(tile.position),
           )
+          const foundingCandidate = foundingCandidateKeys.has(
+            positionKey(tile.position),
+          )
           const selectedDevelopmentFootprint =
             selectedDevelopmentFootprintKeys.has(positionKey(tile.position))
           const inZoneOfControl = zoneOfControlKeys.has(positionKey(tile.position))
@@ -803,6 +820,7 @@ function GameMapComponent({
               attackableSite={attackableSite}
               deployable={deployable}
               developmentFootprint={developmentFootprint}
+              foundingCandidate={foundingCandidate}
               selectedDevelopmentFootprint={selectedDevelopmentFootprint}
               inZoneOfControl={inZoneOfControl}
               disabled={disabled}

@@ -57,6 +57,41 @@ describe('gameReducer on a hex map', () => {
     expect(moved.sites.find((site) => site.id === neutral.id)?.ownerId).toBe('player')
   })
 
+  it('lets civilian units occupy a neutral site without capturing it', () => {
+    const initial = createInitialGameState('civilian-no-capture')
+    const neutral = initial.sites.find((site) => site.ownerId === 'neutral')!
+    const start = getHexNeighbors(neutral.position).find((position) =>
+      initial.tiles.some(
+        (tile) =>
+          tile.position.q === position.q &&
+          tile.position.r === position.r &&
+          tile.terrain !== 'water' &&
+          tile.terrain !== 'mountain' &&
+          tile.terrain !== 'tundraMountain',
+      ),
+    )!
+    const builder: Unit = {
+      id: 'civilian-builder', name: 'builder', factionId: 'player', type: 'builder',
+      position: start, hp: 100, maxHp: 100, movementRemaining: 2, hasActed: false,
+    }
+    const state = {
+      ...initial,
+      units: [builder],
+      tiles: initial.tiles.map((tile) =>
+        (tile.position.q === start.q && tile.position.r === start.r) ||
+        (tile.position.q === neutral.position.q && tile.position.r === neutral.position.r)
+          ? { ...tile, terrain: 'plain' as const }
+          : tile,
+      ),
+    }
+    const moved = gameReducer(select(state, builder.id), {
+      type: 'unitMoved', unitId: builder.id, destination: neutral.position,
+    })
+
+    expect(moved.units[0].position).toEqual(neutral.position)
+    expect(moved.sites.find((site) => site.id === neutral.id)?.ownerId).toBe('neutral')
+  })
+
   it('captures an enemy capital at 50% health and wins immediately', () => {
     const initial = createInitialGameState('reducer-victory')
     const generatedCapital = initial.sites.find((site) => site.capitalFor === 'enemy')!
@@ -235,6 +270,44 @@ describe('gameReducer on a hex map', () => {
     expect(gameReducer(produced, {
       type: 'unitProduced', siteId: site.id, unitType: 'infantry', destination,
     })).toBe(produced)
+  })
+
+  it('produces multiple builders only in Cities and does not apply a living-unit cap', () => {
+    const initial = createInitialGameState('reducer-civilian-production')
+    const city = initial.sites.find(
+      (site) => site.ownerId === 'player' && site.kind === 'city',
+    )!
+    const destination = getDeployablePositions(initial, city)[0]
+    const existingBuilder: Unit = {
+      id: 'existing-builder', name: 'builder', factionId: 'player', type: 'builder',
+      position: initial.tiles.find(
+        (tile) =>
+          !initial.units.some(
+            (unit) =>
+              unit.position.q === tile.position.q && unit.position.r === tile.position.r,
+          ) &&
+          tile.position.q !== destination.q &&
+          tile.position.r !== destination.r,
+      )!.position,
+      hp: 100, maxHp: 100, movementRemaining: 0, hasActed: true,
+    }
+    const state = {
+      ...initial,
+      resources: { ...initial.resources, player: 100 },
+      units: [...initial.units, existingBuilder],
+    }
+    const produced = gameReducer(state, {
+      type: 'unitProduced', siteId: city.id, unitType: 'builder', destination,
+    })
+
+    expect(produced.units.filter((unit) => unit.type === 'builder')).toHaveLength(2)
+    const outpost = { ...city, id: 'outpost', kind: 'outpost' as const, footprint: undefined }
+    expect(
+      gameReducer(
+        { ...state, sites: [outpost] },
+        { type: 'unitProduced', siteId: outpost.id, unitType: 'builder', destination },
+      ),
+    ).toEqual({ ...state, sites: [outpost] })
   })
 
   it('includes the newly produced unit in the upkeep reservation', () => {

@@ -87,6 +87,7 @@ export function getZoneOfControlIndex(
     )
 
     for (const unit of state.units) {
+      if (unit.type === 'settler' || unit.type === 'builder') continue
       for (const affectedFactionId of state.factionOrder) {
         if (affectedFactionId === unit.factionId) continue
         const zone = zones.get(affectedFactionId)!

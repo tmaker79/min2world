@@ -59,6 +59,27 @@ export function UnitIcon({ type, className }: UnitIconProps) {
     )
   }
 
+  if (type === 'settler') {
+    return (
+      <svg {...commonProps}>
+        <path d="M6 21V3" />
+        <path d="M7 4h10l-2.5 3L17 10H7" />
+        <path d="M3.5 21h6" />
+      </svg>
+    )
+  }
+
+  if (type === 'builder') {
+    return (
+      <svg {...commonProps}>
+        <path d="m5 19 9.5-9.5" />
+        <path d="m12.5 5.5 2-2 5 5-2 2" />
+        <path d="m3.5 17.5 3 3" />
+        <path d="m14.5 3.5 5 5" />
+      </svg>
+    )
+  }
+
   return (
     <svg {...commonProps}>
       <image

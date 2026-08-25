@@ -83,7 +83,14 @@ const TERRAINS = new Set<Terrain>([
   'tundraForest',
   'tundraMountain',
 ])
-const UNIT_TYPES = new Set<UnitType>(['infantry', 'cavalry', 'archer', 'spearman'])
+const UNIT_TYPES = new Set<UnitType>([
+  'infantry',
+  'cavalry',
+  'archer',
+  'spearman',
+  'settler',
+  'builder',
+])
 const SITE_TYPES = new Set<SiteType>([
   'outpost',
   'keep',
@@ -207,6 +214,8 @@ function parseSite(value: unknown, boardSize: BoardSize): Site | undefined {
     !SITE_OWNERS.has(value.ownerId as SiteOwnerId) ||
     (value.capitalFor !== undefined &&
       (typeof value.capitalFor !== 'string' || !FACTIONS.has(value.capitalFor as FactionId))) ||
+    (value.foundedBy !== undefined &&
+      (typeof value.foundedBy !== 'string' || !FACTIONS.has(value.foundedBy as FactionId))) ||
     (value.lastProducedTurn !== undefined && !isIntegerInRange(value.lastProducedTurn, 1)) ||
     (value.lastDevelopedTurn !== undefined && !isIntegerInRange(value.lastDevelopedTurn, 1))
   ) {
@@ -295,6 +304,9 @@ function parseSite(value: unknown, boardSize: BoardSize): Site | undefined {
       ? {}
       : { footprint: footprint as Position[] }),
     ownerId: value.ownerId as SiteOwnerId,
+    ...(value.foundedBy === undefined
+      ? {}
+      : { foundedBy: value.foundedBy as FactionId }),
     buildings,
     ...(constructionQueue === undefined ? {} : { constructionQueue }),
     ...(fortified
@@ -719,6 +731,20 @@ function readSavedGame(storage?: StorageLike): StorageResult<SavedGame> {
         sites: Array.isArray(legacyState.sites)
           ? legacyState.sites.map(migrateSite)
           : legacyState.sites,
+      },
+    }
+  }
+  const settlementRecord = parsed as Record<string, unknown>
+  if (
+    settlementRecord.schemaVersion === 12 &&
+    isRecord(settlementRecord.gameState)
+  ) {
+    parsed = {
+      ...settlementRecord,
+      schemaVersion: 13,
+      gameState: {
+        ...settlementRecord.gameState,
+        schemaVersion: 13,
       },
     }
   }

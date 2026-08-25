@@ -16,6 +16,8 @@ describe('unit upkeep', () => {
       spearman: 1,
       archer: 1,
       cavalry: 2,
+      settler: 1,
+      builder: 1,
     })
   })
 

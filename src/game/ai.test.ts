@@ -9,6 +9,7 @@ import { getHexDistance } from './hex'
 import { createInitialGameState } from './initialState'
 import { gameReducer } from './reducer'
 import { getDeployablePositions, getUnitProductionCost } from './rules'
+import { getConstructiblePositions } from './settlement'
 import type { GameState, Site, Unit } from './types'
 
 function enemyTurn(seed = 'ai-test'): GameState {
@@ -757,6 +758,152 @@ describe('hex-map AI', () => {
     ]
 
     expect(getAiUnitCap({ ...initial, sites }, 'enemy')).toBe(8)
+  })
+
+  it('uses a selected builder on a legal site instead of consuming it', () => {
+    const initial = economyState('ai-builder-action')
+    const city = initial.sites.find(
+      (site) => site.ownerId === 'enemy' && site.kind === 'city',
+    )!
+    const stateWithCity = { ...initial, sites: [city] }
+    const position = getConstructiblePositions(stateWithCity, 'enemy', 'farm')[0]
+    const builder: Unit = {
+      id: 'enemy-builder',
+      name: 'Builder',
+      factionId: 'enemy',
+      type: 'builder',
+      position,
+      hp: 100,
+      maxHp: 100,
+      movementRemaining: 2,
+      hasActed: false,
+    }
+    const state = {
+      ...stateWithCity,
+      selectedUnitId: builder.id,
+      units: [builder],
+    }
+
+    expect(chooseAiDecision(state)).toEqual({
+      action: {
+        type: 'siteConstructed',
+        unitId: builder.id,
+        siteKind: 'farm',
+      },
+      reason: 'siteConstruction',
+    })
+  })
+
+  it('waits on its chosen construction tile when the builder cannot pay', () => {
+    const initial = economyState('ai-builder-waits-for-cost')
+    const city = initial.sites.find(
+      (site) => site.ownerId === 'enemy' && site.kind === 'city',
+    )!
+    const stateWithCity = { ...initial, sites: [city] }
+    const position = getConstructiblePositions(stateWithCity, 'enemy', 'farm')[0]
+    const builder: Unit = {
+      id: 'enemy-builder', name: 'Builder', factionId: 'enemy', type: 'builder',
+      position, hp: 100, maxHp: 100, movementRemaining: 2, hasActed: false,
+    }
+    const state = {
+      ...stateWithCity,
+      resources: { ...stateWithCity.resources, enemy: 0 },
+      selectedUnitId: builder.id,
+      units: [builder],
+    }
+
+    expect(chooseAiDecision(state)).toEqual({
+      action: { type: 'unitWaited', unitId: builder.id },
+      reason: 'siteConstruction',
+    })
+  })
+
+  it('reuses a reachable builder and does not produce another one', () => {
+    const initial = economyState('ai-builder-reuse')
+    const city = initial.sites.find(
+      (site) => site.ownerId === 'enemy' && site.kind === 'city',
+    )!
+    city.lastDevelopedTurn = initial.turn
+    const stateWithCity = { ...initial, sites: [city] }
+    const position = getConstructiblePositions(stateWithCity, 'enemy', 'outpost')[0]
+    const builder: Unit = {
+      id: 'enemy-builder',
+      name: 'Builder',
+      factionId: 'enemy',
+      type: 'builder',
+      position,
+      hp: 100,
+      maxHp: 100,
+      movementRemaining: 0,
+      hasActed: true,
+    }
+    const decision = chooseAiDecision({
+      ...stateWithCity,
+      resources: { ...stateWithCity.resources, enemy: 100 },
+      units: [builder],
+    })
+
+    expect(decision?.action).not.toMatchObject({
+      type: 'unitProduced',
+      unitType: 'builder',
+    })
+  })
+
+  it('excludes civilians from the military production cap', () => {
+    const initial = economyState('ai-civilian-cap')
+    const city = initial.sites.find(
+      (site) => site.ownerId === 'enemy' && site.kind === 'city',
+    )!
+    city.lastDevelopedTurn = initial.turn
+    const foundedVillages = Array.from({ length: 3 }, (_, index) => ({
+      ...enemySite(initial),
+      id: `founded-village-${index}`,
+      kind: 'village' as const,
+      position: { q: 70 + index, r: 70 },
+      foundedBy: 'enemy' as const,
+      lastProducedTurn: initial.turn,
+    }))
+    const foundedSites = Array.from({ length: 10 }, (_, index) => ({
+      ...enemySite(initial),
+      id: `founded-site-${index}`,
+      position: { q: 80 + index, r: 80 },
+      foundedBy: 'enemy' as const,
+      lastProducedTurn: initial.turn,
+      lastDevelopedTurn: initial.turn,
+    }))
+    const units: Unit[] = [
+      {
+        id: 'enemy-infantry-1', name: 'Infantry 1', factionId: 'enemy',
+        type: 'infantry', position: initial.tiles[0].position, hp: 100, maxHp: 100,
+        movementRemaining: 0, hasActed: true,
+      },
+      {
+        id: 'enemy-infantry-2', name: 'Infantry 2', factionId: 'enemy',
+        type: 'infantry', position: initial.tiles[1].position, hp: 100, maxHp: 100,
+        movementRemaining: 0, hasActed: true,
+      },
+      {
+        id: 'enemy-builder', name: 'Builder', factionId: 'enemy',
+        type: 'builder', position: initial.tiles[2].position, hp: 100, maxHp: 100,
+        movementRemaining: 0, hasActed: true,
+      },
+      {
+        id: 'enemy-settler', name: 'Settler', factionId: 'enemy',
+        type: 'settler', position: initial.tiles[3].position, hp: 100, maxHp: 100,
+        movementRemaining: 0, hasActed: true,
+      },
+    ]
+    const decision = chooseAiDecision({
+      ...initial,
+      resources: { ...initial.resources, enemy: 100 },
+      sites: [city, ...foundedVillages, ...foundedSites],
+      units,
+    })
+
+    expect(decision?.action).toMatchObject({ type: 'unitProduced' })
+    if (decision?.action.type === 'unitProduced') {
+      expect(['settler', 'builder']).not.toContain(decision.action.unitType)
+    }
   })
 
   it('prefers a defensive hill when two archer firing positions are available', () => {
