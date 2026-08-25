@@ -24,6 +24,9 @@ function developmentState(
   }
   return {
     ...initial,
+    humanFactionId: initial.factionOrder.find(
+      (factionId) => factionId !== initial.activeFactionId,
+    )!,
     resources: { ...initial.resources, [initial.activeFactionId]: 100 },
     units: [],
     sites: [site],
@@ -52,6 +55,16 @@ describe('site development', () => {
         developmentState('mine', { level: 3 }).sites[0],
       ),
     ).toBeUndefined()
+  })
+
+  it('waives development costs for the human faction', () => {
+    const paid = developmentState('outpost')
+    const state = { ...paid, humanFactionId: paid.activeFactionId }
+
+    expect(getSiteDevelopmentCost(state.sites[0], state)).toBe(0)
+    expect(canDevelopSite(state, 'site-1')).toMatchObject({ ok: true, cost: 0 })
+    expect(resolveSiteDevelopment(state, 'site-1').resources[state.activeFactionId])
+      .toBe(state.resources[state.activeFactionId])
   })
 
   it('preserves military-site health ratios and fully heals a new city', () => {

@@ -405,7 +405,13 @@ describe('sites', () => {
     }
     const keep = { ...blacksmith, id: 'keep', kind: 'keep' as const, level: undefined }
     const city = { ...keep, id: 'city', kind: 'city' as const }
-    const discounted = { ...state, sites: [blacksmith, keep] }
+    const discounted = {
+      ...state,
+      humanFactionId: state.factionOrder.find(
+        (factionId) => factionId !== ownerId,
+      )!,
+      sites: [blacksmith, keep],
+    }
 
     expect(getSiteIncome(blacksmith)).toBe(3)
     expect(getProducibleUnitTypes(keep)).toEqual([

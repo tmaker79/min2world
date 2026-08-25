@@ -1,4 +1,5 @@
 import { getHexDistance, getHexNeighbors, positionKey } from './hex'
+import { getFactionAdjustedCost } from './playerEconomy'
 import {
   getSiteAt,
   getSiteMaxHp,
@@ -33,24 +34,35 @@ export const SITE_CONSTRUCTION_COSTS: Record<BuildableSiteType, number> = {
   blacksmith: 10,
 }
 
+export function getSiteConstructionCost(
+  state: GameState,
+  factionId: FactionId,
+  siteKind: BuildableSiteType,
+): number {
+  return getFactionAdjustedCost(
+    state,
+    factionId,
+    SITE_CONSTRUCTION_COSTS[siteKind],
+  )
+}
+
 export type ExpansionLimits = {
-  villages: number
   constructedSites: number
 }
 
 const BOARD_LIMITS = new Map<string, ExpansionLimits>([
-  ['15x10', { villages: 1, constructedSites: 2 }],
-  ['15x11', { villages: 1, constructedSites: 2 }],
-  ['18x12', { villages: 1, constructedSites: 2 }],
-  ['21x14', { villages: 1, constructedSites: 4 }],
-  ['21x15', { villages: 1, constructedSites: 4 }],
-  ['24x16', { villages: 1, constructedSites: 4 }],
-  ['29x21', { villages: 3, constructedSites: 10 }],
-  ['42x28', { villages: 3, constructedSites: 10 }],
-  ['48x32', { villages: 3, constructedSites: 10 }],
-  ['41x29', { villages: 6, constructedSites: 24 }],
-  ['84x56', { villages: 6, constructedSites: 24 }],
-  ['96x64', { villages: 6, constructedSites: 24 }],
+  ['15x10', { constructedSites: 2 }],
+  ['15x11', { constructedSites: 2 }],
+  ['18x12', { constructedSites: 2 }],
+  ['21x14', { constructedSites: 4 }],
+  ['21x15', { constructedSites: 4 }],
+  ['24x16', { constructedSites: 4 }],
+  ['29x21', { constructedSites: 10 }],
+  ['42x28', { constructedSites: 10 }],
+  ['48x32', { constructedSites: 10 }],
+  ['41x29', { constructedSites: 24 }],
+  ['84x56', { constructedSites: 24 }],
+  ['96x64', { constructedSites: 24 }],
 ])
 
 function boardKey(boardSize: BoardSize) {
@@ -59,18 +71,8 @@ function boardKey(boardSize: BoardSize) {
 
 export function getExpansionLimits(boardSize: BoardSize): ExpansionLimits {
   return BOARD_LIMITS.get(boardKey(boardSize)) ?? {
-    villages: 6,
     constructedSites: 24,
   }
-}
-
-export function getFoundedVillageCount(
-  state: GameState,
-  factionId: FactionId,
-) {
-  return state.sites.filter(
-    (site) => site.kind === 'village' && site.foundedBy === factionId,
-  ).length
 }
 
 export function getFoundedConstructionCount(
@@ -84,9 +86,7 @@ export function getFoundedConstructionCount(
   ).length
 }
 
-export type CivilianProductionFailure =
-  | 'settlementCapacityReached'
-  | 'constructionCapacityReached'
+export type CivilianProductionFailure = 'constructionCapacityReached'
 
 export type CivilianProductionCheck =
   | { ok: true }
@@ -97,15 +97,10 @@ export function canProduceCivilianUnit(
   factionId: FactionId,
   unitType: CivilianUnitType,
 ): CivilianProductionCheck {
-  const limits = getExpansionLimits(state.boardSize)
   if (unitType === 'settler') {
-    const livingSettlers = state.units.filter(
-      (unit) => unit.factionId === factionId && unit.type === 'settler',
-    ).length
-    return getFoundedVillageCount(state, factionId) + livingSettlers < limits.villages
-      ? { ok: true }
-      : { ok: false, reason: 'settlementCapacityReached' }
+    return { ok: true }
   }
+  const limits = getExpansionLimits(state.boardSize)
   return getFoundedConstructionCount(state, factionId) < limits.constructedSites
     ? { ok: true }
     : { ok: false, reason: 'constructionCapacityReached' }
@@ -205,7 +200,7 @@ export type SitePlacementCheck =
 
 export function canSettleAt(
   state: GameState,
-  factionId: FactionId,
+  _factionId: FactionId,
   position: Position,
 ): SitePlacementCheck {
   const tile = state.tiles.find(
@@ -218,12 +213,6 @@ export function canSettleAt(
   if (getSiteAt(state, position)) return { ok: false, reason: 'siteOccupied' }
   if (!isFarEnoughFromSites(state, position, 4)) {
     return { ok: false, reason: 'tooCloseToSite' }
-  }
-  if (
-    getFoundedVillageCount(state, factionId) >=
-    getExpansionLimits(state.boardSize).villages
-  ) {
-    return { ok: false, reason: 'capacityReached' }
   }
   return { ok: true }
 }
@@ -339,7 +328,11 @@ export function canConstruct(
     siteKind,
   )
   if (!placement.ok) return placement
-  const cost = SITE_CONSTRUCTION_COSTS[siteKind]
+  const cost = getSiteConstructionCost(
+    state,
+    unitCheck.unit.factionId,
+    siteKind,
+  )
   const spending = canSpendWithUpkeepReserve(
     state,
     unitCheck.unit.factionId,

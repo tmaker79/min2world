@@ -11,7 +11,7 @@ import { canProduceCivilianUnit } from '../game/settlement'
 import type { GameState, Site, UnitType } from '../game/types'
 import {
   canSpendWithUpkeepReserve,
-  UNIT_UPKEEP,
+  getUnitUpkeep,
 } from '../game/upkeep'
 import { UnitIcon } from './UnitIcon'
 
@@ -81,7 +81,13 @@ export function ProductionPanel({
                       state,
                       state.humanFactionId,
                       cost,
-                      { upkeepDelta: UNIT_UPKEEP[unitType] },
+                      {
+                        upkeepDelta: getUnitUpkeep(
+                          state,
+                          state.humanFactionId,
+                          unitType,
+                        ),
+                      },
                     )
                     const capacity = isCivilianUnitType(unitType)
                       ? canProduceCivilianUnit(
@@ -117,16 +123,14 @@ export function ProductionPanel({
                           {!unlocked
                             ? `${site.kind} 단계에서는 해금되지 않은 병종입니다.`
                             : !capacity.ok
-                              ? capacity.reason === 'settlementCapacityReached'
-                                ? '남은 개척 가능량이 없습니다.'
-                                : '건설 가능한 거점 상한에 도달했습니다.'
+                              ? '건설 가능한 거점 상한에 도달했습니다.'
                               : !spending.ok &&
                                   spending.reason === 'insufficientUpkeepReserve'
                                 ? `다음 유지비 ${spending.reserve} 자원을 남겨야 합니다.`
                                 : !spending.ok
                                   ? '자원이 부족합니다.'
                                   : isCivilianUnitType(unitType)
-                                    ? `이동 ${stats.movement} · 비전투 · 유지비 ${UNIT_UPKEEP[unitType]}`
+                                    ? `이동 ${stats.movement} · 비전투 · 유지비 ${getUnitUpkeep(state, state.humanFactionId, unitType)}`
                                     : `이동 ${stats.movement} · 근접 ${stats.melee}${
                                         stats.ranged > 0
                                           ? ` · 원거리 ${stats.ranged}`

@@ -1,5 +1,6 @@
 import { positionKey } from './hex'
 import { getFactionLibraryDiscount } from './cityAdministration'
+import { getFactionAdjustedCost } from './playerEconomy'
 import {
   getSiteMaxHp,
   getSiteIncome,
@@ -89,7 +90,11 @@ export function getSiteDevelopmentCost(
 ): number | undefined {
   const cost = getSiteDevelopmentTarget(site)?.cost
   if (cost === undefined || !state || site.ownerId === 'neutral') return cost
-  return Math.max(1, cost - getFactionLibraryDiscount(state, site.ownerId))
+  return getFactionAdjustedCost(
+    state,
+    site.ownerId,
+    Math.max(1, cost - getFactionLibraryDiscount(state, site.ownerId)),
+  )
 }
 
 function isFootprintAvailable(

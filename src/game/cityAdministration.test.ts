@@ -32,6 +32,15 @@ function advanceToFactionStart(state: GameState): GameState {
   return next
 }
 
+function withPaidActiveFaction(state: GameState): GameState {
+  return {
+    ...state,
+    humanFactionId: state.factionOrder.find(
+      (factionId) => factionId !== state.activeFactionId,
+    )!,
+  }
+}
+
 describe('city administration', () => {
   it('initializes every site without buildings or a construction queue', () => {
     const state = createInitialGameState('building-initial')
@@ -44,6 +53,7 @@ describe('city administration', () => {
 
   it('starts construction only in an active owned City and charges immediately', () => {
     const initial = createInitialGameState('building-start')
+    initial.resources[initial.activeFactionId] = 0
     const city = ownedCity(initial)
     const farm = initial.sites.find((site) => site.kind === 'farm')!
 
@@ -58,7 +68,7 @@ describe('city administration', () => {
     })
 
     expect(started.resources[initial.activeFactionId]).toBe(
-      initial.resources[initial.activeFactionId] - 15,
+      initial.resources[initial.activeFactionId],
     )
     expect(started.sites.find((site) => site.id === city.id)).toMatchObject({
       buildings: [],
@@ -150,7 +160,7 @@ describe('city administration', () => {
     }
     const blacksmith = state.sites.find((site) => site.kind === 'blacksmith')!
     const discounted: GameState = {
-      ...state,
+      ...withPaidActiveFaction(state),
       sites: state.sites.map((site) =>
         site.id === city.id
           ? { ...fortified, buildings: [...fortified.buildings] }
@@ -269,7 +279,9 @@ describe('city administration', () => {
   })
 
   it('caps the faction library discount and applies it to development', () => {
-    const initial = createInitialGameState('building-library')
+    const initial = withPaidActiveFaction(
+      createInitialGameState('building-library'),
+    )
     const ownerId = initial.activeFactionId
     const city = ownedCity(initial)
     const outpost = initial.sites.find((site) => site.kind === 'farm')!
@@ -298,7 +310,9 @@ describe('city administration', () => {
   })
 
   it('does not count queued income buildings toward the upkeep reserve', () => {
-    const initial = createInitialGameState('building-upkeep-reserve')
+    const initial = withPaidActiveFaction(
+      createInitialGameState('building-upkeep-reserve'),
+    )
     const factionId = initial.activeFactionId
     const city = ownedCity(initial)
     const units = Array.from({ length: 4 }, (_, index) => ({
@@ -337,7 +351,9 @@ describe('city administration', () => {
   })
 
   it('keeps the upkeep reserve when construction has no immediate income', () => {
-    const initial = createInitialGameState('building-spending-reserve')
+    const initial = withPaidActiveFaction(
+      createInitialGameState('building-spending-reserve'),
+    )
     const factionId = initial.activeFactionId
     const city = ownedCity(initial)
     const units = Array.from({ length: 4 }, (_, index) => ({

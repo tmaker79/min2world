@@ -6,6 +6,7 @@ import {
   positionsEqual,
 } from './hex'
 import { MinPriorityQueue } from './priorityQueue'
+import { getFactionAdjustedCost } from './playerEconomy'
 import {
   getBarracksProductionDiscount,
   getBuildingIncomeBonus,
@@ -212,9 +213,10 @@ export function getUnitProductionCost(
     getBlacksmithProductionDiscount(state, factionId, unitType) +
       getBarracksProductionDiscount(site, unitType),
   )
-  return Math.max(
-    1,
-    UNIT_STATS[unitType].cost - discount,
+  return getFactionAdjustedCost(
+    state,
+    factionId,
+    Math.max(1, UNIT_STATS[unitType].cost - discount),
   )
 }
 

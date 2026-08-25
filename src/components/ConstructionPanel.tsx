@@ -4,6 +4,7 @@ import {
   BUILDING_IDS,
   canCancelConstruction,
   canStartConstruction,
+  getBuildingConstructionCost,
 } from '../game/cityAdministration'
 import type { BuildingId, GameState, Site } from '../game/types'
 import { getFactionUpkeepReserve } from '../game/upkeep'
@@ -94,6 +95,11 @@ export function ConstructionPanel({
                 BUILDING_DEFINITIONS[buildingId].category === category,
             ).map((buildingId) => {
               const definition = BUILDING_DEFINITIONS[buildingId]
+              const cost = getBuildingConstructionCost(
+                state,
+                state.humanFactionId,
+                buildingId,
+              )
               const reason = getBlockedReason(state, site, buildingId)
               const built = site.buildings.includes(buildingId)
               const queued = queue?.buildingId === buildingId
@@ -110,7 +116,7 @@ export function ConstructionPanel({
                 >
                   <strong>
                     <span>{definition.label}</span>
-                    <span>{built ? '완공' : queued ? '건설 중' : `${definition.cost} 자원`}</span>
+                    <span>{built ? '완공' : queued ? '건설 중' : `${cost} 자원`}</span>
                   </strong>
                   <span>{definition.turns}턴 · {definition.effect}</span>
                   {reason && !built && !queued && <small>{reason}</small>}

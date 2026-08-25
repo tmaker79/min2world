@@ -9,6 +9,15 @@ import {
   UNIT_UPKEEP,
 } from './upkeep'
 
+function withPaidActiveFaction(state: ReturnType<typeof createInitialGameState>) {
+  return {
+    ...state,
+    humanFactionId: state.factionOrder.find(
+      (factionId) => factionId !== state.activeFactionId,
+    )!,
+  }
+}
+
 describe('unit upkeep', () => {
   it('defines upkeep for every unit type', () => {
     expect(UNIT_UPKEEP).toEqual({
@@ -22,8 +31,8 @@ describe('unit upkeep', () => {
   })
 
   it('calculates faction upkeep, net income, and deficit reserve', () => {
-    const state = createInitialGameState('upkeep-summary')
-    const factionId = state.humanFactionId
+    const state = withPaidActiveFaction(createInitialGameState('upkeep-summary'))
+    const factionId = state.activeFactionId
 
     expect(getFactionUpkeep(state, factionId)).toBe(4)
     expect(getFactionNetIncome(state, factionId)).toBe(3)
@@ -38,8 +47,8 @@ describe('unit upkeep', () => {
   })
 
   it('checks available resources separately from the upkeep reserve', () => {
-    const state = createInitialGameState('upkeep-spending')
-    const factionId = state.humanFactionId
+    const state = withPaidActiveFaction(createInitialGameState('upkeep-spending'))
+    const factionId = state.activeFactionId
     const deficit = {
       ...state,
       sites: state.sites.filter((site) => site.ownerId !== factionId),
@@ -69,8 +78,8 @@ describe('unit upkeep', () => {
   })
 
   it('projects new upkeep and immediate income changes', () => {
-    const state = createInitialGameState('upkeep-projection')
-    const factionId = state.humanFactionId
+    const state = withPaidActiveFaction(createInitialGameState('upkeep-projection'))
+    const factionId = state.activeFactionId
 
     expect(
       getProjectedUpkeepReserve(state, factionId, { upkeepDelta: 5 }),
@@ -80,6 +89,17 @@ describe('unit upkeep', () => {
         upkeepDelta: 5,
         incomeDelta: 2,
       }),
+    ).toBe(0)
+  })
+
+  it('waives current and projected upkeep only for the human faction', () => {
+    const state = createInitialGameState('human-free-upkeep')
+    const factionId = state.humanFactionId
+
+    expect(getFactionUpkeep(state, factionId)).toBe(0)
+    expect(getFactionUpkeepReserve({ ...state, sites: [] }, factionId)).toBe(0)
+    expect(
+      getProjectedUpkeepReserve(state, factionId, { upkeepDelta: 100 }),
     ).toBe(0)
   })
 })

@@ -1017,6 +1017,13 @@ function chooseBuilderProduction(state: GameState, factionId: FactionId) {
 
 function chooseSettlerProduction(state: GameState, factionId: FactionId) {
   if (!canProduceCivilianUnit(state, factionId, 'settler').ok) return undefined
+  if (
+    state.units.some(
+      (unit) => unit.factionId === factionId && unit.type === 'settler',
+    )
+  ) {
+    return undefined
+  }
   for (const city of getAvailableProductionSites(state, factionId).filter(
     (site) => site.kind === 'city',
   )) {

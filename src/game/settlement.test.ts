@@ -8,7 +8,6 @@ import {
   canSettleAt,
   getExpansionLimits,
   getOwnedAnchorGraphDistance,
-  SITE_CONSTRUCTION_COSTS,
 } from './settlement'
 import type { GameState, Position, Site, Unit } from './types'
 
@@ -60,21 +59,17 @@ function civilian(
 }
 
 describe('settlement and construction rules', () => {
-  it('maps current and legacy board sizes to cumulative expansion limits', () => {
+  it('maps current and legacy board sizes to cumulative construction limits', () => {
     expect(getExpansionLimits({ columns: 15, rows: 10 })).toEqual({
-      villages: 1,
       constructedSites: 2,
     })
     expect(getExpansionLimits({ columns: 24, rows: 16 })).toEqual({
-      villages: 1,
       constructedSites: 4,
     })
     expect(getExpansionLimits({ columns: 42, rows: 28 })).toEqual({
-      villages: 3,
       constructedSites: 10,
     })
     expect(getExpansionLimits({ columns: 96, rows: 64 })).toEqual({
-      villages: 6,
       constructedSites: 24,
     })
   })
@@ -95,6 +90,22 @@ describe('settlement and construction rules', () => {
       reason: 'tooCloseToSite',
     })
     expect(canSettleAt(withSite, 'player', distanceFour)).toEqual({ ok: true })
+    const foundedVillages: Site[] = Array.from({ length: 20 }, (_, index) => ({
+      id: `player-village-${index}`,
+      name: `Village ${index}`,
+      kind: 'village',
+      position: { q: 100 + index * 10, r: 100 },
+      ownerId: 'player',
+      foundedBy: 'player',
+      buildings: [],
+    }))
+    expect(
+      canSettleAt(
+        { ...withSite, sites: [...withSite.sites, ...foundedVillages] },
+        'player',
+        distanceFour,
+      ),
+    ).toEqual({ ok: true })
     expect(
       canSettleAt(
         {
@@ -182,14 +193,14 @@ describe('settlement and construction rules', () => {
     ).toEqual({ ok: true })
   })
 
-  it('counts living settlers but permits multiple living builders below the cumulative site cap', () => {
+  it('permits unlimited settlers and multiple living builders below the cumulative site cap', () => {
     const state = openState('civilian-capacity')
     const position = state.tiles[0].position
     const settler = civilian('settler', position)
-    const settlers = Array.from(
-      { length: getExpansionLimits(state.boardSize).villages },
-      (_, index) => ({ ...settler, id: `player-settler-${index}` }),
-    )
+    const settlers = Array.from({ length: 20 }, (_, index) => ({
+      ...settler,
+      id: `player-settler-${index}`,
+    }))
     const builders = [
       civilian('builder', position),
       { ...civilian('builder', position), id: 'player-builder-2' },
@@ -197,7 +208,7 @@ describe('settlement and construction rules', () => {
 
     expect(
       canProduceCivilianUnit({ ...state, units: settlers }, 'player', 'settler'),
-    ).toEqual({ ok: false, reason: 'settlementCapacityReached' })
+    ).toEqual({ ok: true })
     expect(
       canProduceCivilianUnit({ ...state, units: builders }, 'player', 'builder'),
     ).toEqual({ ok: true })
@@ -240,6 +251,7 @@ describe('settlement and construction actions', () => {
 
   it('charges construction cost while preserving and exhausting the builder', () => {
     const state = openState('builder-action')
+    state.resources.player = 0
     const origin = state.tiles[Math.floor(state.tiles.length / 2)].position
     const destination = state.tiles.find(
       (tile) => getHexDistance(origin, tile.position) === 2,
@@ -258,7 +270,7 @@ describe('settlement and construction actions', () => {
     })
 
     expect(result.resources.player).toBe(
-      selected.resources.player - SITE_CONSTRUCTION_COSTS.outpost,
+      selected.resources.player,
     )
     expect(result.units).toContainEqual(
       expect.objectContaining({

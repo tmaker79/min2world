@@ -257,6 +257,7 @@ describe('gameReducer on a hex map', () => {
 
   it('produces only at an owned production site and charges resources', () => {
     const initial = createInitialGameState('reducer-produce')
+    initial.resources.player = 0
     const site = initial.sites.find((candidate) => candidate.capitalFor === 'player')!
     const destination = getDeployablePositions(initial, site)[0]
     const produced = gameReducer(initial, {
@@ -264,7 +265,7 @@ describe('gameReducer on a hex map', () => {
     })
 
     expect(produced.units).toHaveLength(initial.units.length + 1)
-    expect(produced.resources.player).toBe(initial.resources.player - 10)
+    expect(produced.resources.player).toBe(initial.resources.player)
     expect(produced.selectedUnitId).toBeUndefined()
     expect(produced.sites.find((candidate) => candidate.id === site.id)?.lastProducedTurn).toBe(1)
     expect(gameReducer(produced, {
@@ -311,7 +312,13 @@ describe('gameReducer on a hex map', () => {
   })
 
   it('includes the newly produced unit in the upkeep reservation', () => {
-    const initial = createInitialGameState('reducer-production-upkeep')
+    const original = createInitialGameState('reducer-production-upkeep')
+    const initial = {
+      ...original,
+      humanFactionId: original.factionOrder.find(
+        (factionId) => factionId !== original.activeFactionId,
+      )!,
+    }
     const factionId = initial.activeFactionId
     const site = initial.sites.find(
       (candidate) =>
@@ -339,7 +346,13 @@ describe('gameReducer on a hex map', () => {
   })
 
   it('routes site development and validates production unlocks and discounts', () => {
-    const initial = createInitialGameState('reducer-development')
+    const original = createInitialGameState('reducer-development')
+    const initial = {
+      ...original,
+      humanFactionId: original.factionOrder.find(
+        (factionId) => factionId !== original.activeFactionId,
+      )!,
+    }
     const ownerId = initial.activeFactionId
     const site = {
       id: 'outpost',

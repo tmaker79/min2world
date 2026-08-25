@@ -1,4 +1,5 @@
 import { positionKey } from './hex'
+import { getFactionAdjustedCost } from './playerEconomy'
 import { getSiteOccupiedPositions } from './siteFootprint'
 import { canSpendWithUpkeepReserve } from './upkeep'
 import type {
@@ -158,6 +159,18 @@ export type ConstructionCheck =
   | { ok: true; cost: number; turns: number }
   | { ok: false; reason: ConstructionFailure }
 
+export function getBuildingConstructionCost(
+  state: GameState,
+  factionId: FactionId,
+  buildingId: BuildingId,
+): number {
+  return getFactionAdjustedCost(
+    state,
+    factionId,
+    BUILDING_DEFINITIONS[buildingId].cost,
+  )
+}
+
 export function canStartConstruction(
   state: GameState,
   siteId: string,
@@ -180,15 +193,16 @@ export function canStartConstruction(
   if (site.constructionQueue) return { ok: false, reason: 'queueOccupied' }
 
   const definition = BUILDING_DEFINITIONS[buildingId]
+  const cost = getBuildingConstructionCost(state, site.ownerId, buildingId)
   const spending = canSpendWithUpkeepReserve(
     state,
     site.ownerId,
-    definition.cost,
+    cost,
   )
   if (!spending.ok) {
     return { ok: false, reason: spending.reason }
   }
-  return { ok: true, cost: definition.cost, turns: definition.turns }
+  return { ok: true, cost, turns: definition.turns }
 }
 
 export function resolveConstructionStart(

@@ -9,7 +9,7 @@ import {
   BUILDABLE_SITE_TYPES,
   canConstruct,
   canSettle,
-  SITE_CONSTRUCTION_COSTS,
+  getSiteConstructionCost,
 } from '../game/settlement'
 import type { SiteActionFailure } from '../game/settlement'
 import type {
@@ -17,7 +17,7 @@ import type {
   GameState,
   Unit,
 } from '../game/types'
-import { UNIT_UPKEEP } from '../game/upkeep'
+import { getUnitUpkeep } from '../game/upkeep'
 import { UnitIcon } from './UnitIcon'
 
 type InfoPanelProps = {
@@ -82,6 +82,7 @@ export function InfoPanel({
 }: InfoPanelProps) {
   const stats = UNIT_STATS[unit.type]
   const civilian = isCivilianUnitType(unit.type)
+  const upkeep = getUnitUpkeep(state, unit.factionId, unit.type)
   const foundingCheck = foundingKind === 'village'
     ? canSettle(state, unit.id)
     : foundingKind
@@ -137,7 +138,7 @@ export function InfoPanel({
           )}
           <div>
             <dt>유지비</dt>
-            <dd>{UNIT_UPKEEP[unit.type]} 자원/턴</dd>
+            <dd>{upkeep} 자원/턴</dd>
           </div>
           {stats.ranged > 0 && (
             <div>
@@ -188,7 +189,9 @@ export function InfoPanel({
                 onClick={() => onFoundingKindSelected(siteKind)}
               >
                 <strong>{SITE_TYPE_LABELS[siteKind]}</strong>
-                <span>{SITE_CONSTRUCTION_COSTS[siteKind]} 자원</span>
+                <span>
+                  {getSiteConstructionCost(state, unit.factionId, siteKind)} 자원
+                </span>
               </button>
             ))}
           </div>
@@ -201,7 +204,7 @@ export function InfoPanel({
           <p>
             {foundingKind === 'village'
               ? '개척자가 소모됩니다.'
-              : `${SITE_CONSTRUCTION_COSTS[foundingKind]} 자원을 지불하고 건설자는 행동을 종료합니다.`}
+              : `${getSiteConstructionCost(state, unit.factionId, foundingKind)} 자원을 지불하고 건설자는 행동을 종료합니다.`}
           </p>
           {foundingCheck && !foundingCheck.ok && (
             <p className="civilian-action-card__error" role="alert">

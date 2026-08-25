@@ -1,4 +1,5 @@
 import { getFactionIncome } from './rules'
+import { getFactionAdjustedCost } from './playerEconomy'
 import type { FactionId, GameState, UnitType } from './types'
 
 export const UNIT_UPKEEP: Record<UnitType, number> = {
@@ -10,13 +11,24 @@ export const UNIT_UPKEEP: Record<UnitType, number> = {
   builder: 1,
 }
 
+export function getUnitUpkeep(
+  state: GameState,
+  factionId: FactionId,
+  unitType: UnitType,
+): number {
+  return getFactionAdjustedCost(state, factionId, UNIT_UPKEEP[unitType])
+}
+
 export function getFactionUpkeep(
   state: GameState,
   factionId: FactionId,
 ): number {
   return state.units
     .filter((unit) => unit.factionId === factionId)
-    .reduce((total, unit) => total + UNIT_UPKEEP[unit.type], 0)
+    .reduce(
+      (total, unit) => total + getUnitUpkeep(state, factionId, unit.type),
+      0,
+    )
 }
 
 export function getFactionNetIncome(
@@ -46,7 +58,7 @@ export function getProjectedUpkeepReserve(
   const income = getFactionIncome(state, factionId) +
     (projection.incomeDelta ?? 0)
   const upkeep = getFactionUpkeep(state, factionId) +
-    (projection.upkeepDelta ?? 0)
+    getFactionAdjustedCost(state, factionId, projection.upkeepDelta ?? 0)
   return Math.max(0, upkeep - income)
 }
 

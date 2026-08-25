@@ -872,14 +872,14 @@ describe('Milestone 07 UI', () => {
     ).toHaveAttribute('aria-expanded', 'true')
   })
 
-  it('starts and cancels City construction without a slot limit or refund', async () => {
+  it('starts and cancels free player City construction without a slot limit', async () => {
     const user = userEvent.setup()
     const state = createInitialGameState('ui-construction')
     const city = state.sites.find(
       (site) =>
         site.ownerId === state.humanFactionId && site.kind === 'city',
     )!
-    state.resources[state.humanFactionId] = 100
+    state.resources[state.humanFactionId] = 0
     const { container } = renderApp(state)
 
     await user.click(container.querySelector<HTMLButtonElement>(
@@ -889,20 +889,20 @@ describe('Milestone 07 UI', () => {
 
     const panel = screen.getByLabelText('도시 건설')
     expect(within(panel).getAllByRole('button')).toHaveLength(7)
-    expect(within(panel).getByRole('button', { name: /곡창.*15 자원/ }))
+    expect(within(panel).getByRole('button', { name: /곡창.*0 자원/ }))
       .toBeEnabled()
 
     await user.click(
-      within(panel).getByRole('button', { name: /곡창.*15 자원/ }),
+      within(panel).getByRole('button', { name: /곡창.*0 자원/ }),
     )
     expect(within(panel).getByText('곡창 건설 중')).toBeVisible()
     expect(within(panel).getByText('남은 1턴')).toBeVisible()
     expect(screen.getByLabelText('거점 정보')).toHaveTextContent('건물0 / 7')
-    expect(screen.getByLabelText('현재 게임 상태')).toHaveTextContent('자원 85')
+    expect(screen.getByLabelText('현재 게임 상태')).toHaveTextContent('자원 0')
 
     await user.click(within(panel).getByRole('button', { name: '건설 취소' }))
     expect(within(panel).queryByText('곡창 건설 중')).not.toBeInTheDocument()
-    expect(screen.getByLabelText('현재 게임 상태')).toHaveTextContent('자원 85')
+    expect(screen.getByLabelText('현재 게임 상태')).toHaveTextContent('자원 0')
   })
 
   it('selects a unit on a stronghold first, then the stronghold on the next click', async () => {
@@ -1016,7 +1016,7 @@ describe('Milestone 07 UI', () => {
     expect(screen.getByRole('button', { name: '발전 확인' })).toBeDisabled()
   })
 
-  it('separately explains insufficient resources and maximum development', async () => {
+  it('allows free player development and separately explains maximum development', async () => {
     const user = userEvent.setup()
     const state = createInitialGameState('ui-development-blocked')
     const site = state.sites.find(
@@ -1031,9 +1031,8 @@ describe('Milestone 07 UI', () => {
       `.map-tile[data-coordinate="${positionKey(site.position)}"]`,
     )!)
     await user.click(screen.getByRole('tab', { name: '발전' }))
-    expect(within(screen.getByLabelText('거점 발전')).getByRole('status'))
-      .toHaveTextContent('자원이 부족')
-    expect(screen.getByRole('button', { name: '발전 확인' })).toBeDisabled()
+    expect(screen.getByLabelText('거점 발전')).toHaveTextContent('비용0 자원')
+    expect(screen.getByRole('button', { name: '발전 확인' })).toBeEnabled()
 
     unmount()
     const maxState = createInitialGameState('ui-development-max')
@@ -1127,7 +1126,7 @@ describe('Milestone 07 UI', () => {
     expect(container.querySelector('[data-development-footprint="true"]')).toBeNull()
   })
 
-  it('shows locked unit types and applies blacksmith discounts', async () => {
+  it('shows locked unit types and waives player production costs', async () => {
     const user = userEvent.setup()
     const state = createInitialGameState('ui-production-unlocks')
     const outpost = state.sites.find(
@@ -1138,7 +1137,7 @@ describe('Milestone 07 UI', () => {
     const smithy = state.sites.find((site) => site.kind === 'blacksmith')!
     smithy.ownerId = state.humanFactionId
     smithy.level = 3
-    state.resources[state.humanFactionId] = 100
+    state.resources[state.humanFactionId] = 0
     const { container } = renderApp(state)
 
     await user.click(container.querySelector<HTMLButtonElement>(
@@ -1149,7 +1148,7 @@ describe('Milestone 07 UI', () => {
     const options = container.querySelectorAll<HTMLButtonElement>('.production-option')
     const productionPanel = screen.getByLabelText('부대 생산')
     expect(options).toHaveLength(4)
-    expect(within(productionPanel).getByRole('button', { name: /보병.*8 자원/ }))
+    expect(within(productionPanel).getByRole('button', { name: /보병.*0 자원/ }))
       .toBeEnabled()
     expect(within(productionPanel).getByRole('button', { name: /기병/ })).toBeDisabled()
     expect(within(productionPanel).getByRole('button', { name: /궁병/ })).toHaveTextContent(
@@ -1330,7 +1329,7 @@ describe('Milestone 07 UI', () => {
     const economyDetails = screen.getByRole('region', { name: '경제 상세' })
     expect(economyToggle).toHaveAttribute('aria-expanded', 'true')
     expect(economyDetails).toHaveTextContent(`수입+${income}`)
-    expect(economyDetails).toHaveTextContent(`유지비-${upkeep}`)
+    expect(economyDetails).toHaveTextContent(`유지비${upkeep}`)
     expect(economyDetails).toHaveTextContent(`순수입${signedNetIncome}/턴`)
     expect(economyDetails).not.toHaveTextContent('예약 유지비')
 
@@ -1362,16 +1361,15 @@ describe('Milestone 07 UI', () => {
       name: `순수입 ${deficitNetIncome}/턴`,
     })
 
-    expect(deficitToggle).toHaveClass('status-bar__deficit')
+    expect(deficitToggle).not.toHaveClass('status-bar__deficit')
     expect(deficitStatus).not.toHaveTextContent('예약 유지비')
 
     await user.click(deficitToggle)
 
     const deficitDetails = screen.getByRole('region', { name: '경제 상세' })
     expect(deficitDetails).toHaveTextContent(`순수입${deficitNetIncome}/턴`)
-    expect(deficitDetails).toHaveTextContent(`예약 유지비${deficitReserve}`)
-    expect(within(deficitDetails).getByText('예약 유지비').closest('div'))
-      .toHaveClass('status-bar__deficit')
+    expect(deficitReserve).toBe(0)
+    expect(deficitDetails).not.toHaveTextContent('예약 유지비')
     deficitView.unmount()
   })
 
@@ -1391,7 +1389,7 @@ describe('Milestone 07 UI', () => {
 
     const info = screen.getByLabelText('부대 정보')
     expect(info).toHaveTextContent('유지비')
-    expect(info).toHaveTextContent('1 자원/턴')
+    expect(info).toHaveTextContent('0 자원/턴')
     const disband = screen.getByRole('button', { name: '해산' })
     await user.click(disband)
     expect(container.querySelector(`[data-unit-id="${unit.id}"]`))
@@ -1423,7 +1421,7 @@ describe('Milestone 07 UI', () => {
     expect(screen.getByRole('button', { name: '해산' })).toBeDisabled()
   })
 
-  it('explains the projected upkeep reserve on blocked production', async () => {
+  it('waives projected upkeep and production costs for the player', async () => {
     const user = userEvent.setup()
     const initial = createInitialGameState('ui-production-reserve')
     const city = initial.sites.find(
@@ -1470,11 +1468,12 @@ describe('Milestone 07 UI', () => {
     await user.click(screen.getByRole('tab', { name: '생산' }))
     const production = screen.getByLabelText('부대 생산')
     const infantry = within(production).getByRole('button', { name: /보병/ })
-    expect(infantry).toBeDisabled()
-    expect(infantry).toHaveTextContent('다음 유지비 2 자원을 남겨야 합니다.')
+    expect(infantry).toBeEnabled()
+    expect(infantry).toHaveTextContent('0 자원')
+    expect(infantry).not.toHaveTextContent('다음 유지비')
   })
 
-  it('explains upkeep reservation on blocked development and construction', async () => {
+  it('waives upkeep reservation on player development and construction', async () => {
     const user = userEvent.setup()
     const initial = createInitialGameState('ui-investment-reserve')
     const city = initial.sites.find(
@@ -1510,8 +1509,8 @@ describe('Milestone 07 UI', () => {
       `.map-tile[data-coordinate="${positionKey(city.position)}"]`,
     )!)
     await user.click(screen.getByRole('tab', { name: '발전' }))
-    expect(screen.getByLabelText('거점 발전'))
-      .toHaveTextContent('다음 유지비 3 자원을 남겨야 합니다.')
+    expect(screen.getByLabelText('거점 발전')).toHaveTextContent('비용0 자원')
+    expect(screen.getByRole('button', { name: '발전 확인' })).toBeEnabled()
     development.unmount()
 
     const constructionState = {
@@ -1546,10 +1545,13 @@ describe('Milestone 07 UI', () => {
       `.map-tile[data-coordinate="${positionKey(city.position)}"]`,
     )!)
     await user.click(screen.getByRole('tab', { name: '건설' }))
-    expect(within(screen.getByLabelText('도시 건설')).getByRole(
+    const granary = within(screen.getByLabelText('도시 건설')).getByRole(
       'button',
       { name: /곡창/ },
-    )).toHaveTextContent('다음 유지비 1 자원을 남겨야 합니다.')
+    )
+    expect(granary).toBeEnabled()
+    expect(granary).toHaveTextContent('0 자원')
+    expect(granary).not.toHaveTextContent('다음 유지비')
     construction.unmount()
   })
 
@@ -1597,12 +1599,12 @@ describe('Milestone 07 UI', () => {
     expect(container.querySelector('[data-site-icon="village"]')).toBeInTheDocument()
   })
 
-  it('pays for construction while keeping the builder after its action ends', () => {
+  it('constructs for free while keeping the builder after its action ends', () => {
     const state = createInitialGameState('ui-builder-construction', {
       boardSize: BOARD_SIZE_PRESETS.tiny,
     })
     const factionId = state.humanFactionId
-    state.resources[factionId] = 100
+    state.resources[factionId] = 0
     state.units = []
     const position = getConstructiblePositions(state, factionId, 'outpost')[0]
     const builder: Unit = {
@@ -1621,9 +1623,9 @@ describe('Milestone 07 UI', () => {
     const { container } = renderApp(state)
 
     expect(container.querySelector('[data-unit-icon="builder"]')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /전초기지.*10 자원/ }))
+    fireEvent.click(screen.getByRole('button', { name: /전초기지.*0 자원/ }))
     expect(screen.getByLabelText('정착 및 건설 확인')).toHaveTextContent(
-      '건설자는 행동을 종료합니다.',
+      '0 자원을 지불하고 건설자는 행동을 종료합니다.',
     )
     expect(container.querySelectorAll('[data-founding-candidate="true"].map-tile').length)
       .toBeGreaterThan(0)
