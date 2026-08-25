@@ -85,6 +85,7 @@ describe('Milestone 07 UI', () => {
     expect([...tiles].every((tile) => tile.type === 'button' && !tile.disabled)).toBe(true)
     expect(screen.queryByLabelText('현재 seed')).not.toBeInTheDocument()
     expect(container.querySelectorAll('.site-marker')).toHaveLength(8)
+    expect(container.querySelectorAll('[data-site-asset-preview]')).toHaveLength(14)
     expect(container.querySelectorAll('.unit-token')).toHaveLength(6)
     expect(container.querySelector('.map-layer--terrain .map-tile')).toBeInTheDocument()
     expect(container.querySelector('.map-layer--sites .site-marker')).toBeInTheDocument()

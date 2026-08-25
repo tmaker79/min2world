@@ -79,7 +79,7 @@ describe('GameMap large-map rendering', () => {
     const previewMarkers = [
       ...container.querySelectorAll('[data-site-asset-preview]'),
     ]
-    expect(previewMarkers).toHaveLength(12)
+    expect(previewMarkers).toHaveLength(14)
     expect(
       previewMarkers.map((marker) =>
         marker.getAttribute('data-site-asset-preview'),
@@ -94,19 +94,41 @@ describe('GameMap large-map rendering', () => {
       'smithy-1',
       'smithy-2',
       'smithy-3',
+      'village',
+      'town',
       'outpost',
       'keep',
       'stronghold',
     ])
-    for (const marker of previewMarkers) {
+    const expectedSiteDetails = [
+      ['farm', '1'],
+      ['farm', '2'],
+      ['farm', '3'],
+      ['mine', '1'],
+      ['mine', '2'],
+      ['mine', '3'],
+      ['blacksmith', '1'],
+      ['blacksmith', '2'],
+      ['blacksmith', '3'],
+      ['village', '1'],
+      ['town', '1'],
+      ['outpost', '1'],
+      ['keep', '1'],
+      ['stronghold', '1'],
+    ]
+    for (const [index, marker] of previewMarkers.entries()) {
       expect(marker).toHaveAttribute('data-site-asset-preview-footprint', '1')
       expect(marker.querySelector('[data-site-icon]')).toHaveAttribute(
         'data-site-icon',
-        marker.getAttribute('data-site-asset-preview'),
+        expectedSiteDetails[index][0],
+      )
+      expect(marker.querySelector('[data-site-icon]')).toHaveAttribute(
+        'data-site-level',
+        expectedSiteDetails[index][1],
       )
       expect(marker.querySelector('[data-site-icon]')).toHaveAttribute(
         'data-site-icon-variant',
-        'western',
+        index === 9 || index === 10 ? 'eastern' : 'western',
       )
     }
     expect(container.querySelector('.site-asset-preview__label')).toBeNull()

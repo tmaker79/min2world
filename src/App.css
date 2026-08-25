@@ -1707,8 +1707,8 @@
 .site-marker [data-site-icon='stronghold'],
 .site-marker [data-site-icon='city'],
 .site-asset-preview [data-site-icon='stronghold'] {
-  width: 68px;
-  height: 66px;
+  width: 64px;
+  height: 62px;
 }
 
 .site-asset-preview__footprint-tile {
@@ -1739,15 +1739,15 @@
   z-index: 1;
   top: 50%;
   left: 50%;
-  width: 86px;
-  height: 86px;
+  width: 98px;
+  height: 98px;
 }
 
 .site-marker [data-site-icon='city'] {
   top: 50%;
   bottom: auto;
-  width: 86px;
-  height: 86px;
+  width: 98px;
+  height: 98px;
 }
 
 .site-marker [data-site-icon='city'][data-site-icon-variant='eastern'],
@@ -1778,8 +1778,8 @@
 }
 
 .site-marker--city .site-banner {
-  top: calc(50% - 37px);
-  left: calc(50% - 37px);
+  top: calc(50% - 43px);
+  left: calc(50% - 43px);
 }
 
 .site-banner {

@@ -1180,6 +1180,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
                       ? { ...activeSiteAttack, phase: combatPhase }
                       : undefined
                   }
+                  showSiteAssetPreview
                   disabled={
                     state.phase !== 'playing'
                   }

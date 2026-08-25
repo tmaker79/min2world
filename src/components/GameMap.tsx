@@ -12,6 +12,8 @@ import smithyLevel2Icon from '../assets/sites/smithy-level-2.png'
 import smithyLevel3Icon from '../assets/sites/smithy-level-3.png'
 import smithyLevel1Icon from '../assets/sites/smithy.png'
 import strongholdIcon from '../assets/sites/stronghold.png'
+import easternTownIcon from '../assets/sites/town-eastern-3tile-roofmatch.png'
+import easternVillageIcon from '../assets/sites/village-eastern.png'
 import {
   getHexDistance,
   getHexPixelPosition,
@@ -34,6 +36,7 @@ import type {
   GameState,
   Position,
   Site,
+  SiteType,
   Tile,
   Unit,
 } from '../game/types'
@@ -68,11 +71,35 @@ const MILITARY_SITE_ASSET_PREVIEW_ICONS = {
   keep: keepIcon,
   stronghold: strongholdIcon,
 } as const
+const SETTLEMENT_SITE_ASSET_PREVIEW_ICONS = {
+  village: easternVillageIcon,
+  town: easternTownIcon,
+} as const
 const SITE_ASSET_PREVIEW_ICONS = {
   ...PRODUCTION_SITE_ASSET_PREVIEW_ICONS,
+  ...SETTLEMENT_SITE_ASSET_PREVIEW_ICONS,
   ...MILITARY_SITE_ASSET_PREVIEW_ICONS,
 } as const
 type SiteAssetPreviewKind = keyof typeof SITE_ASSET_PREVIEW_ICONS
+const SITE_ASSET_PREVIEW_DETAILS: Record<
+  SiteAssetPreviewKind,
+  { siteKind: SiteType; level: 1 | 2 | 3 }
+> = {
+  'farm-1': { siteKind: 'farm', level: 1 },
+  'farm-2': { siteKind: 'farm', level: 2 },
+  'farm-3': { siteKind: 'farm', level: 3 },
+  'mine-1': { siteKind: 'mine', level: 1 },
+  'mine-2': { siteKind: 'mine', level: 2 },
+  'mine-3': { siteKind: 'mine', level: 3 },
+  'smithy-1': { siteKind: 'blacksmith', level: 1 },
+  'smithy-2': { siteKind: 'blacksmith', level: 2 },
+  'smithy-3': { siteKind: 'blacksmith', level: 3 },
+  village: { siteKind: 'village', level: 1 },
+  town: { siteKind: 'town', level: 1 },
+  outpost: { siteKind: 'outpost', level: 1 },
+  keep: { siteKind: 'keep', level: 1 },
+  stronghold: { siteKind: 'stronghold', level: 1 },
+}
 
 export type CombatAnimationPhase = 'attack' | 'hit'
 
@@ -405,21 +432,24 @@ function SiteAssetPreviewMarker({
   minimumX: number
   minimumY: number
 }) {
+  const details = SITE_ASSET_PREVIEW_DETAILS[kind]
+  const variant = kind === 'village' || kind === 'town' ? 'eastern' : 'western'
   return (
     <span
       className="map-overlay-cell"
       style={getOverlayStyle(position, minimumX, minimumY)}
     >
       <span
-        className="site-asset-preview"
+        className={`site-asset-preview site-asset-preview--${details.siteKind}`}
         data-site-asset-preview={kind}
         data-site-asset-preview-footprint="1"
       >
         <img
           src={SITE_ASSET_PREVIEW_ICONS[kind]}
           alt=""
-          data-site-icon={kind}
-          data-site-icon-variant="western"
+          data-site-icon={details.siteKind}
+          data-site-level={details.level}
+          data-site-icon-variant={variant}
         />
       </span>
     </span>
@@ -617,7 +647,7 @@ function GameMapComponent({
       .filter((tile) => !occupiedKeys.has(positionKey(tile.position)))
       .filter((tile) => TERRAIN_MOVEMENT_COST[tile.terrain] !== null)
     const capital = state.sites.find(
-      (site) => site.capitalFor === 'f1' || site.capitalFor === 'player',
+      (site) => site.capitalFor === state.humanFactionId,
     )
     if (!capital) return []
 
@@ -641,7 +671,13 @@ function GameMapComponent({
       const position = positions[index]
       return position ? [{ kind, position }] : []
     })
-  }, [showSiteAssetPreview, state.sites, state.tiles, state.units])
+  }, [
+    showSiteAssetPreview,
+    state.humanFactionId,
+    state.sites,
+    state.tiles,
+    state.units,
+  ])
   const visibleTiles = useMemo(() => {
     const left =
       (viewport.left - cameraGutterX) / zoom - VIEWPORT_OVERSCAN_PX
