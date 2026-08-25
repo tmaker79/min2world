@@ -570,10 +570,14 @@
   display: flex;
   min-width: 0;
   min-height: 0;
-  padding: 14px 14px 12px;
+  padding: 0;
   flex: 1 1 0;
   flex-direction: column;
   overflow: visible;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .board-workspace {
@@ -696,7 +700,7 @@
 .minimap {
   position: relative;
   display: grid;
-  width: fit-content;
+  width: 100%;
   max-width: 100%;
   justify-self: center;
   justify-items: center;
@@ -724,42 +728,39 @@
   min-height: 0;
   height: 100%;
   padding: 10px;
-  grid-template-rows: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   align-content: start;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden;
   gap: 10px;
   background: rgba(14, 21, 26, 0.78);
   border: 1px solid rgba(169, 194, 204, 0.2);
   border-radius: 8px;
-  scrollbar-width: thin;
 }
 
 .map-minimap-dock {
-  position: absolute;
-  z-index: 6;
-  top: 12px;
-  right: 12px;
+  position: relative;
   display: grid;
-  justify-items: end;
-  pointer-events: none;
+  width: 100%;
+  overflow: visible;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
 }
 
 .map-minimap-dock__toggle {
   position: relative;
   z-index: 2;
   display: flex;
-  width: 44px;
-  height: 44px;
-  padding: 0;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 10px;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  gap: 8px;
   color: #f0d076;
-  background: rgba(10, 16, 20, 0.96);
-  border: 1px solid rgba(228, 185, 95, 0.42);
-  border-radius: 6px;
+  background: rgba(22, 33, 40, 0.92);
+  border: 0;
   cursor: pointer;
-  pointer-events: auto;
 }
 
 .map-minimap-dock__toggle:hover {
@@ -769,8 +770,7 @@
 
 .map-minimap-dock__toggle[aria-expanded='true'] {
   color: #f0d076;
-  background: rgba(10, 16, 20, 0.88);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  background: rgba(22, 33, 40, 0.92);
 }
 
 .map-minimap-dock__toggle:focus-visible {
@@ -778,9 +778,16 @@
   outline-offset: 2px;
 }
 
+.map-minimap-dock__label {
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
 .map-minimap-dock__icon {
-  width: 27px;
-  height: 27px;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
   fill: none;
   stroke: currentColor;
   stroke-linecap: round;
@@ -793,31 +800,51 @@
 }
 
 .map-minimap-dock__body {
-  position: absolute;
-  z-index: 1;
-  top: 0;
-  right: 0;
   display: none;
-  width: max-content;
-  pointer-events: auto;
+  width: 100%;
+  padding: 0;
+  justify-items: center;
 }
 
 .map-minimap-dock--expanded .map-minimap-dock__body {
-  display: block;
+  display: grid;
 }
 
-.map-minimap-dock--expanded .map-minimap-dock__toggle {
-  width: 38px;
-  height: 38px;
-  margin-top: 6px;
-  margin-right: 6px;
-  background: rgba(10, 16, 20, 0.72);
-  border: 0;
+@media (min-width: 981px) {
+  .status-bar-slot {
+    margin-bottom: 0;
+  }
+
+  .board-panel .status-bar-slot > .status-bar,
+  .deployment-bar {
+    border-radius: 8px 8px 0 0;
+    box-shadow: none;
+  }
+
+  .board-workspace {
+    gap: 0;
+  }
+
+  .map-stage {
+    border-top: 0;
+    border-radius: 0 0 0 8px;
+  }
+
+  .map-sidebar {
+    border-top: 0;
+    border-left: 0;
+    border-radius: 0 0 8px;
+  }
 }
 
-.map-minimap-dock--expanded .map-minimap-dock__icon {
-  width: 24px;
-  height: 24px;
+@media (min-width: 981px) and (min-height: 720px) {
+  .map-minimap-dock__toggle {
+    display: none;
+  }
+
+  .map-minimap-dock__body {
+    display: grid;
+  }
 }
 
 .mobile-info-sheet__toggle {
@@ -834,6 +861,9 @@
   min-height: 0;
   height: 100%;
   align-content: start;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 .map-sidebar__selection .info-card,
@@ -2944,6 +2974,7 @@
   }
 
   .board-workspace {
+    position: relative;
     grid-template-columns: 1fr;
     grid-template-rows: auto;
   }
@@ -2959,6 +2990,74 @@
 
   .map-sidebar {
     display: contents;
+  }
+
+  .map-minimap-dock {
+    position: absolute;
+    z-index: 6;
+    top: 8px;
+    right: 8px;
+    bottom: auto;
+    left: auto;
+    width: auto;
+    overflow: visible;
+    justify-items: end;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    pointer-events: none;
+  }
+
+  .map-minimap-dock__toggle {
+    width: 44px;
+    min-height: 44px;
+    height: 44px;
+    padding: 0;
+    justify-content: center;
+    gap: 0;
+    background: rgba(10, 16, 20, 0.96);
+    border: 1px solid rgba(228, 185, 95, 0.42);
+    border-radius: 6px;
+    pointer-events: auto;
+  }
+
+  .map-minimap-dock__label {
+    display: none;
+  }
+
+  .map-minimap-dock__body {
+    position: absolute;
+    z-index: 1;
+    top: 0;
+    right: 0;
+    bottom: auto;
+    left: auto;
+    width: max-content;
+    max-width: calc(100vw - 36px);
+    padding: 0;
+    pointer-events: auto;
+  }
+
+  .map-minimap-dock--expanded .map-minimap-dock__body {
+    display: block;
+  }
+
+  .map-minimap-dock--expanded .map-minimap-dock__toggle {
+    width: 38px;
+    min-height: 38px;
+    height: 38px;
+    margin-top: 6px;
+    margin-right: 6px;
+    margin-bottom: 0;
+    margin-left: 0;
+    background: rgba(10, 16, 20, 0.72);
+    border: 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  }
+
+  .map-minimap-dock--expanded .map-minimap-dock__icon {
+    width: 24px;
+    height: 24px;
   }
 
   .map-sidebar__selection,
@@ -3111,15 +3210,6 @@
 
   .board-workspace {
     position: relative;
-  }
-
-  .map-minimap-dock {
-    top: 8px;
-    right: 8px;
-  }
-
-  .map-minimap-dock__body {
-    max-width: calc(100vw - 36px);
   }
 
   .deployment-bar button,

@@ -134,7 +134,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
   const [mobileInfoExpanded, setMobileInfoExpanded] = useState(
     Boolean(initialState.selectedUnitId),
   )
-  const [mobileMinimapExpanded, setMobileMinimapExpanded] = useState(
+  const [minimapExpanded, setMinimapExpanded] = useState(
     () => !window.matchMedia(COMPACT_MAP_OVERLAY_QUERY).matches,
   )
   const [openChromeMenu, setOpenChromeMenu] = useState<ChromeMenuId | null>(null)
@@ -145,12 +145,12 @@ function GameApp({ initialState }: { initialState: GameState }) {
   const mapDragMovedRef = useRef(false)
   const closeCompactMinimap = useCallback(() => {
     if (window.matchMedia(COMPACT_MAP_OVERLAY_QUERY).matches) {
-      setMobileMinimapExpanded(false)
+      setMinimapExpanded(false)
     }
   }, [])
   const closeSidebarOverlayMinimap = useCallback(() => {
     if (window.matchMedia(SIDEBAR_OVERLAY_QUERY).matches) {
-      setMobileMinimapExpanded(false)
+      setMinimapExpanded(false)
     }
   }, [])
   const openSidebarInfo = useCallback(() => {
@@ -1146,56 +1146,6 @@ function GameApp({ initialState }: { initialState: GameState }) {
                   }}
                 />
               </div>
-              <div
-                className={`map-minimap-dock${
-                  mobileMinimapExpanded ? ' map-minimap-dock--expanded' : ''
-                }`}
-              >
-                <button
-                  type="button"
-                  className="map-minimap-dock__toggle"
-                  aria-label={
-                    mobileMinimapExpanded ? '미니맵 닫기' : '미니맵 열기'
-                  }
-                  aria-expanded={mobileMinimapExpanded}
-                  aria-controls="map-minimap"
-                  title={
-                    mobileMinimapExpanded ? '미니맵 닫기' : '미니맵 열기'
-                  }
-                  onClick={() => {
-                    const expanded = !mobileMinimapExpanded
-                    setMobileMinimapExpanded(expanded)
-                    if (expanded) setMobileInfoExpanded(false)
-                  }}
-                >
-                  {mobileMinimapExpanded ? (
-                    <svg
-                      className="map-minimap-dock__icon map-minimap-dock__icon--collapse"
-                      viewBox="0 0 24 24"
-                      aria-hidden="true"
-                    >
-                      <path d="M5 12h14" />
-                    </svg>
-                  ) : (
-                    <svg
-                      className="map-minimap-dock__icon"
-                      viewBox="0 0 24 24"
-                      aria-hidden="true"
-                    >
-                      <path d="M3 5 8 3l6 2 7-3v17l-7 3-6-2-5 2Z" />
-                      <path d="M8 3v17" />
-                      <path d="M14 5v17" />
-                    </svg>
-                  )}
-                </button>
-                <div id="map-minimap" className="map-minimap-dock__body">
-                  <Minimap
-                    state={state}
-                    scrollElement={mapScrollElement}
-                    zoom={mapZoom}
-                  />
-                </div>
-              </div>
               <div className="map-zoom-controls" aria-label="지도 확대/축소">
                 <button
                   type="button"
@@ -1228,6 +1178,57 @@ function GameApp({ initialState }: { initialState: GameState }) {
             </div>
 
             <aside className="map-sidebar" aria-label="지도 사이드바">
+              <div
+                className={`map-minimap-dock${
+                  minimapExpanded ? ' map-minimap-dock--expanded' : ''
+                }`}
+              >
+                <button
+                  type="button"
+                  className="map-minimap-dock__toggle"
+                  aria-label={
+                    minimapExpanded ? '미니맵 닫기' : '미니맵 열기'
+                  }
+                  aria-expanded={minimapExpanded}
+                  aria-controls="map-minimap"
+                  title={
+                    minimapExpanded ? '미니맵 닫기' : '미니맵 열기'
+                  }
+                  onClick={() => {
+                    const expanded = !minimapExpanded
+                    setMinimapExpanded(expanded)
+                    if (expanded) setMobileInfoExpanded(false)
+                  }}
+                >
+                  <span className="map-minimap-dock__label">미니맵</span>
+                  {minimapExpanded ? (
+                    <svg
+                      className="map-minimap-dock__icon map-minimap-dock__icon--collapse"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path d="M5 12h14" />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="map-minimap-dock__icon"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path d="M3 5 8 3l6 2 7-3v17l-7 3-6-2-5 2Z" />
+                      <path d="M8 3v17" />
+                      <path d="M14 5v17" />
+                    </svg>
+                  )}
+                </button>
+                <div id="map-minimap" className="map-minimap-dock__body">
+                  <Minimap
+                    state={state}
+                    scrollElement={mapScrollElement}
+                    zoom={mapZoom}
+                  />
+                </div>
+              </div>
               <section
                 className={`map-sidebar__selection mobile-info-sheet${
                   mobileInfoExpanded ? ' mobile-info-sheet--expanded' : ''

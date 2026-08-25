@@ -85,8 +85,9 @@ describe('Milestone 07 UI', () => {
     expect(container.querySelector('.site-marker')?.closest('.map-tile')).toBeNull()
     const sidebar = screen.getByLabelText('지도 사이드바')
     const minimap = screen.getByTestId('minimap')
-    expect(sidebar).not.toContainElement(minimap)
-    expect(container.querySelector('.map-stage')).toContainElement(minimap)
+    expect(sidebar.firstElementChild).toHaveClass('map-minimap-dock')
+    expect(sidebar).toContainElement(minimap)
+    expect(container.querySelector('.map-stage')).not.toContainElement(minimap)
     expect(screen.getByLabelText('선택 정보')).toHaveTextContent(
       '지도 타일을 가리키거나 선택하면 상세 정보가 표시됩니다.',
     )
@@ -125,7 +126,7 @@ describe('Milestone 07 UI', () => {
     expect(getComputedStyle(water).cursor).toBe('pointer')
   })
 
-  it('lets wide screens collapse the initially expanded minimap accessibly', () => {
+  it('keeps the minimap fallback toggle accessible', () => {
     const { container } = renderApp()
 
     expect(screen.getByLabelText('미니맵')).toBeInTheDocument()
@@ -133,7 +134,7 @@ describe('Milestone 07 UI', () => {
       '.map-minimap-dock__toggle',
     )!
     expect(toggle).toHaveAttribute('aria-label', '미니맵 닫기')
-    expect(toggle).toHaveTextContent('')
+    expect(toggle).toHaveTextContent('미니맵')
     expect(toggle.querySelector('.map-minimap-dock__icon')).toBeInTheDocument()
     expect(toggle.querySelectorAll('.map-minimap-dock__icon path')).toHaveLength(1)
     expect(toggle.querySelector('.map-minimap-dock__icon--collapse')).toBeInTheDocument()
@@ -144,7 +145,7 @@ describe('Milestone 07 UI', () => {
     fireEvent.click(toggle)
 
     expect(toggle).toHaveAttribute('aria-label', '미니맵 열기')
-    expect(toggle).toHaveTextContent('')
+    expect(toggle).toHaveTextContent('미니맵')
     expect(toggle.querySelectorAll('.map-minimap-dock__icon path')).toHaveLength(3)
     expect(toggle.querySelector('.map-minimap-dock__icon--collapse')).not.toBeInTheDocument()
     expect(toggle.querySelector('.map-minimap-dock__pin')).not.toBeInTheDocument()

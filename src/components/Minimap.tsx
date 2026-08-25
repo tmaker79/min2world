@@ -23,8 +23,8 @@ const TERRAIN_FILL: Record<Terrain, string> = {
   tundraMountain: '#707f8e',
 }
 
-const MINIMAP_MAX_WIDTH = 200
-const MINIMAP_MAX_HEIGHT = 140
+const MINIMAP_MAX_WIDTH = 230
+const MINIMAP_MAX_HEIGHT = 160
 
 type Viewport = {
   left: number
