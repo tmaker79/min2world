@@ -1,3 +1,4 @@
+import { useEffect, useId, useRef, useState } from 'react'
 import type { FactionId } from '../game/types'
 
 type StatusBarProps = {
@@ -13,6 +14,10 @@ type StatusBarProps = {
   onEndTurn: () => void
 }
 
+function formatSigned(value: number) {
+  return value > 0 ? `+${value}` : `${value}`
+}
+
 export function StatusBar({
   turn,
   resource,
@@ -25,6 +30,9 @@ export function StatusBar({
   disabled,
   onEndTurn,
 }: StatusBarProps) {
+  const [economyExpanded, setEconomyExpanded] = useState(false)
+  const economyRef = useRef<HTMLDivElement>(null)
+  const economyDetailsId = useId()
   const factionLabels: Record<string, string> = {
     player: '푸른 연맹',
     enemy: '붉은 제국',
@@ -34,6 +42,28 @@ export function StatusBar({
     f4: '자색 공국',
   }
   const factionLabel = factionLabels[activeFactionId] ?? activeFactionId
+
+  useEffect(() => {
+    if (!economyExpanded) return
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!economyRef.current?.contains(event.target as Node)) {
+        setEconomyExpanded(false)
+      }
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setEconomyExpanded(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [economyExpanded])
 
   return (
     <section className="status-bar" aria-label="현재 게임 상태">
@@ -59,16 +89,58 @@ export function StatusBar({
         <span className="status-bar__dot" aria-hidden="true">
           ·
         </span>
-        <span>수입 <strong>{income}</strong></span>
-        <span>유지비 <strong>{upkeep}</strong></span>
-        <span className={netIncome < 0 ? 'status-bar__deficit' : undefined}>
-          순수입 <strong>{netIncome > 0 ? `+${netIncome}` : netIncome}</strong>
-        </span>
-        {upkeepReserve > 0 && (
-          <span className="status-bar__deficit">
-            예약 <strong>{upkeepReserve}</strong>
-          </span>
-        )}
+        <div className="status-bar__economy" ref={economyRef}>
+          <button
+            type="button"
+            className={`status-bar__economy-toggle${
+              netIncome < 0 ? ' status-bar__deficit' : ''
+            }`}
+            aria-expanded={economyExpanded}
+            aria-controls={economyDetailsId}
+            onClick={() => setEconomyExpanded((expanded) => !expanded)}
+          >
+            <span>
+              순수입 <strong>{formatSigned(netIncome)}/턴</strong>
+            </span>
+            <svg
+              className="status-bar__economy-chevron"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path d="m7 9 5 5 5-5" />
+            </svg>
+          </button>
+          {economyExpanded && (
+            <div
+              id={economyDetailsId}
+              className="status-bar__economy-popover"
+              role="region"
+              aria-label="경제 상세"
+            >
+              <strong className="status-bar__economy-title">경제 상세</strong>
+              <dl>
+                <div>
+                  <dt>수입</dt>
+                  <dd>{formatSigned(income)}</dd>
+                </div>
+                <div>
+                  <dt>유지비</dt>
+                  <dd>{upkeep > 0 ? `-${upkeep}` : upkeep}</dd>
+                </div>
+                <div className={netIncome < 0 ? 'status-bar__deficit' : undefined}>
+                  <dt>순수입</dt>
+                  <dd>{formatSigned(netIncome)}/턴</dd>
+                </div>
+                {upkeepReserve > 0 && (
+                  <div className="status-bar__deficit">
+                    <dt>예약 유지비</dt>
+                    <dd>{upkeepReserve}</dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          )}
+        </div>
       </div>
       <button
         className="end-turn-button"

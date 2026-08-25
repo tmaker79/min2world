@@ -9,9 +9,14 @@ import {
   positionKey,
 } from './game/hex'
 import { createInitialGameState } from './game/initialState'
-import { TERRAIN_LABELS } from './game/rules'
+import { getFactionIncome, TERRAIN_LABELS } from './game/rules'
 import { getSiteDevelopmentFootprints } from './game/siteDevelopment'
 import type { GameState, Unit } from './game/types'
+import {
+  getFactionNetIncome,
+  getFactionUpkeep,
+  getFactionUpkeepReserve,
+} from './game/upkeep'
 
 function renderApp(state: GameState = createInitialGameState('ui-seed')) {
   return render(<App initialState={state} />)
@@ -1292,28 +1297,75 @@ describe('Milestone 07 UI', () => {
     vi.useRealTimers()
   })
 
-  it('shows player income, upkeep, net income, and a highlighted deficit reserve', () => {
+  it('shows a compact net income summary with an accessible economy popover', async () => {
+    const user = userEvent.setup()
     const initial = createInitialGameState('ui-upkeep-status')
-    const status = renderApp(initial).container.querySelector('.status-bar')!
+    const factionId = initial.humanFactionId
+    const income = getFactionIncome(initial, factionId)
+    const upkeep = getFactionUpkeep(initial, factionId)
+    const netIncome = getFactionNetIncome(initial, factionId)
+    const signedNetIncome = netIncome > 0 ? `+${netIncome}` : `${netIncome}`
+    const initialView = renderApp(initial)
+    const status = initialView.container.querySelector<HTMLElement>('.status-bar')!
+    const economyToggle = within(status).getByRole('button', {
+      name: `순수입 ${signedNetIncome}/턴`,
+    })
 
     expect(status).toHaveTextContent('자원 15')
-    expect(status).toHaveTextContent('수입 7')
-    expect(status).toHaveTextContent('유지비 3')
-    expect(status).toHaveTextContent('순수입 +4')
+    expect(status).toHaveTextContent(`순수입 ${signedNetIncome}/턴`)
+    expect(status).not.toHaveTextContent(`수입 ${income}`)
+    expect(status).not.toHaveTextContent('유지비')
     expect(status).not.toHaveTextContent('예약')
+    expect(economyToggle).toHaveAttribute('aria-expanded', 'false')
 
-    const { unmount } = renderApp({
+    await user.click(economyToggle)
+
+    const economyDetails = screen.getByRole('region', { name: '경제 상세' })
+    expect(economyToggle).toHaveAttribute('aria-expanded', 'true')
+    expect(economyDetails).toHaveTextContent(`수입+${income}`)
+    expect(economyDetails).toHaveTextContent(`유지비-${upkeep}`)
+    expect(economyDetails).toHaveTextContent(`순수입${signedNetIncome}/턴`)
+    expect(economyDetails).not.toHaveTextContent('예약 유지비')
+
+    await user.click(economyToggle)
+    expect(screen.queryByRole('region', { name: '경제 상세' })).not.toBeInTheDocument()
+
+    await user.click(economyToggle)
+    await user.click(document.body)
+    expect(screen.queryByRole('region', { name: '경제 상세' })).not.toBeInTheDocument()
+
+    await user.click(economyToggle)
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('region', { name: '경제 상세' })).not.toBeInTheDocument()
+    initialView.unmount()
+
+    const deficitState = {
       ...initial,
       sites: initial.sites.filter(
         (site) => site.ownerId !== initial.humanFactionId,
       ),
+    }
+    const deficitNetIncome = getFactionNetIncome(deficitState, factionId)
+    const deficitReserve = getFactionUpkeepReserve(deficitState, factionId)
+    const deficitView = renderApp(deficitState)
+    const deficitStatus = deficitView.container.querySelector<HTMLElement>(
+      '.status-bar',
+    )!
+    const deficitToggle = within(deficitStatus).getByRole('button', {
+      name: `순수입 ${deficitNetIncome}/턴`,
     })
-    const deficitStatuses = document.querySelectorAll('.status-bar')
-    const deficitStatus = deficitStatuses[deficitStatuses.length - 1]
-    expect(deficitStatus).toHaveTextContent('순수입 -3')
-    expect(deficitStatus).toHaveTextContent('예약 3')
-    expect(deficitStatus.querySelectorAll('.status-bar__deficit')).toHaveLength(2)
-    unmount()
+
+    expect(deficitToggle).toHaveClass('status-bar__deficit')
+    expect(deficitStatus).not.toHaveTextContent('예약 유지비')
+
+    await user.click(deficitToggle)
+
+    const deficitDetails = screen.getByRole('region', { name: '경제 상세' })
+    expect(deficitDetails).toHaveTextContent(`순수입${deficitNetIncome}/턴`)
+    expect(deficitDetails).toHaveTextContent(`예약 유지비${deficitReserve}`)
+    expect(within(deficitDetails).getByText('예약 유지비').closest('div'))
+      .toHaveClass('status-bar__deficit')
+    deficitView.unmount()
   })
 
   it('confirms player disbanding, clears selection, and gives no refund', async () => {
