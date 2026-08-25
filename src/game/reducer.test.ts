@@ -4,6 +4,7 @@ import { createInitialGameState } from './initialState'
 import { gameReducer } from './reducer'
 import { getDeployablePositions, getFactionIncome } from './rules'
 import type { GameState, Unit } from './types'
+import { getFactionUpkeep } from './upkeep'
 
 function select(state: GameState, unitId: string) {
   return gameReducer(state, { type: 'unitSelected', unitId })
@@ -329,7 +330,9 @@ describe('gameReducer on a hex map', () => {
     const result = gameReducer(state, { type: 'turnEnded' })
 
     expect(result.activeFactionId).toBe('enemy')
-    expect(result.resources.player).toBe(state.resources.player + income - 3)
+    expect(result.resources.player).toBe(
+      state.resources.player + income - getFactionUpkeep(state, 'player'),
+    )
     expect(result.units.filter((unit) => unit.factionId === 'enemy').every((unit) => !unit.hasActed)).toBe(true)
   })
 

@@ -23,16 +23,16 @@ describe('unit upkeep', () => {
     const state = createInitialGameState('upkeep-summary')
     const factionId = state.humanFactionId
 
-    expect(getFactionUpkeep(state, factionId)).toBe(3)
-    expect(getFactionNetIncome(state, factionId)).toBe(4)
+    expect(getFactionUpkeep(state, factionId)).toBe(4)
+    expect(getFactionNetIncome(state, factionId)).toBe(3)
     expect(getFactionUpkeepReserve(state, factionId)).toBe(0)
 
     const deficit = {
       ...state,
       sites: state.sites.filter((site) => site.ownerId !== factionId),
     }
-    expect(getFactionNetIncome(deficit, factionId)).toBe(-3)
-    expect(getFactionUpkeepReserve(deficit, factionId)).toBe(3)
+    expect(getFactionNetIncome(deficit, factionId)).toBe(-4)
+    expect(getFactionUpkeepReserve(deficit, factionId)).toBe(4)
   })
 
   it('checks available resources separately from the upkeep reserve', () => {
@@ -47,23 +47,23 @@ describe('unit upkeep', () => {
     expect(canSpendWithUpkeepReserve(deficit, factionId, 6)).toEqual({
       ok: false,
       reason: 'insufficientResources',
-      reserve: 3,
+      reserve: 4,
     })
     expect(canSpendWithUpkeepReserve(deficit, factionId, 3)).toEqual({
       ok: false,
       reason: 'insufficientUpkeepReserve',
-      reserve: 3,
+      reserve: 4,
     })
     expect(
       canSpendWithUpkeepReserve(
         {
           ...deficit,
-          resources: { ...deficit.resources, [factionId]: 6 },
+          resources: { ...deficit.resources, [factionId]: 7 },
         },
         factionId,
         3,
       ),
-    ).toEqual({ ok: true, reserve: 3 })
+    ).toEqual({ ok: true, reserve: 4 })
   })
 
   it('projects new upkeep and immediate income changes', () => {
@@ -72,7 +72,7 @@ describe('unit upkeep', () => {
 
     expect(
       getProjectedUpkeepReserve(state, factionId, { upkeepDelta: 5 }),
-    ).toBe(1)
+    ).toBe(2)
     expect(
       getProjectedUpkeepReserve(state, factionId, {
         upkeepDelta: 5,
