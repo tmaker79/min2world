@@ -400,6 +400,33 @@ describe('Milestone 07 UI', () => {
     expect(mapScroll.scrollTop).toBe(50)
   })
 
+  it('does not recenter the player capital after ending the turn', () => {
+    const frames: FrameRequestCallback[] = []
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      frames.push(callback)
+      return frames.length
+    })
+    const state = createInitialGameState('center-capital-once', {
+      boardSize: BOARD_SIZE_PRESETS.tiny,
+      factionCount: 2,
+      humanFactionId: 'f1',
+    })
+    const { container } = renderApp(state)
+    const mapScroll = container.querySelector<HTMLElement>('.map-scroll')!
+
+    act(() => {
+      for (const frame of frames.splice(0)) frame(0)
+    })
+    mapScroll.scrollLeft = 321
+    mapScroll.scrollTop = 123
+
+    fireEvent.click(screen.getByRole('button', { name: '턴 종료' }))
+
+    expect(frames).toHaveLength(0)
+    expect(mapScroll.scrollLeft).toBe(321)
+    expect(mapScroll.scrollTop).toBe(123)
+  })
+
   it('shows unit and terrain details as a sidebar preview on hover', () => {
     const state = createInitialGameState('ui-sidebar-preview')
     const enemy = state.units.find((unit) => unit.factionId === 'enemy')!

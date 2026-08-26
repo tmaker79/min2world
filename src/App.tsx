@@ -154,6 +154,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
   const [mapScrollElement, setMapScrollElement] = useState<HTMLDivElement | null>(
     null,
   )
+  const hasCenteredInitialMapRef = useRef(false)
   const mapGestureStateRef = useRef<MapGestureState>({ pinching: false })
   const mapDragMovedRef = useRef(false)
   const closeCompactMinimap = useCallback(() => {
@@ -401,7 +402,11 @@ function GameApp({ initialState }: { initialState: GameState }) {
   }, [foundingKind, selectedUnit, state])
 
   useEffect(() => {
-    if (!mapScrollElement || !playerCapitalPosition) return
+    if (
+      hasCenteredInitialMapRef.current ||
+      !mapScrollElement ||
+      !playerCapitalPosition
+    ) return
 
     const frame = window.requestAnimationFrame(() => {
       const capitalTile = mapScrollElement.querySelector<HTMLElement>(
@@ -436,6 +441,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
           scrollBounds.top -
           mapScrollElement.clientHeight / 2,
       )
+      hasCenteredInitialMapRef.current = true
     })
 
     return () => window.cancelAnimationFrame(frame)
@@ -586,6 +592,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
           SITE_STATS[site.kind].canProduce,
       )?.id ?? '',
     )
+    hasCenteredInitialMapRef.current = false
     dispatch({ type: 'gameLoaded', state: result.value.gameState })
     setSaveFeedback({ type: 'status', message: '저장된 게임을 불러왔습니다.' })
   }
@@ -1011,6 +1018,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     closeCompactMinimap()
     setProductionFeedback(undefined)
     setSaveFeedback(undefined)
+    hasCenteredInitialMapRef.current = false
     dispatch(
       state.humanFactionId === 'player'
         ? { type: 'gameRestarted', seed }
