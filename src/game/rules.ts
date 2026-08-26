@@ -423,7 +423,21 @@ export function getAttackableUnits(state: GameState, unit: Unit): Unit[] {
     (candidate) =>
       candidate.factionId !== unit.factionId &&
       getHexDistance(unit.position, candidate.position) <=
-        UNIT_STATS[unit.type].range,
+        UNIT_STATS[unit.type].range &&
+      !isUnitGarrisonedInFortifiedSite(state, candidate),
+  )
+}
+
+// Units garrisoned on their own fortified site (military sites and cities)
+// are shielded until the site itself is captured, so attackers must besiege
+// the site first.
+export function isUnitGarrisonedInFortifiedSite(
+  state: GameState,
+  unit: Unit,
+): boolean {
+  const site = getSiteAt(state, unit.position)
+  return Boolean(
+    site && isFortifiedSite(site) && site.ownerId === unit.factionId,
   )
 }
 
@@ -604,6 +618,7 @@ export function captureSiteAt(
   sites: Site[],
   position: Position,
   ownerId: FactionId,
+  turn: number,
 ): Site[] {
   let siteCaptured = false
   const nextSites = sites.map((site) => {
@@ -615,7 +630,8 @@ export function captureSiteAt(
       return site
     }
     siteCaptured = true
-    return { ...site, ownerId }
+    // Block development on the capture turn, matching newly built sites.
+    return { ...site, ownerId, lastDevelopedTurn: turn }
   })
 
   return siteCaptured ? nextSites : sites

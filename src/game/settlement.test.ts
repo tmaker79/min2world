@@ -328,6 +328,58 @@ describe('settlement and construction rules', () => {
     ).toEqual({ ok: true })
   })
 
+  it('lets production sites sit adjacent to military sites but not other sites', () => {
+    const state = openState('production-spacing')
+    const origin = state.tiles[Math.floor(state.tiles.length / 2)].position
+    const destination = state.tiles.find(
+      (tile) => getHexDistance(origin, tile.position) === 2,
+    )!.position
+    const adjacent = getHexNeighbors(destination, state.boardSize).find(
+      (position) => getHexDistance(origin, position) === 2,
+    )!
+    const city = singleCellCity(origin)
+
+    for (const kind of ['outpost', 'keep', 'stronghold'] as const) {
+      for (const ownerId of ['player', 'enemy', 'neutral'] as const) {
+        const militarySite: Site = {
+          id: `${ownerId}-${kind}`,
+          name: kind,
+          kind,
+          position: adjacent,
+          ownerId,
+          buildings: [],
+        }
+        for (const siteKind of ['farm', 'blacksmith'] as const) {
+          expect(
+            canConstructAt(
+              { ...state, sites: [city, militarySite] },
+              'player',
+              destination,
+              siteKind,
+            ),
+          ).toEqual({ ok: true })
+        }
+      }
+    }
+
+    const village: Site = {
+      id: 'adjacent-village',
+      name: 'Village',
+      kind: 'village',
+      position: adjacent,
+      ownerId: 'player',
+      buildings: [],
+    }
+    expect(
+      canConstructAt(
+        { ...state, sites: [city, village] },
+        'player',
+        destination,
+        'farm',
+      ),
+    ).toEqual({ ok: false, reason: 'tooCloseToSite' })
+  })
+
   it('restricts production sites to owned territory while allowing contested Outposts', () => {
     const state = openState('territory-construction')
     const destination = state.tiles[Math.floor(state.tiles.length / 2)].position

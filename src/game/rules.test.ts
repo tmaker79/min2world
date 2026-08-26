@@ -357,13 +357,44 @@ describe('hex combat rules', () => {
     const state = { ...rulesState([archer, blocker]), sites: [city] }
 
     expect(getAttackableSites(state, archer)).toEqual([city])
-    expect(getAttackableUnits(state, archer)).toEqual([blocker])
+    expect(getAttackableUnits(state, archer)).toEqual([])
+    expect(
+      getAttackableUnits(
+        { ...state, units: [archer, { ...blocker, position: { q: 1, r: 0 } }] },
+        archer,
+      ).map((unit) => unit.id),
+    ).toEqual([blocker.id])
     expect(
       getAttackableSites(
         { ...state, sites: [{ ...city, ownerId: 'neutral' }] },
         archer,
       ).map((site) => site.id),
     ).toEqual([city.id])
+  })
+
+  it('shields units garrisoned on their own fortified site until it is captured', () => {
+    const archer = unit('p1', 'player', 'archer', { q: 0, r: 0 })
+    const garrison = unit('e1', 'enemy', 'infantry', { q: 1, r: 0 })
+    const outpost: Site = {
+      id: 'outpost',
+      name: 'Outpost',
+      kind: 'outpost',
+      position: { q: 1, r: 0 },
+      ownerId: 'enemy',
+      hp: 50,
+      maxHp: 50,
+      buildings: [],
+    }
+    const state = { ...rulesState([archer, garrison]), sites: [outpost] }
+
+    expect(getAttackableUnits(state, archer)).toEqual([])
+    expect(getAttackableSites(state, archer)).toEqual([outpost])
+    expect(
+      getAttackableUnits(
+        { ...state, sites: [{ ...outpost, ownerId: 'player' }] },
+        archer,
+      ),
+    ).toEqual([garrison])
   })
 })
 
@@ -451,10 +482,13 @@ describe('sites', () => {
       buildings: [],
     }
     const enemyCapital = state.sites.find((site) => site.capitalFor === 'enemy')!
-    const capturedNeutral = captureSiteAt([neutral, enemyCapital], neutral.position, 'player')
-    const capturedCapital = captureSiteAt(capturedNeutral, enemyCapital.position, 'player')
+    const capturedNeutral = captureSiteAt([neutral, enemyCapital], neutral.position, 'player', 3)
+    const capturedCapital = captureSiteAt(capturedNeutral, enemyCapital.position, 'player', 3)
 
     expect(capturedNeutral.find((site) => site.id === neutral.id)?.ownerId).toBe('player')
+    expect(
+      capturedNeutral.find((site) => site.id === neutral.id)?.lastDevelopedTurn,
+    ).toBe(3)
     expect(capturedCapital.find((site) => site.id === enemyCapital.id)?.capitalFor).toBe('enemy')
     expect(capturedCapital.find((site) => site.id === enemyCapital.id)?.ownerId).not.toBe(
       'player',
@@ -472,9 +506,9 @@ describe('sites', () => {
       buildings: [],
     }
 
-    expect(captureSiteAt([town], { q: 1, r: 0 }, 'player')).toEqual([town])
+    expect(captureSiteAt([town], { q: 1, r: 0 }, 'player', 1)).toEqual([town])
     expect(
-      captureSiteAt([town], town.position, 'player')[0].ownerId,
+      captureSiteAt([town], town.position, 'player', 1)[0].ownerId,
     ).toBe('player')
   })
 })
