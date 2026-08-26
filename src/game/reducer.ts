@@ -2,7 +2,6 @@ import { createInitialGameState } from './initialState'
 import { cloneGameState } from './state'
 import { resolveSiteDevelopment } from './siteDevelopment'
 import {
-  canProduceCivilianUnit,
   resolveSiteConstruction,
   resolveSiteSettlement,
 } from './settlement'
@@ -338,12 +337,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         site.lastProducedTurn === state.turn ||
         !stats ||
         !canSiteProduceUnit(site, action.unitType) ||
-        (isCivilianUnitType(action.unitType) &&
-          !canProduceCivilianUnit(
-            state,
-            state.activeFactionId,
-            action.unitType,
-          ).ok) ||
         !spending.ok ||
         !getDeployablePositions(state, site).some(
           (position) =>

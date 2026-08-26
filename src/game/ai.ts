@@ -28,7 +28,6 @@ import {
 import {
   BUILDABLE_SITE_TYPES,
   canConstruct,
-  canProduceCivilianUnit,
   canSettle,
   getConstructiblePositions,
   getOwnedAnchorGraphDistance,
@@ -972,7 +971,6 @@ function getAvailableProductionSites(state: GameState, factionId: FactionId) {
 }
 
 function chooseBuilderProduction(state: GameState, factionId: FactionId) {
-  if (!canProduceCivilianUnit(state, factionId, 'builder').ok) return undefined
   const livingBuilders = state.units.filter(
     (unit) => unit.factionId === factionId && unit.type === 'builder',
   )
@@ -1018,7 +1016,6 @@ function chooseBuilderProduction(state: GameState, factionId: FactionId) {
 }
 
 function chooseSettlerProduction(state: GameState, factionId: FactionId) {
-  if (!canProduceCivilianUnit(state, factionId, 'settler').ok) return undefined
   if (
     state.units.some(
       (unit) => unit.factionId === factionId && unit.type === 'settler',

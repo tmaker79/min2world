@@ -3,7 +3,7 @@ import { getHexNeighbors } from './hex'
 import { createInitialGameState } from './initialState'
 import { gameReducer } from './reducer'
 import { getDeployablePositions, getFactionIncome } from './rules'
-import type { GameState, Unit } from './types'
+import type { GameState, Site, Unit } from './types'
 import { getFactionUpkeep } from './upkeep'
 
 function select(state: GameState, unitId: string) {
@@ -273,7 +273,7 @@ describe('gameReducer on a hex map', () => {
     })).toBe(produced)
   })
 
-  it('produces multiple builders only in Cities and does not apply a living-unit cap', () => {
+  it('produces builders only in Cities without living-unit or founded-site caps', () => {
     const initial = createInitialGameState('reducer-civilian-production')
     const city = initial.sites.find(
       (site) => site.ownerId === 'player' && site.kind === 'city',
@@ -292,10 +292,21 @@ describe('gameReducer on a hex map', () => {
       )!.position,
       hp: 100, maxHp: 100, movementRemaining: 0, hasActed: true,
     }
+    const foundedSites: Site[] = Array.from({ length: 30 }, (_, index) => ({
+      id: `player-founded-${index + 1}`,
+      name: `Farm ${index + 1}`,
+      kind: 'farm',
+      position: { q: 100 + index * 3, r: 100 },
+      ownerId: 'player',
+      foundedBy: 'player',
+      level: 1,
+      buildings: [],
+    }))
     const state = {
       ...initial,
       resources: { ...initial.resources, player: 100 },
       units: [...initial.units, existingBuilder],
+      sites: [...initial.sites, ...foundedSites],
     }
     const produced = gameReducer(state, {
       type: 'unitProduced', siteId: city.id, unitType: 'builder', destination,

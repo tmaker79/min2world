@@ -15,7 +15,6 @@ import {
 } from './territory'
 import { canSpendWithUpkeepReserve } from './upkeep'
 import type {
-  BoardSize,
   BuildableSiteType,
   CivilianUnitType,
   FactionId,
@@ -49,66 +48,6 @@ export function getSiteConstructionCost(
     factionId,
     SITE_CONSTRUCTION_COSTS[siteKind],
   )
-}
-
-export type ExpansionLimits = {
-  constructedSites: number
-}
-
-const BOARD_LIMITS = new Map<string, ExpansionLimits>([
-  ['15x10', { constructedSites: 2 }],
-  ['15x11', { constructedSites: 2 }],
-  ['18x12', { constructedSites: 2 }],
-  ['21x14', { constructedSites: 4 }],
-  ['21x15', { constructedSites: 4 }],
-  ['24x16', { constructedSites: 4 }],
-  ['29x21', { constructedSites: 10 }],
-  ['42x28', { constructedSites: 10 }],
-  ['48x32', { constructedSites: 10 }],
-  ['41x29', { constructedSites: 24 }],
-  ['84x56', { constructedSites: 24 }],
-  ['96x64', { constructedSites: 24 }],
-])
-
-function boardKey(boardSize: BoardSize) {
-  return `${boardSize.columns}x${boardSize.rows}`
-}
-
-export function getExpansionLimits(boardSize: BoardSize): ExpansionLimits {
-  return BOARD_LIMITS.get(boardKey(boardSize)) ?? {
-    constructedSites: 24,
-  }
-}
-
-export function getFoundedConstructionCount(
-  state: GameState,
-  factionId: FactionId,
-) {
-  return state.sites.filter(
-    (site) =>
-      BUILDABLE_SITE_TYPES.includes(site.kind as BuildableSiteType) &&
-      site.foundedBy === factionId,
-  ).length
-}
-
-export type CivilianProductionFailure = 'constructionCapacityReached'
-
-export type CivilianProductionCheck =
-  | { ok: true }
-  | { ok: false; reason: CivilianProductionFailure }
-
-export function canProduceCivilianUnit(
-  state: GameState,
-  factionId: FactionId,
-  unitType: CivilianUnitType,
-): CivilianProductionCheck {
-  if (unitType === 'settler') {
-    return { ok: true }
-  }
-  const limits = getExpansionLimits(state.boardSize)
-  return getFoundedConstructionCount(state, factionId) < limits.constructedSites
-    ? { ok: true }
-    : { ok: false, reason: 'constructionCapacityReached' }
 }
 
 const IMPASSABLE_TERRAINS = new Set<Terrain>([
@@ -203,7 +142,6 @@ export type SitePlacementFailure =
   | 'tooCloseToSite'
   | 'notConnected'
   | 'outsideTerritory'
-  | 'capacityReached'
 
 export type SitePlacementCheck =
   | { ok: true }
@@ -258,12 +196,6 @@ export function canConstructAt(
     getTerritoryOwnerAt(territory, position) !== factionId
   ) {
     return { ok: false, reason: 'outsideTerritory' }
-  }
-  if (
-    getFoundedConstructionCount(state, factionId) >=
-    getExpansionLimits(state.boardSize).constructedSites
-  ) {
-    return { ok: false, reason: 'capacityReached' }
   }
   return { ok: true }
 }

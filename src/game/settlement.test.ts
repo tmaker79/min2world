@@ -4,9 +4,7 @@ import { createInitialGameState } from './initialState'
 import { gameReducer } from './reducer'
 import {
   canConstructAt,
-  canProduceCivilianUnit,
   canSettleAt,
-  getExpansionLimits,
   getOwnedAnchorGraphDistance,
 } from './settlement'
 import type { GameState, Position, Site, Unit } from './types'
@@ -59,21 +57,6 @@ function civilian(
 }
 
 describe('settlement and construction rules', () => {
-  it('maps current and legacy board sizes to cumulative construction limits', () => {
-    expect(getExpansionLimits({ columns: 15, rows: 10 })).toEqual({
-      constructedSites: 2,
-    })
-    expect(getExpansionLimits({ columns: 24, rows: 16 })).toEqual({
-      constructedSites: 4,
-    })
-    expect(getExpansionLimits({ columns: 42, rows: 28 })).toEqual({
-      constructedSites: 10,
-    })
-    expect(getExpansionLimits({ columns: 96, rows: 64 })).toEqual({
-      constructedSites: 24,
-    })
-  })
-
   it('requires buildable non-bridge land and four hexes from existing sites for a Village', () => {
     const state = openState()
     const origin = state.tiles[Math.floor(state.tiles.length / 2)].position
@@ -246,24 +229,30 @@ describe('settlement and construction rules', () => {
     })
   })
 
-  it('permits unlimited settlers and multiple living builders below the cumulative site cap', () => {
-    const state = openState('civilian-capacity')
-    const position = state.tiles[0].position
-    const settler = civilian('settler', position)
-    const settlers = Array.from({ length: 20 }, (_, index) => ({
-      ...settler,
-      id: `player-settler-${index}`,
+  it('does not cap construction after many previously founded sites', () => {
+    const state = openState('unlimited-construction')
+    const origin = state.tiles[Math.floor(state.tiles.length / 2)].position
+    const destination = state.tiles.find(
+      (tile) => getHexDistance(origin, tile.position) === 2,
+    )!.position
+    const foundedSites: Site[] = Array.from({ length: 30 }, (_, index) => ({
+      id: `player-founded-${index + 1}`,
+      name: `Farm ${index + 1}`,
+      kind: 'farm',
+      position: { q: 100 + index * 3, r: 100 },
+      ownerId: 'player',
+      foundedBy: 'player',
+      level: 1,
+      buildings: [],
     }))
-    const builders = [
-      civilian('builder', position),
-      { ...civilian('builder', position), id: 'player-builder-2' },
-    ]
 
     expect(
-      canProduceCivilianUnit({ ...state, units: settlers }, 'player', 'settler'),
-    ).toEqual({ ok: true })
-    expect(
-      canProduceCivilianUnit({ ...state, units: builders }, 'player', 'builder'),
+      canConstructAt(
+        { ...state, sites: [singleCellCity(origin), ...foundedSites] },
+        'player',
+        destination,
+        'outpost',
+      ),
     ).toEqual({ ok: true })
   })
 })

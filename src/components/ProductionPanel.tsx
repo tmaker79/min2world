@@ -7,7 +7,6 @@ import {
   UNIT_STATS,
   UNIT_TYPE_LABELS,
 } from '../game/rules'
-import { canProduceCivilianUnit } from '../game/settlement'
 import type { GameState, Site, UnitType } from '../game/types'
 import {
   canSpendWithUpkeepReserve,
@@ -89,13 +88,6 @@ export function ProductionPanel({
                         ),
                       },
                     )
-                    const capacity = isCivilianUnitType(unitType)
-                      ? canProduceCivilianUnit(
-                          state,
-                          state.humanFactionId,
-                          unitType,
-                        )
-                      : { ok: true as const }
                     return (
                       <button
                         key={unitType}
@@ -106,12 +98,7 @@ export function ProductionPanel({
                         }
                         type="button"
                         aria-pressed={selectedUnitType === unitType}
-                        disabled={
-                          !unlocked ||
-                          unavailable ||
-                          !spending.ok ||
-                          !capacity.ok
-                        }
+                        disabled={!unlocked || unavailable || !spending.ok}
                         onClick={() => onUnitTypeSelected(unitType)}
                       >
                         <strong>
@@ -122,9 +109,7 @@ export function ProductionPanel({
                         <small>
                           {!unlocked
                             ? `${site.kind} 단계에서는 해금되지 않은 병종입니다.`
-                            : !capacity.ok
-                              ? '건설 가능한 거점 상한에 도달했습니다.'
-                              : !spending.ok &&
+                            : !spending.ok &&
                                   spending.reason === 'insufficientUpkeepReserve'
                                 ? `다음 유지비 ${spending.reserve} 자원을 남겨야 합니다.`
                                 : !spending.ok
