@@ -37,7 +37,7 @@
 - `Unit`에 `outOfSupplyTurns: number`를 필수 필드로 추가한다.
 - 세력 턴 시작에 보급 내면 0으로 초기화하고, 보급 밖이면 1 증가시킨다.
 - 새로 생산된 유닛은 `outOfSupplyTurns: 0`으로 시작한다.
-- 스키마를 14로 올리고 스키마 13 저장의 모든 유닛은 `outOfSupplyTurns: 0`으로 마이그레이션한다.
+- 스키마를 15로 올리고 스키마 14 저장의 모든 유닛은 `outOfSupplyTurns: 0`으로 마이그레이션한다.
 
 ### UI
 

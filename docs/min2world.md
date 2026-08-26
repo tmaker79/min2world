@@ -77,11 +77,11 @@
 - 군사 거점 공성, 일반 거점 점령, 다세력 수도 점령 승패
 - 턴 종료 시 소유 거점·건물 수입과 병종별 유닛 유지비 정산
 - 생산·발전·건설의 예상 유지비 예약액 검사와 플레이어 부대 해산
-- 상태바의 수입·유지비·순수입·예약액 및 적자 AI의 선제 반복 해산
+- 상태바의 자원·순수입 기본 표시와 클릭형 수입·유지비·예약액 상세, 적자 AI의 선제 반복 해산
 - City 전용 건물 7종과 도시당 하나의 건설 대기열
 - 곡창·시장 수입, 성벽 방어, 병영 생산비, 선술집·신전 회복, 도서관 개발비 효과
 - 규칙 기반 AI 턴(활성 세력 순회)
-- localStorage 저장과 불러오기(스키마 12, 스키마 6~11 연쇄 마이그레이션)
+- localStorage 저장과 불러오기(스키마 14, 스키마 6~13 연쇄 마이그레이션)
 - 시작 화면·자동 무작위 지도·새 게임
 - 지도 휠 줌·드래그 팬·미니맵
 - 지형/유닛 사이드바 미리보기·고정 정보, 성·부대 정보창, 우클릭 이동
@@ -229,6 +229,7 @@ type SiteType =
 type MilitaryUnitType = 'infantry' | 'cavalry' | 'archer' | 'spearman'
 type CivilianUnitType = 'settler' | 'builder'
 type UnitType = MilitaryUnitType | CivilianUnitType
+type BuildableSiteType = 'outpost' | 'farm' | 'mine' | 'blacksmith'
 type BuildingId =
   | 'granary'
   | 'market'
@@ -267,6 +268,7 @@ type Site = {
   footprint?: Position[]
   level?: 1 | 2 | 3
   ownerId: SiteOwnerId
+  foundedBy?: FactionId
   capitalFor?: FactionId
   hp?: number
   maxHp?: number
@@ -281,10 +283,10 @@ type Site = {
 }
 
 type GameState = {
-  schemaVersion: number // 12
+  schemaVersion: number // 14
   mapSeed: string
   mapType: MapType
-  mapGenerationVersion: number // 24
+  mapGenerationVersion: number // 25
   boardSize: BoardSize
   factionCount: FactionCount
   humanFactionId: FactionId
@@ -313,6 +315,12 @@ type GameAction =
   | { type: 'siteAttacked'; attackerId: string; siteId: string }
   | { type: 'unitWaited'; unitId: string }
   | { type: 'unitDisbanded'; unitId: string }
+  | { type: 'siteSettled'; unitId: string }
+  | {
+      type: 'siteConstructed'
+      unitId: string
+      siteKind: BuildableSiteType
+    }
   | {
       type: 'unitProduced'
       siteId: string
@@ -347,7 +355,14 @@ src/
 │  ├─ rules.ts
 │  ├─ selectors.ts
 │  ├─ ai.ts
+│  ├─ cityAdministration.ts
+│  ├─ playerEconomy.ts
+│  ├─ settlement.ts     # 정착·건설 비용과 공통 배치 판정
+│  ├─ siteDevelopment.ts
+│  ├─ siteFootprint.ts
 │  ├─ spatialIndex.ts
+│  ├─ territory.ts      # 정착지 기반 파생 영토
+│  ├─ upkeep.ts
 │  ├─ priorityQueue.ts
 │  └─ state.ts
 ├─ components/
@@ -484,16 +499,18 @@ src/
 localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지만 사용자가 사이트 데이터를 삭제하거나 저장 공간이 제한되면 사라질 수 있다. 따라서 저장은 편의 기능으로 간주하며 영구 보관을 보장하지 않는다.
 
 - 저장 데이터에 `schemaVersion`, `mapSeed`, `mapType`, `mapGenerationVersion`, `boardSize`, `factionCount`, `humanFactionId`, `factionOrder`를 포함한다.
-- 현재 스키마는 12다.
+- 현재 스키마는 14다.
 - 스키마 6은 `player`/`enemy`를 `f1`/`f2`로 바꾼 뒤 연쇄 마이그레이션한다.
 - 스키마 7은 기존 `city`(마을)를 `village`로, `village`(농장)를 `farm`으로 바꿔 불러온다.
 - 스키마 8 저장에 `mapType`이 없으면 기존 생성 방식인 `balanced`로 불러온다.
-- 스키마 8의 기존 거점은 종류와 생산 특화 시설 레벨을 연쇄 마이그레이션하고, 스키마 13 이하의 Town·City footprint는 기준 위치 한 칸으로 정규화한다.
+- 스키마 8의 기존 거점은 종류와 생산 특화 시설 레벨을 연쇄 마이그레이션한다.
 - 스키마 9의 군사 거점은 종류별 최대 HP로 채워 스키마 10으로 불러온다.
 - 스키마 10의 `city`는 `town`, `castle`은 `city`로 바꿔 스키마 11로 불러온다.
 - 스키마 11의 모든 거점은 빈 건물 목록과 건설 대기열 없음으로 채워 스키마 12로 불러온다.
-- 마이그레이션은 저장된 `mapGenerationVersion`을 바꾸지 않으며, 새 지도 생성 버전은 24를 사용한다.
-- 맵 생성 버전 5부터 현재 버전 24까지 저장된 타일을 재생성하지 않고 지원한다.
+- 스키마 12 저장은 민간 유닛과 `foundedBy`를 허용하는 스키마 13으로 올리며 기존 거점의 `foundedBy`는 생략한다.
+- 스키마 13의 Town·City footprint와 타일 참조는 기준 위치 한 칸으로 정규화해 스키마 14로 불러온다.
+- 마이그레이션은 저장된 `mapGenerationVersion`을 바꾸지 않으며, 새 지도 생성 버전은 25를 사용한다.
+- 맵 생성 버전 5~23과 현재 버전 25의 저장 타일을 재생성하지 않고 지원한다.
 - JSON을 읽은 뒤 필요한 필드와 값의 범위를 검증한다.
 - 스키마 4·5를 포함한 지원하지 않는 버전은 불러오지 않고 사용자에게 알린다.
 - 파생 상태와 일시적인 UI 상태는 저장하지 않는다.
