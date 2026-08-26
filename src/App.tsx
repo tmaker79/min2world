@@ -28,7 +28,10 @@ import { SavePanel } from './components/SavePanel'
 import { StatusBar } from './components/StatusBar'
 import { StartScreen } from './components/StartScreen'
 import { createInitialGameState } from './game/initialState'
-import { createRandomMapSeed } from './game/mapGenerator'
+import {
+  createRandomMapSeed,
+  STARTING_UNIT_TYPES,
+} from './game/mapGenerator'
 import { gameReducer } from './game/reducer'
 import { getSiteDevelopmentFootprints } from './game/siteDevelopment'
 import {
@@ -968,7 +971,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
 
   const hasProgress =
     state.turn > 1 ||
-    state.units.length !== state.factionCount * 3 ||
+    state.units.length !== state.factionCount * STARTING_UNIT_TYPES.length ||
     state.units.some(
       (unit) =>
         unit.hasActed ||
@@ -1180,7 +1183,6 @@ function GameApp({ initialState }: { initialState: GameState }) {
                       ? { ...activeSiteAttack, phase: combatPhase }
                       : undefined
                   }
-                  showSiteAssetPreview
                   disabled={
                     state.phase !== 'playing'
                   }

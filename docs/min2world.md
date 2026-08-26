@@ -68,8 +68,8 @@
 - 평지, 다리, 언덕, 숲, 산, 물, 사막, 사막 언덕, 오아시스, 툰드라, 툰드라 숲, 툰드라 산의 지형 12종
 - 일반 숲의 활엽수·침엽수 군락 변형과 지형별 래스터 타일
 - Outpost·Keep·Stronghold, Village·Town·City, Farm·Mine·Blacksmith의 거점 9종
-- 세력별 수도(성) 1개와 시작 유닛 3개(보병 2, 기병 1)
-- 보병, 기병, 궁병, 창병
+- 세력별 수도(성) 1개와 시작 유닛 5개(보병 2, 기병 1, 개척자 1, 건설자 1)
+- 보병, 기병, 궁병, 창병, 개척자, 건설자
 - 최대 체력 100, 근접/원거리 전투력과 병종 상성
 - 궁병 공격은 반격 없음, 반격은 근접 전투력 사용
 - 육각 6방향 이동, 통제 구역, 사거리 공격
@@ -216,7 +216,9 @@ type SiteType =
   | 'farm'
   | 'mine'
   | 'blacksmith'
-type UnitType = 'infantry' | 'cavalry' | 'archer' | 'spearman'
+type MilitaryUnitType = 'infantry' | 'cavalry' | 'archer' | 'spearman'
+type CivilianUnitType = 'settler' | 'builder'
+type UnitType = MilitaryUnitType | CivilianUnitType
 type BuildingId =
   | 'granary'
   | 'market'

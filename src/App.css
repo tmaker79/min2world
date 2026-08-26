@@ -1844,6 +1844,21 @@
     border-color 140ms ease;
 }
 
+.unit-token--military {
+  border-radius: 50%;
+}
+
+.unit-token--civilian {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+.unit-token--civilian .unit-symbol {
+  width: 23px;
+  height: 23px;
+}
+
 .unit-token--selected {
   z-index: 3;
   border-color: #fff3b0;

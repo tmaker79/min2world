@@ -475,7 +475,9 @@ describe('procedural map generation', () => {
       expect(state.tiles.map((tile) => tile.terrain)).not.toContain('grassland')
       expect(state.tiles.map((tile) => tile.terrain)).not.toContain('steppe')
       expect(state.sites).toHaveLength(8)
-      expect(state.units).toHaveLength(6)
+      expect(state.units).toHaveLength(10)
+      expect(state.units.filter((unit) => unit.type === 'settler')).toHaveLength(2)
+      expect(state.units.filter((unit) => unit.type === 'builder')).toHaveLength(2)
       const tilesByPosition = new Map(
         state.tiles.map((tile) => [positionKey(tile.position), tile]),
       )
@@ -576,7 +578,14 @@ describe('procedural map generation', () => {
         ),
       ).toHaveLength(factionCount)
     }
-    expect(state.units).toHaveLength(factionCount * 3)
+    expect(state.units).toHaveLength(factionCount * 5)
+    for (const factionId of state.factionOrder) {
+      expect(
+        state.units
+          .filter((unit) => unit.factionId === factionId)
+          .map((unit) => unit.type),
+      ).toEqual(['infantry', 'infantry', 'cavalry', 'settler', 'builder'])
+    }
   })
 
   it('forces tiny boards to duel (2 factions)', () => {

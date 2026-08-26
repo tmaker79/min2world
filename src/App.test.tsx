@@ -85,8 +85,20 @@ describe('Milestone 07 UI', () => {
     expect([...tiles].every((tile) => tile.type === 'button' && !tile.disabled)).toBe(true)
     expect(screen.queryByLabelText('현재 seed')).not.toBeInTheDocument()
     expect(container.querySelectorAll('.site-marker')).toHaveLength(8)
-    expect(container.querySelectorAll('[data-site-asset-preview]')).toHaveLength(14)
-    expect(container.querySelectorAll('.unit-token')).toHaveLength(6)
+    expect(container.querySelectorAll('[data-site-asset-preview]')).toHaveLength(0)
+    expect(container.querySelectorAll('.unit-token')).toHaveLength(10)
+    expect(container.querySelectorAll('.unit-token--military')).toHaveLength(6)
+    expect(container.querySelectorAll('.unit-token--civilian')).toHaveLength(4)
+    expect(
+      [...container.querySelectorAll('.unit-token--military')].every(
+        (token) => token.getAttribute('data-unit-role') === 'military',
+      ),
+    ).toBe(true)
+    expect(
+      [...container.querySelectorAll('.unit-token--civilian')].every(
+        (token) => token.getAttribute('data-unit-role') === 'civilian',
+      ),
+    ).toBe(true)
     expect(container.querySelector('.map-layer--terrain .map-tile')).toBeInTheDocument()
     expect(container.querySelector('.map-layer--sites .site-marker')).toBeInTheDocument()
     expect(container.querySelector('.map-layer--units .unit-token')).toBeInTheDocument()
@@ -683,7 +695,11 @@ describe('Milestone 07 UI', () => {
   })
 
   it('starts a new random map without exposing seed controls', () => {
-    renderApp()
+    renderApp(
+      createInitialGameState('ui-random-restart', {
+        boardSize: BOARD_SIZE_PRESETS.tiny,
+      }),
+    )
 
     fireEvent.click(screen.getByRole('button', { name: '재시작' }))
     expect(screen.queryByText('MAP SEED')).not.toBeInTheDocument()
@@ -777,7 +793,7 @@ describe('Milestone 07 UI', () => {
     const destination = container.querySelector<HTMLButtonElement>('[data-deployable="true"]')!
     await user.click(destination)
 
-    expect(container.querySelectorAll('.unit-token')).toHaveLength(7)
+    expect(container.querySelectorAll('.unit-token')).toHaveLength(11)
     expect(container.querySelector('.status-bar')).toHaveTextContent('5')
     expect(screen.queryByLabelText('부대 배치')).not.toBeInTheDocument()
     expect(container.querySelector('.production-card')).toBeNull()
@@ -867,7 +883,7 @@ describe('Milestone 07 UI', () => {
 
     expect(screen.queryByLabelText('부대 배치')).not.toBeInTheDocument()
     expect(container.querySelector('.production-card')).toBeInTheDocument()
-    expect(container.querySelectorAll('.unit-token')).toHaveLength(6)
+    expect(container.querySelectorAll('.unit-token')).toHaveLength(10)
     expect(
       container.querySelector('.mobile-info-sheet__toggle'),
     ).toHaveAttribute('aria-expanded', 'true')
@@ -1624,6 +1640,13 @@ describe('Milestone 07 UI', () => {
     const { container } = renderApp(state)
 
     expect(container.querySelector('[data-unit-icon="builder"]')).toBeInTheDocument()
+    const builderToken = container.querySelector(`[data-unit-id="${builder.id}"]`)!
+    expect(builderToken).toHaveClass(
+      'unit-token--civilian',
+      'unit-token--selected',
+    )
+    expect(builderToken).toHaveAttribute('data-unit-role', 'civilian')
+    expect(builderToken.querySelector('.unit-health-bar')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /전초기지.*0 자원/ }))
     expect(screen.getByLabelText('정착 및 건설 확인')).toHaveTextContent(
       '0 자원을 지불하고 건설자는 행동을 종료합니다.',
@@ -1633,7 +1656,7 @@ describe('Milestone 07 UI', () => {
     fireEvent.click(screen.getByRole('button', { name: '건설 확인' }))
 
     expect(container.querySelector(`[data-unit-id="${builder.id}"]`))
-      .toHaveClass('unit-token--acted')
+      .toHaveClass('unit-token--civilian', 'unit-token--acted')
     expect(container.querySelector('[data-site-icon="outpost"]')).toBeInTheDocument()
   })
 })

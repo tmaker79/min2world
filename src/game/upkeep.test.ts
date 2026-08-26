@@ -34,16 +34,16 @@ describe('unit upkeep', () => {
     const state = withPaidActiveFaction(createInitialGameState('upkeep-summary'))
     const factionId = state.activeFactionId
 
-    expect(getFactionUpkeep(state, factionId)).toBe(4)
-    expect(getFactionNetIncome(state, factionId)).toBe(3)
+    expect(getFactionUpkeep(state, factionId)).toBe(6)
+    expect(getFactionNetIncome(state, factionId)).toBe(1)
     expect(getFactionUpkeepReserve(state, factionId)).toBe(0)
 
     const deficit = {
       ...state,
       sites: state.sites.filter((site) => site.ownerId !== factionId),
     }
-    expect(getFactionNetIncome(deficit, factionId)).toBe(-4)
-    expect(getFactionUpkeepReserve(deficit, factionId)).toBe(4)
+    expect(getFactionNetIncome(deficit, factionId)).toBe(-6)
+    expect(getFactionUpkeepReserve(deficit, factionId)).toBe(6)
   })
 
   it('checks available resources separately from the upkeep reserve', () => {
@@ -58,23 +58,23 @@ describe('unit upkeep', () => {
     expect(canSpendWithUpkeepReserve(deficit, factionId, 6)).toEqual({
       ok: false,
       reason: 'insufficientResources',
-      reserve: 4,
+      reserve: 6,
     })
     expect(canSpendWithUpkeepReserve(deficit, factionId, 3)).toEqual({
       ok: false,
       reason: 'insufficientUpkeepReserve',
-      reserve: 4,
+      reserve: 6,
     })
     expect(
       canSpendWithUpkeepReserve(
         {
           ...deficit,
-          resources: { ...deficit.resources, [factionId]: 7 },
+          resources: { ...deficit.resources, [factionId]: 9 },
         },
         factionId,
         3,
       ),
-    ).toEqual({ ok: true, reserve: 4 })
+    ).toEqual({ ok: true, reserve: 6 })
   })
 
   it('projects new upkeep and immediate income changes', () => {
@@ -83,13 +83,13 @@ describe('unit upkeep', () => {
 
     expect(
       getProjectedUpkeepReserve(state, factionId, { upkeepDelta: 5 }),
-    ).toBe(2)
+    ).toBe(4)
     expect(
       getProjectedUpkeepReserve(state, factionId, {
         upkeepDelta: 5,
         incomeDelta: 2,
       }),
-    ).toBe(0)
+    ).toBe(2)
   })
 
   it('waives current and projected upkeep only for the human faction', () => {

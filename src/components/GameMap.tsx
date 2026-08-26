@@ -476,6 +476,7 @@ function UnitMarker({
       : healthPercent < 100
         ? 'damaged'
         : 'healthy'
+  const unitRole = isCivilianUnitType(unit.type) ? 'civilian' : 'military'
   const isAttacker = unit.id === combatAnimation?.attackerId
   const isSiteAttacker = unit.id === siteAttackAnimation?.attackerId
   const isDefender = unit.id === combatAnimation?.defenderId
@@ -511,7 +512,7 @@ function UnitMarker({
   return (
     <span className="map-overlay-cell" style={style}>
       <span
-        className={`unit-token unit-token--${unit.factionId} ${
+        className={`unit-token unit-token--${unitRole} unit-token--${unit.factionId} ${
           selected ? 'unit-token--selected' : ''
         } ${unit.hasActed ? 'unit-token--acted' : ''} ${
           isStriking ? 'unit-token--striking' : ''
@@ -519,6 +520,7 @@ function UnitMarker({
           isDefeated ? 'unit-token--defeated' : ''
         }`}
         data-unit-id={unit.id}
+        data-unit-role={unitRole}
         data-coordinate={positionKey(unit.position)}
         data-health={`${unit.hp}/${unit.maxHp}`}
         data-selected={selected ? 'true' : undefined}

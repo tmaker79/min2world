@@ -53,10 +53,12 @@ const NEUTRAL_SITE_TYPES: readonly SiteType[] = [
   'mine',
   'blacksmith',
 ]
-const STARTING_UNIT_TYPES: readonly UnitType[] = [
+export const STARTING_UNIT_TYPES: readonly UnitType[] = [
   'infantry',
   'infantry',
   'cavalry',
+  'settler',
+  'builder',
 ]
 const TINY_RIVER_COLUMN = 7
 const TINY_RIVER_CROSSING_ROWS = [3, 7] as const
@@ -699,6 +701,32 @@ export function validateGeneratedMap(state: GameState): string[] {
     issues.push('oasisPlacement')
   }
 
+  const unitPositionKeys = state.units.map((unit) => positionKey(unit.position))
+  const startingUnitsAreValid = factionIds.every((factionId) => {
+    const units = state.units.filter((unit) => unit.factionId === factionId)
+    return (
+      units.length === STARTING_UNIT_TYPES.length &&
+      STARTING_UNIT_TYPES.every(
+        (type) =>
+          units.filter((unit) => unit.type === type).length ===
+          STARTING_UNIT_TYPES.filter((candidate) => candidate === type).length,
+      )
+    )
+  })
+  if (
+    !startingUnitsAreValid ||
+    new Set(unitPositionKeys).size !== unitPositionKeys.length ||
+    state.units.some(
+      (unit) =>
+        !tilesByPosition.has(positionKey(unit.position)) ||
+        TERRAIN_COST[
+          tilesByPosition.get(positionKey(unit.position))!.terrain
+        ] === null,
+    )
+  ) {
+    issues.push('startingUnits')
+  }
+
   if (isTinyTwoPlayerBoard(state.boardSize, state.factionCount)) {
     const layout = getTinyRiverLayout(state.boardSize)
     const crossingKeys = new Set(layout.crossings.map(positionKey))
@@ -840,32 +868,27 @@ function createUnits(
   capitals: Record<FactionId, Position>,
   cityFootprints: Record<FactionId, Position[]>,
   tiles: Tile[],
-  boardSize: BoardSize,
   factionCount: FactionCount,
   reservedKeys: ReadonlySet<string>,
 ): Unit[] {
   const passable = getPassableKeys(tiles)
   const names: Partial<Record<FactionId, readonly string[]>> = {
-    f1: ['청룡 보병대', '백호 보병대', '바람 기병대'],
-    f2: ['적월 보병대', '철창 보병대', '흑염 기병대'],
-    f3: ['금빛 보병대', '사자 보병대', '태양 기병대'],
-    f4: ['보랏빛 보병대', '까마귀 보병대', '황혼 기병대'],
+    f1: ['청룡 보병대', '백호 보병대', '바람 기병대', '청색 개척자', '청색 건설자'],
+    f2: ['적월 보병대', '철창 보병대', '흑염 기병대', '적색 개척자', '적색 건설자'],
+    f3: ['금빛 보병대', '사자 보병대', '태양 기병대', '황금 개척자', '황금 건설자'],
+    f4: ['보랏빛 보병대', '까마귀 보병대', '황혼 기병대', '자색 개척자', '자색 건설자'],
   }
 
   return getFactionIds(factionCount).flatMap((factionId) => {
     const cityKeys = new Set(
       cityFootprints[factionId].map(positionKey),
     )
-    const positionsByKey = new Map<string, Position>()
-    for (const cityPosition of cityFootprints[factionId]) {
-      for (const neighbor of getHexNeighbors(cityPosition, boardSize)) {
-        const key = positionKey(neighbor)
-        if (!cityKeys.has(key)) positionsByKey.set(key, neighbor)
-      }
-    }
-    const positions = [...positionsByKey.values()]
+    const positions = tiles
+      .map((tile) => tile.position)
       .filter(
         (position) =>
+          getHexDistance(position, capitals[factionId]) <= 2 &&
+          !cityKeys.has(positionKey(position)) &&
           passable.has(positionKey(position)) &&
           !reservedKeys.has(positionKey(position)),
       )
@@ -1133,7 +1156,6 @@ function buildCandidate(
       capitals,
       completeCityFootprints,
       tiles,
-      boardSize,
       factionCount,
       placementExcludedKeys,
     ),

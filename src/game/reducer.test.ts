@@ -301,7 +301,11 @@ describe('gameReducer on a hex map', () => {
       type: 'unitProduced', siteId: city.id, unitType: 'builder', destination,
     })
 
-    expect(produced.units.filter((unit) => unit.type === 'builder')).toHaveLength(2)
+    expect(
+      produced.units.filter(
+        (unit) => unit.factionId === 'player' && unit.type === 'builder',
+      ),
+    ).toHaveLength(3)
     const outpost = { ...city, id: 'outpost', kind: 'outpost' as const, footprint: undefined }
     expect(
       gameReducer(
