@@ -8,6 +8,11 @@ import {
   TERRAIN_MOVEMENT_COST,
 } from './rules'
 import { getSiteOccupiedPositions } from './siteFootprint'
+import {
+  createTerritoryIndex,
+  getTerritoryOwnerAt,
+  type TerritoryIndex,
+} from './territory'
 import { canSpendWithUpkeepReserve } from './upkeep'
 import type {
   BoardSize,
@@ -119,6 +124,11 @@ const CONSTRUCTION_ANCHORS = new Set([
   'keep',
   'stronghold',
 ])
+const TERRITORY_RESTRICTED_SITE_TYPES = new Set<BuildableSiteType>([
+  'farm',
+  'mine',
+  'blacksmith',
+])
 
 function isBuildableLand(terrain: Terrain) {
   return terrain !== 'bridge' && !IMPASSABLE_TERRAINS.has(terrain)
@@ -192,6 +202,7 @@ export type SitePlacementFailure =
   | 'siteOccupied'
   | 'tooCloseToSite'
   | 'notConnected'
+  | 'outsideTerritory'
   | 'capacityReached'
 
 export type SitePlacementCheck =
@@ -222,6 +233,7 @@ export function canConstructAt(
   factionId: FactionId,
   position: Position,
   siteKind: BuildableSiteType,
+  territory: TerritoryIndex = createTerritoryIndex(state),
 ): SitePlacementCheck {
   const tile = state.tiles.find(
     (candidate) => positionKey(candidate.position) === positionKey(position),
@@ -240,6 +252,12 @@ export function canConstructAt(
   }
   if (getOwnedAnchorGraphDistance(state, factionId, position) === undefined) {
     return { ok: false, reason: 'notConnected' }
+  }
+  if (
+    TERRITORY_RESTRICTED_SITE_TYPES.has(siteKind) &&
+    getTerritoryOwnerAt(territory, position) !== factionId
+  ) {
+    return { ok: false, reason: 'outsideTerritory' }
   }
   if (
     getFoundedConstructionCount(state, factionId) >=
@@ -263,9 +281,19 @@ export function getConstructiblePositions(
   state: GameState,
   factionId: FactionId,
   siteKind: BuildableSiteType,
+  territory: TerritoryIndex = createTerritoryIndex(state),
 ) {
   return state.tiles
-    .filter((tile) => canConstructAt(state, factionId, tile.position, siteKind).ok)
+    .filter(
+      (tile) =>
+        canConstructAt(
+          state,
+          factionId,
+          tile.position,
+          siteKind,
+          territory,
+        ).ok,
+    )
     .map((tile) => tile.position)
 }
 

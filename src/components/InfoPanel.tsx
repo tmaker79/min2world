@@ -47,6 +47,8 @@ function failureMessage(reason: SiteActionFailure) {
       return '기존 거점과의 최소 거리가 부족합니다.'
     case 'notConnected':
       return '아군 소도시·도시·요새·성채에서 연결 거리 3 이내여야 합니다.'
+    case 'outsideTerritory':
+      return '생산 거점은 자기 영토에만 건설할 수 있습니다.'
     case 'capacityReached':
       return '이 맵에서 건설 가능한 누적 상한에 도달했습니다.'
     case 'insufficientResources':
@@ -165,7 +167,7 @@ export function InfoPanel({
             aria-pressed={foundingKind === 'village'}
             onClick={() => onFoundingKindSelected('village')}
           >
-            마을 건설
+            정착
           </button>
         )}
         <button

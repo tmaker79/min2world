@@ -1393,7 +1393,7 @@
 
 .map-tile::after {
   position: absolute;
-  z-index: 1;
+  z-index: 3;
   inset: 0;
   background: var(--hex-border, transparent);
   content: '';
@@ -1460,13 +1460,36 @@
 }
 
 .map-tile--reachable {
-  --hex-border: #f0d076;
-  z-index: 1;
+  z-index: 4;
+}
+
+.reachable-area-mark {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  pointer-events: none;
+}
+
+.reachable-area-mark__boundary {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: none;
+  stroke: #ffe58a;
+  stroke-linecap: round;
+  stroke-width: 5;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.95));
+}
+
+.reachable-area-mark__boundary line {
+  vector-effect: non-scaling-stroke;
 }
 
 .map-tile--zoc::before {
   position: absolute;
-  z-index: 0;
+  z-index: 2;
   inset: 0;
   background: repeating-linear-gradient(
     135deg,
@@ -1475,6 +1498,57 @@
   );
   content: '';
   pointer-events: none;
+}
+
+.territory-mark {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  background: transparent;
+  pointer-events: none;
+}
+
+.territory-mark--player,
+.territory-mark--f1 {
+  --territory-border: #6ec4f0;
+}
+
+.territory-mark--enemy,
+.territory-mark--f2 {
+  --territory-border: #ef7466;
+}
+
+.territory-mark--f3 {
+  --territory-border: #f1ca68;
+}
+
+.territory-mark--f4 {
+  --territory-border: #cda5ef;
+}
+
+.territory-mark--contested {
+  --territory-border: #f3f4f5;
+}
+
+.territory-mark__boundary {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: none;
+  stroke: var(--territory-border);
+  stroke-linecap: round;
+  stroke-width: 3.4;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.9));
+}
+
+.territory-mark__boundary line {
+  vector-effect: non-scaling-stroke;
+}
+
+.territory-mark--contested .territory-mark__boundary {
+  stroke-dasharray: 4 3;
 }
 
 .map-tile--selected {
@@ -1539,11 +1613,33 @@
 }
 
 .map-tile--founding-candidate {
-  --hex-border: #72e0a2;
-  z-index: 3;
+  --hex-border: #b9ffd2;
+  z-index: 5;
+  filter: brightness(1.14) drop-shadow(0 0 5px rgba(69, 255, 139, 0.95));
   box-shadow:
-    inset 0 0 20px rgba(76, 205, 135, 0.25),
-    0 0 8px rgba(76, 205, 135, 0.24);
+    inset 0 0 0 4px rgba(52, 255, 126, 0.38),
+    inset 0 0 20px rgba(43, 216, 107, 0.42),
+    0 0 10px rgba(69, 255, 139, 0.8);
+}
+
+.map-tile--founding-candidate::before {
+  position: absolute;
+  z-index: 4;
+  top: 50%;
+  right: auto;
+  bottom: auto;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  background: #b9ffd2;
+  border: 2px solid #123b25;
+  border-radius: 2px;
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.92),
+    0 0 9px rgba(69, 255, 139, 1);
+  content: '';
+  pointer-events: none;
+  transform: translate(-50%, -50%) rotate(45deg);
 }
 
 .terrain-mark {
@@ -3016,8 +3112,9 @@
 }
 
 .legend-swatch--reachable {
-  background: rgba(240, 208, 118, 0.18);
-  border: 2px solid #f0d076;
+  box-sizing: border-box;
+  background: transparent;
+  border: 3px solid #ffe58a;
 }
 
 .legend-swatch--attackable {
@@ -3028,6 +3125,24 @@
 .legend-swatch--deployable {
   background: rgba(56, 190, 170, 0.25);
   border: 2px solid #58d3bd;
+}
+
+.legend-swatch--friendly-territory {
+  box-sizing: border-box;
+  background: transparent;
+  border: 3px solid #6ec4f0;
+}
+
+.legend-swatch--enemy-territory {
+  box-sizing: border-box;
+  background: transparent;
+  border: 3px solid #ef7466;
+}
+
+.legend-swatch--contested-territory {
+  box-sizing: border-box;
+  background: transparent;
+  border: 3px dashed #f3f4f5;
 }
 
 .legend-swatch--zoc {

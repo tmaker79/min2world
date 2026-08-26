@@ -1,12 +1,14 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import {
   getHexPixelPosition,
+  HEX_DIRECTIONS,
   HEX_HEIGHT,
   HEX_WIDTH,
   positionKey,
 } from '../game/hex'
 import { getSiteOccupiedPositions } from '../game/siteFootprint'
-import type { GameState, Terrain } from '../game/types'
+import type { TerritoryIndex, TerritoryOwner } from '../game/territory'
+import type { GameState, Position, Terrain } from '../game/types'
 
 const TERRAIN_FILL: Record<Terrain, string> = {
   plain: '#8db56e',
@@ -23,6 +25,26 @@ const TERRAIN_FILL: Record<Terrain, string> = {
   tundraMountain: '#707f8e',
 }
 
+const TERRITORY_FILL: Record<TerritoryOwner, string> = {
+  player: '#367da4',
+  enemy: '#a94d46',
+  f1: '#367da4',
+  f2: '#a94d46',
+  f3: '#a98235',
+  f4: '#7951a5',
+  contested: '#6f777c',
+}
+
+const TERRITORY_STROKE: Record<TerritoryOwner, string> = {
+  player: 'rgba(110, 196, 240, 0.58)',
+  enemy: 'rgba(239, 116, 102, 0.58)',
+  f1: 'rgba(110, 196, 240, 0.58)',
+  f2: 'rgba(239, 116, 102, 0.58)',
+  f3: 'rgba(241, 202, 104, 0.58)',
+  f4: 'rgba(205, 165, 239, 0.58)',
+  contested: 'rgba(220, 225, 228, 0.5)',
+}
+
 const MINIMAP_MAX_WIDTH = 230
 const MINIMAP_MAX_HEIGHT = 160
 
@@ -37,6 +59,7 @@ type Viewport = {
 
 type MinimapProps = {
   state: GameState
+  territoryByKey: TerritoryIndex
   scrollElement: HTMLElement | null
   zoom?: number
 }
@@ -52,6 +75,7 @@ type MinimapLayout = {
   tiles: Array<{
     id: string
     terrain: Terrain
+    position: Position
     x: number
     y: number
     key: string
@@ -60,8 +84,10 @@ type MinimapLayout = {
 
 const MinimapTerrain = memo(function MinimapTerrain({
   layout,
+  territoryByKey,
 }: {
   layout: MinimapLayout
+  territoryByKey: TerritoryIndex
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -85,25 +111,66 @@ const MinimapTerrain = memo(function MinimapTerrain({
     const halfWidth = width / 2
     const quarterHeight = height / 4
 
-    for (const tile of layout.tiles) {
+    const traceHex = (x: number, y: number) => {
       context.beginPath()
-      context.moveTo(tile.x, tile.y - height / 2)
-      context.lineTo(tile.x + halfWidth, tile.y - quarterHeight)
-      context.lineTo(tile.x + halfWidth, tile.y + quarterHeight)
-      context.lineTo(tile.x, tile.y + height / 2)
-      context.lineTo(tile.x - halfWidth, tile.y + quarterHeight)
-      context.lineTo(tile.x - halfWidth, tile.y - quarterHeight)
+      context.moveTo(x, y - height / 2)
+      context.lineTo(x + halfWidth, y - quarterHeight)
+      context.lineTo(x + halfWidth, y + quarterHeight)
+      context.lineTo(x, y + height / 2)
+      context.lineTo(x - halfWidth, y + quarterHeight)
+      context.lineTo(x - halfWidth, y - quarterHeight)
       context.closePath()
+    }
+
+    for (const tile of layout.tiles) {
+      traceHex(tile.x, tile.y)
       context.fillStyle = TERRAIN_FILL[tile.terrain]
       context.fill()
     }
-  }, [layout])
+
+    for (const tile of layout.tiles) {
+      const owner = territoryByKey.get(tile.key)
+      if (!owner) continue
+      traceHex(tile.x, tile.y)
+      context.fillStyle = TERRITORY_FILL[owner]
+      context.fill()
+    }
+
+    context.lineWidth = Math.max(1, layout.scale * 3.4)
+    context.lineCap = 'round'
+    const edgePoints = [
+      [halfWidth, -quarterHeight, halfWidth, quarterHeight],
+      [0, -height / 2, halfWidth, -quarterHeight],
+      [-halfWidth, -quarterHeight, 0, -height / 2],
+      [-halfWidth, quarterHeight, -halfWidth, -quarterHeight],
+      [0, height / 2, -halfWidth, quarterHeight],
+      [halfWidth, quarterHeight, 0, height / 2],
+    ]
+    for (const tile of layout.tiles) {
+      const owner = territoryByKey.get(tile.key)
+      if (!owner) continue
+      context.strokeStyle = TERRITORY_STROKE[owner]
+      HEX_DIRECTIONS.forEach((direction, side) => {
+        const neighborKey = positionKey({
+          q: tile.position.q + direction.q,
+          r: tile.position.r + direction.r,
+        })
+        if (territoryByKey.get(neighborKey) === owner) return
+        const [x1, y1, x2, y2] = edgePoints[side]
+        context.beginPath()
+        context.moveTo(tile.x + x1, tile.y + y1)
+        context.lineTo(tile.x + x2, tile.y + y2)
+        context.stroke()
+      })
+    }
+  }, [layout, territoryByKey])
 
   return <canvas ref={canvasRef} className="minimap__terrain" aria-hidden="true" />
 })
 
 function MinimapComponent({
   state,
+  territoryByKey,
   scrollElement,
   zoom = 1,
 }: MinimapProps) {
@@ -137,6 +204,7 @@ function MinimapComponent({
       tiles: pixels.map(({ tile, pixel }) => ({
         id: tile.id,
         terrain: tile.terrain,
+        position: tile.position,
         x: (pixel.x - minimumX + HEX_WIDTH / 2) * scale,
         y: (pixel.y - minimumY + HEX_HEIGHT / 2) * scale,
         key: positionKey(tile.position),
@@ -261,7 +329,11 @@ function MinimapComponent({
       : undefined
 
   return (
-    <div className="minimap" data-testid="minimap">
+    <div
+      className="minimap"
+      data-testid="minimap"
+      data-territory-count={territoryByKey.size}
+    >
       <div
         ref={bodyRef}
         className="minimap__body"
@@ -279,7 +351,7 @@ function MinimapComponent({
           panTo(event.clientX, event.clientY)
         }}
       >
-          <MinimapTerrain layout={layout} />
+          <MinimapTerrain layout={layout} territoryByKey={territoryByKey} />
           <svg
             className="minimap__svg minimap__overlay"
             width={layout.width}

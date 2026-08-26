@@ -799,6 +799,53 @@ describe('hex-map AI', () => {
     })
   })
 
+  it('does not choose a production site on contested territory', () => {
+    const initial = economyState('ai-contested-construction')
+    const center = initial.tiles[Math.floor(initial.tiles.length / 2)].position
+    const enemyCity = enemySite(initial, {
+      id: 'enemy-city',
+      kind: 'city',
+      position: { q: center.q - 2, r: center.r },
+      ownerId: 'enemy',
+      capitalFor: 'enemy',
+      hp: 120,
+      maxHp: 120,
+    })
+    const playerCity: Site = {
+      ...enemyCity,
+      id: 'player-city',
+      position: { q: center.q + 2, r: center.r },
+      ownerId: 'player',
+      capitalFor: 'player',
+    }
+    const builder: Unit = {
+      id: 'enemy-builder',
+      name: 'Builder',
+      factionId: 'enemy',
+      type: 'builder',
+      position: center,
+      hp: 100,
+      maxHp: 100,
+      movementRemaining: 2,
+      hasActed: false,
+    }
+    const state = {
+      ...initial,
+      selectedUnitId: builder.id,
+      units: [builder],
+      sites: [enemyCity, playerCity],
+    }
+
+    expect(chooseAiDecision(state)).toEqual({
+      action: {
+        type: 'siteConstructed',
+        unitId: builder.id,
+        siteKind: 'outpost',
+      },
+      reason: 'siteConstruction',
+    })
+  })
+
   it('waits on its chosen construction tile when the builder cannot pay', () => {
     const initial = economyState('ai-builder-waits-for-cost')
     const city = initial.sites.find(

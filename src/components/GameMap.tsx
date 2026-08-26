@@ -17,9 +17,11 @@ import easternVillageIcon from '../assets/sites/village-eastern.png'
 import {
   getHexDistance,
   getHexPixelPosition,
+  HEX_DIRECTIONS,
   HEX_HEIGHT,
   HEX_WIDTH,
 } from '../game/hex'
+import type { TerritoryIndex, TerritoryOwner } from '../game/territory'
 import {
   getSiteAt,
   getSiteCombatStats,
@@ -55,6 +57,14 @@ const MAP_CAMERA_MINIMUM_GUTTER_X = 12
 const MAP_CAMERA_MINIMUM_GUTTER_Y = 8
 const MAP_CAMERA_EDGE_CENTER_X = (HEX_WIDTH + MAP_FRAME_PX) / 2
 const MAP_CAMERA_EDGE_CENTER_Y = (HEX_HEIGHT + MAP_FRAME_PX) / 2
+const HEX_BOUNDARY_EDGES = [
+  [58, 16.5, 58, 49.5],
+  [29, 0, 58, 16.5],
+  [0, 16.5, 29, 0],
+  [0, 49.5, 0, 16.5],
+  [29, 66, 0, 49.5],
+  [58, 49.5, 29, 66],
+] as const
 const PRODUCTION_SITE_ASSET_PREVIEW_ICONS = {
   'farm-1': farmLevel1Icon,
   'farm-2': farmLevel2Icon,
@@ -127,6 +137,7 @@ export type SiteAttackAnimation = {
 
 type GameMapProps = {
   state: GameState
+  territoryByKey: TerritoryIndex
   scrollElement: HTMLElement | null
   zoom?: number
   reachableKeys: Set<string>
@@ -154,6 +165,9 @@ type TileButtonProps = {
   unit?: Unit
   site?: Site
   mapSeed: string
+  territoryOwner?: TerritoryOwner
+  territoryBoundarySides: number[]
+  reachableBoundarySides: number[]
   selected: boolean
   siteSelected: boolean
   inspected: boolean
@@ -196,11 +210,19 @@ function getTileLabel(
   developmentFootprint = false,
   selectedDevelopmentFootprint = false,
   foundingCandidate = false,
+  territoryOwner?: TerritoryOwner,
 ) {
   const parts = [
     `육각 좌표 ${tile.position.q}, ${tile.position.r}`,
     TERRAIN_LABELS[tile.terrain],
   ]
+  parts.push(
+    territoryOwner === 'contested'
+      ? '영토 분쟁 지역'
+      : territoryOwner
+        ? `${factionLabel(territoryOwner)} 영토`
+        : '미편입 지역',
+  )
   if (inZoneOfControl) parts.push('적 통제 구역')
   if (deployable) parts.push('생산 배치 가능')
   if (foundingCandidate) parts.push('정착·건설 가능')
@@ -264,6 +286,9 @@ const TileButton = memo(function TileButton({
   unit,
   site,
   mapSeed,
+  territoryOwner,
+  territoryBoundarySides,
+  reachableBoundarySides,
   selected,
   siteSelected,
   inspected,
@@ -318,12 +343,16 @@ const TileButton = memo(function TileButton({
         developmentFootprint,
         selectedDevelopmentFootprint,
         foundingCandidate,
+        territoryOwner,
       )}
       aria-pressed={
         selected || siteSelected ? true : unit ? false : undefined
       }
       data-coordinate={positionKey(tile.position)}
       data-reachable={reachable ? 'true' : undefined}
+      data-reachable-boundary={
+        reachableBoundarySides.length > 0 ? 'true' : undefined
+      }
       data-attackable={attackable ? 'true' : undefined}
       data-attackable-site={attackableSite ? 'true' : undefined}
       data-deployable={deployable ? 'true' : undefined}
@@ -334,6 +363,7 @@ const TileButton = memo(function TileButton({
       }
       data-zone-of-control={inZoneOfControl ? 'true' : undefined}
       data-site-selected={siteSelected ? 'true' : undefined}
+      data-territory-owner={territoryOwner ?? 'unclaimed'}
       aria-disabled={disabled || undefined}
       onClick={() => {
         if (disabled || suppressClickRef?.current) {
@@ -363,6 +393,37 @@ const TileButton = memo(function TileButton({
             seed={mapSeed}
             variantIndex={tile.terrainVariant}
           />
+        </span>
+      )}
+      {territoryOwner && (
+        <span
+          className={`territory-mark territory-mark--${territoryOwner}`}
+          aria-hidden="true"
+        >
+          {territoryBoundarySides.length > 0 && (
+            <svg
+              className="territory-mark__boundary"
+              viewBox={`0 0 ${HEX_WIDTH} ${HEX_HEIGHT}`}
+            >
+              {territoryBoundarySides.map((side) => {
+                const [x1, y1, x2, y2] = HEX_BOUNDARY_EDGES[side]
+                return <line key={side} x1={x1} y1={y1} x2={x2} y2={y2} />
+              })}
+            </svg>
+          )}
+        </span>
+      )}
+      {reachableBoundarySides.length > 0 && (
+        <span className="reachable-area-mark" aria-hidden="true">
+          <svg
+            className="reachable-area-mark__boundary"
+            viewBox={`0 0 ${HEX_WIDTH} ${HEX_HEIGHT}`}
+          >
+            {reachableBoundarySides.map((side) => {
+              const [x1, y1, x2, y2] = HEX_BOUNDARY_EDGES[side]
+              return <line key={side} x1={x1} y1={y1} x2={x2} y2={y2} />
+            })}
+          </svg>
         </span>
       )}
     </button>
@@ -547,6 +608,7 @@ function UnitMarker({
 
 function GameMapComponent({
   state,
+  territoryByKey,
   scrollElement,
   zoom = 1,
   reachableKeys,
@@ -819,25 +881,47 @@ function GameMapComponent({
     >
       <div className="map-layer map-layer--terrain">
         {visibleTiles.map(({ tile, style }) => {
+          const tileKey = positionKey(tile.position)
           const unit = getUnitAt(state, tile.position)
           const site = getSiteAt(state, tile.position)
           const selected = Boolean(unit && unit.id === state.selectedUnitId)
           const siteSelected = Boolean(selectedSiteId && site?.id === selectedSiteId)
-          const reachable = reachableKeys.has(positionKey(tile.position))
-          const attackable = attackableKeys.has(positionKey(tile.position))
+          const reachable = reachableKeys.has(tileKey)
+          const reachableBoundarySides = reachable
+            ? HEX_DIRECTIONS.flatMap((direction, side) => {
+                const neighborKey = positionKey({
+                  q: tile.position.q + direction.q,
+                  r: tile.position.r + direction.r,
+                })
+                return reachableKeys.has(neighborKey) ? [] : [side]
+              })
+            : []
+          const attackable = attackableKeys.has(tileKey)
           const attackableSite = attackableSiteKeys.has(
-            positionKey(tile.position),
+            tileKey,
           )
-          const deployable = deployableKeys.has(positionKey(tile.position))
+          const deployable = deployableKeys.has(tileKey)
           const developmentFootprint = developmentFootprintKeys.has(
-            positionKey(tile.position),
+            tileKey,
           )
           const foundingCandidate = foundingCandidateKeys.has(
-            positionKey(tile.position),
+            tileKey,
           )
           const selectedDevelopmentFootprint =
-            selectedDevelopmentFootprintKeys.has(positionKey(tile.position))
-          const inZoneOfControl = zoneOfControlKeys.has(positionKey(tile.position))
+            selectedDevelopmentFootprintKeys.has(tileKey)
+          const inZoneOfControl = zoneOfControlKeys.has(tileKey)
+          const territoryOwner = territoryByKey.get(tileKey)
+          const territoryBoundarySides = territoryOwner
+            ? HEX_DIRECTIONS.flatMap((direction, side) => {
+                const neighborKey = positionKey({
+                  q: tile.position.q + direction.q,
+                  r: tile.position.r + direction.r,
+                })
+                return territoryByKey.get(neighborKey) === territoryOwner
+                  ? []
+                  : [side]
+              })
+            : []
 
           return (
             <TileButton
@@ -846,6 +930,9 @@ function GameMapComponent({
               unit={unit}
               site={site}
               mapSeed={state.mapSeed}
+              territoryOwner={territoryOwner}
+              territoryBoundarySides={territoryBoundarySides}
+              reachableBoundarySides={reachableBoundarySides}
               selected={selected}
               siteSelected={siteSelected}
               inspected={inspectedTileKey === positionKey(tile.position)}

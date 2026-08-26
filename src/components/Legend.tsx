@@ -72,6 +72,18 @@ export function Legend({ embedded = false }: LegendProps) {
           적 점령
         </li>
         <li>
+          <span className="legend-swatch legend-swatch--friendly-territory" />
+          아군 영토
+        </li>
+        <li>
+          <span className="legend-swatch legend-swatch--enemy-territory" />
+          적 영토
+        </li>
+        <li>
+          <span className="legend-swatch legend-swatch--contested-territory" />
+          분쟁 지역
+        </li>
+        <li>
           <span className="legend-swatch legend-swatch--reachable" />
           이동 가능 <small>이동 명령 또는 우클릭</small>
         </li>

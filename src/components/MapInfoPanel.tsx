@@ -8,11 +8,13 @@ import {
   UNIT_TYPE_LABELS,
 } from '../game/rules'
 import type { Site, Tile, Unit } from '../game/types'
+import type { TerritoryOwner } from '../game/territory'
 
 type MapInfoPanelProps = {
   tile: Tile
   unit?: Unit
   site?: Site
+  territoryOwner?: TerritoryOwner
   preview?: boolean
   onClose?: () => void
 }
@@ -39,6 +41,7 @@ export function MapInfoPanel({
   tile,
   unit,
   site,
+  territoryOwner,
   preview = false,
   onClose,
 }: MapInfoPanelProps) {
@@ -122,6 +125,16 @@ export function MapInfoPanel({
           <div>
             <dt>지형</dt>
             <dd>{TERRAIN_LABELS[tile.terrain]}</dd>
+          </div>
+          <div>
+            <dt>영토</dt>
+            <dd>
+              {territoryOwner === 'contested'
+                ? '분쟁 지역'
+                : territoryOwner
+                  ? factionLabel(territoryOwner)
+                  : '미편입'}
+            </dd>
           </div>
           <div>
             <dt>이동 비용</dt>

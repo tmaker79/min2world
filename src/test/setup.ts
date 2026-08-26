@@ -27,8 +27,12 @@ HTMLCanvasElement.prototype.getContext = ((
     fill: () => undefined,
     fillStyle: '',
     lineTo: () => undefined,
+    lineCap: 'butt',
+    lineWidth: 1,
     moveTo: () => undefined,
     setTransform: () => undefined,
+    stroke: () => undefined,
+    strokeStyle: '',
   }
 }) as typeof HTMLCanvasElement.prototype.getContext
 

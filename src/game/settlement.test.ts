@@ -193,6 +193,59 @@ describe('settlement and construction rules', () => {
     ).toEqual({ ok: true })
   })
 
+  it('restricts production sites to owned territory while leaving Outposts unchanged', () => {
+    const state = openState('territory-construction')
+    const destination = state.tiles[Math.floor(state.tiles.length / 2)].position
+    const ownedOrigin = { q: destination.q - 2, r: destination.r }
+    const enemyOrigin = { q: destination.q + 2, r: destination.r }
+    const ownedCity = singleCellCity(ownedOrigin)
+    const enemyCity = {
+      ...singleCellCity(enemyOrigin),
+      id: 'enemy-city',
+      ownerId: 'enemy' as const,
+      capitalFor: 'enemy' as const,
+    }
+    const adjacentMountain = getHexNeighbors(destination, state.boardSize)[0]
+    const contested = {
+      ...state,
+      sites: [ownedCity, enemyCity],
+      tiles: state.tiles.map((tile) =>
+        positionKey(tile.position) === positionKey(adjacentMountain)
+          ? { ...tile, terrain: 'mountain' as const }
+          : tile,
+      ),
+    }
+
+    for (const siteKind of ['farm', 'mine', 'blacksmith'] as const) {
+      expect(canConstructAt(contested, 'player', destination, siteKind)).toEqual({
+        ok: false,
+        reason: 'outsideTerritory',
+      })
+    }
+    expect(canConstructAt(contested, 'player', destination, 'outpost')).toEqual({
+      ok: true,
+    })
+  })
+
+  it('rejects unclaimed production tiles outside a tier-two territory radius', () => {
+    const state = openState('unclaimed-construction')
+    const origin = state.tiles[Math.floor(state.tiles.length / 2)].position
+    const destination = state.tiles.find(
+      (tile) => getHexDistance(origin, tile.position) === 3,
+    )!.position
+    const town = { ...singleCellCity(origin), kind: 'town' as const, hp: undefined, maxHp: undefined }
+    const withTown = { ...state, sites: [town] }
+
+    expect(getOwnedAnchorGraphDistance(withTown, 'player', destination)).toBe(3)
+    expect(canConstructAt(withTown, 'player', destination, 'farm')).toEqual({
+      ok: false,
+      reason: 'outsideTerritory',
+    })
+    expect(canConstructAt(withTown, 'player', destination, 'outpost')).toEqual({
+      ok: true,
+    })
+  })
+
   it('permits unlimited settlers and multiple living builders below the cumulative site cap', () => {
     const state = openState('civilian-capacity')
     const position = state.tiles[0].position

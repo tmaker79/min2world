@@ -1,6 +1,7 @@
 import { render } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { GAME_SCHEMA_VERSION, type GameState, type Tile } from '../game/types'
+import { createTerritoryIndex } from '../game/territory'
 import { GameMap } from './GameMap'
 
 function createLargeRenderState(columns: number, rows: number): GameState {
@@ -59,6 +60,7 @@ describe('GameMap large-map rendering', () => {
     const { container } = render(
       <GameMap
         state={state}
+        territoryByKey={createTerritoryIndex(state)}
         scrollElement={null}
         reachableKeys={new Set()}
         attackableKeys={new Set()}

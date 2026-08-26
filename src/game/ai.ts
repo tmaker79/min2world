@@ -35,6 +35,7 @@ import {
   getSettleablePositions,
   SITE_CONSTRUCTION_COSTS,
 } from './settlement'
+import { createTerritoryIndex } from './territory'
 import { getHexDistance } from './hex'
 import { getSiteOccupiedPositions } from './siteFootprint'
 import {
@@ -443,8 +444,9 @@ function chooseConstructionCandidate(
   units: readonly Unit[],
 ): AiConstructionCandidate | undefined {
   const origins = getCivilianOrigins(state, units)
+  const territory = createTerritoryIndex(state)
   return BUILDABLE_SITE_TYPES.flatMap((siteKind) =>
-    getConstructiblePositions(state, factionId, siteKind).flatMap((position) => {
+    getConstructiblePositions(state, factionId, siteKind, territory).flatMap((position) => {
       const nearest = closestOrigin(origins, position)
       const anchorDistance = getOwnedAnchorGraphDistance(
         state,

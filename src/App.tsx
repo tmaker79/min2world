@@ -61,6 +61,7 @@ import {
   getSelectedUnitReachablePositions,
 } from './game/selectors'
 import { getSiteOccupiedPositions } from './game/siteFootprint'
+import { createTerritoryIndex } from './game/territory'
 import type { GameState, Site, Tile, Unit, UnitType } from './game/types'
 import {
   getFactionNetIncome,
@@ -206,6 +207,10 @@ function GameApp({ initialState }: { initialState: GameState }) {
   )
   const inspectedTile = state.tiles.find(
     (tile) => positionKey(tile.position) === inspectedTileKey,
+  )
+  const territoryByKey = useMemo(
+    () => createTerritoryIndex({ sites: state.sites, tiles: state.tiles }),
+    [state.sites, state.tiles],
   )
   const developmentFootprints = useMemo(
     () =>
@@ -1159,6 +1164,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
               >
                 <GameMap
                   state={state}
+                  territoryByKey={territoryByKey}
                   scrollElement={mapScrollElement}
                   zoom={mapZoom}
                   reachableKeys={reachableKeys}
@@ -1272,6 +1278,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
                 <div id="map-minimap" className="map-minimap-dock__body">
                   <Minimap
                     state={state}
+                    territoryByKey={territoryByKey}
                     scrollElement={mapScrollElement}
                     zoom={mapZoom}
                   />
@@ -1477,6 +1484,9 @@ function GameApp({ initialState }: { initialState: GameState }) {
                     tile={sidebarContent.tile}
                     unit={sidebarContent.unit}
                     site={sidebarContent.site}
+                    territoryOwner={territoryByKey.get(
+                      positionKey(sidebarContent.tile.position),
+                    )}
                     preview={sidebarContent.preview}
                     onClose={
                       sidebarContent.preview

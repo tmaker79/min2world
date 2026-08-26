@@ -103,12 +103,17 @@ describe('Milestone 07 UI', () => {
     expect(container.querySelector('.map-layer--sites .site-marker')).toBeInTheDocument()
     expect(container.querySelector('.map-layer--units .unit-token')).toBeInTheDocument()
     expect(container.querySelector('.map-layer--units .unit-health-bar')).toBeInTheDocument()
+    expect(container.querySelectorAll('.territory-mark').length).toBeGreaterThan(0)
+    expect(
+      [...tiles].every((tile) => tile.hasAttribute('data-territory-owner')),
+    ).toBe(true)
     expect(container.querySelector('.unit-health-bar')?.closest('.map-tile')).toBeNull()
     expect(container.querySelector('.site-marker')?.closest('.map-tile')).toBeNull()
     const sidebar = screen.getByLabelText('지도 사이드바')
     const minimap = screen.getByTestId('minimap')
     expect(sidebar.firstElementChild).toHaveClass('map-minimap-dock')
     expect(sidebar).toContainElement(minimap)
+    expect(Number(minimap.getAttribute('data-territory-count'))).toBeGreaterThan(0)
     expect(container.querySelector('.map-stage')).not.toContainElement(minimap)
     expect(screen.getByLabelText('선택 정보')).toHaveTextContent(
       '지도 타일을 가리키거나 선택하면 상세 정보가 표시됩니다.',
@@ -455,8 +460,11 @@ describe('Milestone 07 UI', () => {
     expect(info).toHaveTextContent('평지')
     expect(info).toHaveTextContent('좌표')
     expect(info).toHaveTextContent('이동 비용')
+    expect(info).toHaveTextContent('영토')
     expect(info).toHaveTextContent('1')
     expect(info).not.toHaveTextContent('방어 보정치')
+    expect(tile).toHaveAttribute('data-territory-owner')
+    expect(tile.getAttribute('aria-label')).toMatch(/영토|미편입 지역/)
     expect(tile).toHaveClass('map-tile--inspected')
     expect(screen.queryByLabelText('부대 정보')).not.toBeInTheDocument()
 
@@ -522,6 +530,10 @@ describe('Milestone 07 UI', () => {
 
     expect(tile).toHaveAttribute('aria-pressed', 'true')
     expect(container.querySelectorAll('[data-reachable="true"]').length).toBeGreaterThan(0)
+    expect(container.querySelectorAll('.reachable-area-mark').length).toBeGreaterThan(0)
+    expect(
+      container.querySelectorAll('[data-reachable-boundary="true"]').length,
+    ).toBeGreaterThan(0)
     expect(screen.getByLabelText('지도 사이드바')).toContainElement(
       screen.getByLabelText('부대 정보'),
     )
@@ -1183,6 +1195,9 @@ describe('Milestone 07 UI', () => {
     fireEvent.click(screen.getByRole('button', { name: '도움말' }))
     expect(screen.getByRole('heading', { name: '작전 지침' })).toBeVisible()
     expect(screen.getByRole('heading', { name: '지도 범례' })).toBeVisible()
+    expect(screen.getByText('아군 영토')).toBeVisible()
+    expect(screen.getByText('적 영토')).toBeVisible()
+    expect(screen.getByText('분쟁 지역')).toBeVisible()
     expect(screen.queryByRole('heading', { name: '저장 관리' })).not.toBeInTheDocument()
   })
 
@@ -1600,7 +1615,7 @@ describe('Milestone 07 UI', () => {
     expect(container.querySelectorAll('[data-founding-candidate="true"].map-tile').length)
       .toBeGreaterThan(0)
 
-    fireEvent.click(screen.getByRole('button', { name: '마을 건설' }))
+    fireEvent.click(screen.getByRole('button', { name: '정착' }))
     expect(screen.getByLabelText('정착 및 건설 확인')).toHaveTextContent(
       '개척자가 소모됩니다.',
     )
@@ -1610,7 +1625,7 @@ describe('Milestone 07 UI', () => {
     expect(screen.queryByLabelText('정착 및 건설 확인')).not.toBeInTheDocument()
     expect(screen.getByLabelText('부대 정보')).toBeVisible()
 
-    fireEvent.click(screen.getByRole('button', { name: '마을 건설' }))
+    fireEvent.click(screen.getByRole('button', { name: '정착' }))
     fireEvent.click(screen.getByRole('button', { name: '건설 확인' }))
     expect(container.querySelector(`[data-unit-id="${settler.id}"]`)).toBeNull()
     expect(container.querySelector('[data-site-icon="village"]')).toBeInTheDocument()

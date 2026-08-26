@@ -7,6 +7,7 @@ import {
   TERRAIN_MOVEMENT_COST,
 } from '../game/rules'
 import { getTownFootprintCandidates } from '../game/siteFootprint'
+import { createTerritoryIndex } from '../game/territory'
 import { GAME_SCHEMA_VERSION, MAP_GENERATION_VERSION } from '../game/types'
 import type { GameState } from '../game/types'
 import {
@@ -100,6 +101,9 @@ describe('saved games', () => {
       expect(loaded.value.gameState.sites).toHaveLength(8)
       expect(loaded.value.gameState.mapSeed).toBe('save-roundtrip')
       expect(loaded.value.gameState.mapType).toBe('forested')
+      expect([...createTerritoryIndex(loaded.value.gameState)]).toEqual([
+        ...createTerritoryIndex(state),
+      ])
       expect(
         loaded.value.gameState.sites
           .filter((site) => isFortifiedSiteKind(site.kind))
