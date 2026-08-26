@@ -14,11 +14,8 @@ export const TERRITORY_RADIUS_BY_SITE_KIND: Readonly<
   Partial<Record<SiteType, 1 | 2 | 3>>
 > = {
   village: 1,
-  outpost: 1,
   town: 2,
-  keep: 2,
   city: 3,
-  stronghold: 3,
 }
 
 export function getSiteTerritoryRadius(site: Site): 0 | 1 | 2 | 3 {

@@ -34,11 +34,8 @@ function site(
 describe('territory rules', () => {
   it.each([
     ['village', 1, 7],
-    ['outpost', 1, 7],
     ['town', 2, 19],
-    ['keep', 2, 19],
     ['city', 3, 37],
-    ['stronghold', 3, 37],
   ] as const)('claims the tier radius for %s', (kind, radius, tileCount) => {
     const state = territoryState(`territory-${kind}`)
     const origin = state.tiles[Math.floor(state.tiles.length / 2)].position
@@ -72,18 +69,21 @@ describe('territory rules', () => {
     ).toBe(true)
   })
 
-  it('does not create territory from neutral or production sites', () => {
+  it('does not create territory from neutral, production, or military sites', () => {
     const state = territoryState('territory-non-sources')
-    const positions = state.tiles.slice(0, 4).map((tile) => tile.position)
+    const positions = state.tiles.slice(0, 7).map((tile) => tile.position)
     const sites = [
       site('neutral-city', 'city', 'neutral', positions[0]),
       site('farm', 'farm', 'player', positions[1]),
       site('mine', 'mine', 'player', positions[2]),
       site('blacksmith', 'blacksmith', 'player', positions[3]),
+      site('outpost', 'outpost', 'player', positions[4]),
+      site('keep', 'keep', 'player', positions[5]),
+      site('stronghold', 'stronghold', 'player', positions[6]),
     ]
 
     expect(createTerritoryIndex({ ...state, sites }).size).toBe(0)
-    expect(sites.map(getSiteTerritoryRadius)).toEqual([0, 0, 0, 0])
+    expect(sites.map(getSiteTerritoryRadius)).toEqual([0, 0, 0, 0, 0, 0, 0])
   })
 
   it('uses the nearest source and marks cross-faction distance ties contested', () => {

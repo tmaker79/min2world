@@ -370,9 +370,9 @@ describe('hex combat rules', () => {
 describe('sites', () => {
   it('uses the configured income and production rules', () => {
     expect(SITE_STATS).toEqual({
-      outpost: { income: 2, canProduce: true },
-      keep: { income: 3, canProduce: true },
-      stronghold: { income: 5, canProduce: true },
+      outpost: { income: 0, canProduce: false },
+      keep: { income: 0, canProduce: false },
+      stronghold: { income: 0, canProduce: false },
       village: { income: 3, canProduce: false },
       town: { income: 5, canProduce: false },
       city: { income: 7, canProduce: true },
@@ -389,6 +389,20 @@ describe('sites', () => {
     expect(getDeployablePositions(state, playerCapital).length).toBeGreaterThan(0)
     expect(getDeployablePositions(state, village)).toEqual([])
     expect(getDeployablePositions(state, farm)).toEqual([])
+    const militarySites = (['outpost', 'keep', 'stronghold'] as const).map(
+      (kind) => ({
+        ...farm,
+        id: kind,
+        kind,
+        level: undefined,
+        ownerId: 'player' as const,
+      }),
+    )
+    expect(militarySites.map(getSiteIncome)).toEqual([0, 0, 0])
+    expect(getFactionIncome({ ...state, sites: militarySites }, 'player')).toBe(0)
+    expect(
+      militarySites.map((site) => getDeployablePositions(state, site)),
+    ).toEqual([[], [], []])
   })
 
   it('applies level income, unit unlocks, and the best owned blacksmith discount', () => {
@@ -414,11 +428,7 @@ describe('sites', () => {
     }
 
     expect(getSiteIncome(blacksmith)).toBe(3)
-    expect(getProducibleUnitTypes(keep)).toEqual([
-      'infantry',
-      'spearman',
-      'archer',
-    ])
+    expect(getProducibleUnitTypes(keep)).toEqual([])
     expect(getProducibleUnitTypes(city)).toEqual([
       ...MILITARY_UNIT_TYPES,
       ...CIVILIAN_UNIT_TYPES,

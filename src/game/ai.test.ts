@@ -5,7 +5,7 @@ import {
   compareAiSiteDevelopmentCandidates,
   getAiUnitCap,
 } from './ai'
-import { getHexDistance } from './hex'
+import { getHexDistance, getHexNeighbors, positionKey } from './hex'
 import { createInitialGameState } from './initialState'
 import { gameReducer } from './reducer'
 import { getDeployablePositions, getUnitProductionCost } from './rules'
@@ -297,7 +297,7 @@ describe('hex-map AI', () => {
 
   it('repeatedly disbands expensive low-hp units until income covers upkeep', () => {
     const initial = economyState('ai-disband-loop')
-    const site = enemySite(initial)
+    const site = enemySite(initial, { kind: 'farm', level: 1 })
     const units: Unit[] = [
       {
         id: 'cavalry-a', name: 'cavalry a', factionId: 'enemy', type: 'cavalry',
@@ -457,10 +457,14 @@ describe('hex-map AI', () => {
 
   it('can produce on the tick after development resolves', () => {
     const initial = economyState('ai-develop-then-produce')
-    const site = enemySite(initial)
+    const site = enemySite(initial, {
+      kind: 'town',
+      hp: undefined,
+      maxHp: undefined,
+    })
     const state = {
       ...initial,
-      resources: { ...initial.resources, enemy: 26 },
+      resources: { ...initial.resources, enemy: 40 },
       sites: [site],
     }
     const development = chooseAiAction(state)!
@@ -471,31 +475,35 @@ describe('hex-map AI', () => {
     expect(production).toMatchObject({
       type: 'unitProduced',
       siteId: site.id,
-      unitType: 'spearman',
     })
   })
 
-  it('does not produce locked unit types from an outpost', () => {
+  it('does not produce units from any military site', () => {
     const initial = economyState('ai-locked-production')
-    const site = enemySite(initial, {
-      lastDevelopedTurn: initial.turn,
-    })
-    const state = { ...initial, sites: [site] }
-
-    expect(chooseAiAction(state)).toMatchObject({
-      type: 'unitProduced',
-      siteId: site.id,
-      unitType: 'infantry',
-    })
+    for (const kind of ['outpost', 'keep', 'stronghold'] as const) {
+      const site = enemySite(initial, {
+        kind,
+        lastDevelopedTurn: initial.turn,
+      })
+      expect(chooseAiAction({ ...initial, sites: [site] })).toEqual({
+        type: 'turnEnded',
+      })
+    }
   })
 
   it('uses the Blacksmith discount when choosing an affordable unit', () => {
     const initial = economyState('ai-discount-production')
-    const keep = enemySite(initial, { id: 'a-keep', kind: 'keep' })
+    const city = enemySite(initial, {
+      id: 'a-city',
+      kind: 'city',
+      footprint: undefined,
+      hp: 120,
+      maxHp: 120,
+    })
     const blacksmithPosition = initial.tiles.find(
       (tile) =>
-        tile.position.q !== keep.position.q ||
-        tile.position.r !== keep.position.r,
+        tile.position.q !== city.position.q ||
+        tile.position.r !== city.position.r,
     )!.position
     const blacksmith = enemySite(initial, {
       id: 'blacksmith',
@@ -507,13 +515,13 @@ describe('hex-map AI', () => {
     const state = {
       ...initial,
       resources: { ...initial.resources, enemy: 12 },
-      sites: [keep, blacksmith],
+      sites: [city, blacksmith],
     }
 
     expect(getUnitProductionCost(state, 'enemy', 'spearman')).toBe(12)
     expect(chooseAiAction(state)).toMatchObject({
       type: 'unitProduced',
-      siteId: keep.id,
+      siteId: city.id,
       unitType: 'spearman',
     })
   })
@@ -711,7 +719,7 @@ describe('hex-map AI', () => {
       ...initial,
       selectedUnitId: unit.id,
       units: [unit],
-      sites: [enemySite(initial, { capitalFor: undefined }), mine, capital],
+      sites: [enemyIncomeSite(initial), mine, capital],
     }
 
     expect(chooseAiDecision(state)).toEqual({
@@ -844,6 +852,35 @@ describe('hex-map AI', () => {
       },
       reason: 'siteConstruction',
     })
+  })
+
+  it('excludes every tile adjacent to an existing military site from Outpost candidates', () => {
+    const initial = economyState('ai-outpost-spacing')
+    const city = initial.sites.find(
+      (site) => site.ownerId === 'enemy' && site.kind === 'city',
+    )!
+    const militaryPosition = initial.tiles.find(
+      (tile) => getHexDistance(city.position, tile.position) === 2,
+    )!.position
+    const keep: Site = {
+      ...city,
+      id: 'player-keep',
+      kind: 'keep',
+      position: militaryPosition,
+      footprint: undefined,
+      ownerId: 'player',
+      capitalFor: undefined,
+      hp: 75,
+      maxHp: 75,
+    }
+    const state = { ...initial, sites: [city, keep] }
+    const candidateKeys = new Set(
+      getConstructiblePositions(state, 'enemy', 'outpost').map(positionKey),
+    )
+
+    for (const neighbor of getHexNeighbors(militaryPosition, state.boardSize)) {
+      expect(candidateKeys.has(positionKey(neighbor))).toBe(false)
+    }
   })
 
   it('waits on its chosen construction tile when the builder cannot pay', () => {

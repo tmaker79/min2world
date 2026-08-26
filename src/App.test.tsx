@@ -1059,8 +1059,15 @@ describe('Milestone 07 UI', () => {
     await user.click(container.querySelector<HTMLButtonElement>(
       `.map-tile[data-coordinate="${positionKey(site.position)}"]`,
     )!)
+    expect(screen.getByLabelText('거점 정보')).toHaveTextContent('수입없음')
+    expect(screen.queryByRole('tab', { name: '생산' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('tab', { name: '발전' }))
-    expect(screen.getByLabelText('거점 발전')).toHaveTextContent('비용0 자원')
+    const developmentPanel = screen.getByLabelText('거점 발전')
+    expect(developmentPanel).toHaveTextContent('비용0 자원')
+    expect(developmentPanel).toHaveTextContent('수입없음')
+    expect(developmentPanel).toHaveTextContent(
+      '최대 체력과 방어력이 강화됩니다.',
+    )
     expect(screen.getByRole('button', { name: '발전 확인' })).toBeEnabled()
 
     unmount()
@@ -1155,14 +1162,13 @@ describe('Milestone 07 UI', () => {
     expect(container.querySelector('[data-development-footprint="true"]')).toBeNull()
   })
 
-  it('shows locked unit types and waives player production costs', async () => {
+  it('shows City unit types and waives player production costs', async () => {
     const user = userEvent.setup()
     const state = createInitialGameState('ui-production-unlocks')
-    const outpost = state.sites.find(
-      (site) => site.ownerId === state.humanFactionId,
+    const city = state.sites.find(
+      (site) =>
+        site.ownerId === state.humanFactionId && site.kind === 'city',
     )!
-    outpost.kind = 'outpost'
-    outpost.footprint = undefined
     const smithy = state.sites.find((site) => site.kind === 'blacksmith')!
     smithy.ownerId = state.humanFactionId
     smithy.level = 3
@@ -1170,19 +1176,19 @@ describe('Milestone 07 UI', () => {
     const { container } = renderApp(state)
 
     await user.click(container.querySelector<HTMLButtonElement>(
-      `.map-tile[data-coordinate="${positionKey(outpost.position)}"]`,
+      `.map-tile[data-coordinate="${positionKey(city.position)}"]`,
     )!)
     await user.click(screen.getByRole('tab', { name: '생산' }))
 
     const options = container.querySelectorAll<HTMLButtonElement>('.production-option')
     const productionPanel = screen.getByLabelText('부대 생산')
-    expect(options).toHaveLength(4)
+    expect(options).toHaveLength(6)
     expect(within(productionPanel).getByRole('button', { name: /보병.*0 자원/ }))
       .toBeEnabled()
-    expect(within(productionPanel).getByRole('button', { name: /기병/ })).toBeDisabled()
-    expect(within(productionPanel).getByRole('button', { name: /궁병/ })).toHaveTextContent(
-      '해금되지 않은 병종',
-    )
+    expect(within(productionPanel).getByRole('button', { name: /기병.*0 자원/ }))
+      .toBeEnabled()
+    expect(within(productionPanel).getByRole('button', { name: /건설자.*0 자원/ }))
+      .toBeEnabled()
   })
 
   it('opens chrome utility menus one at a time from the top bar', () => {

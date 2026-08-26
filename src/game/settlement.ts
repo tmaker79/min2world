@@ -4,6 +4,7 @@ import {
   getSiteAt,
   getSiteMaxHp,
   getTileAt,
+  isMilitarySiteKind,
   SITE_TYPE_LABELS,
   TERRAIN_MOVEMENT_COST,
 } from './rules'
@@ -140,8 +141,10 @@ export type SitePlacementFailure =
   | 'invalidTerrain'
   | 'siteOccupied'
   | 'tooCloseToSite'
+  | 'tooCloseToMilitarySite'
   | 'notConnected'
   | 'outsideTerritory'
+  | 'enemyTerritory'
 
 export type SitePlacementCheck =
   | { ok: true }
@@ -178,14 +181,22 @@ export function canConstructAt(
   )
   if (!tile) return { ok: false, reason: 'tileNotFound' }
   const terrainAllowed =
-    siteKind === 'farm'
+    siteKind === 'outpost'
+      ? tile.terrain === 'plain' || tile.terrain === 'hill'
+      : siteKind === 'farm'
       ? tile.terrain === 'plain'
       : siteKind === 'mine'
         ? isMineTerrain(state, position, tile.terrain)
         : isBuildableLand(tile.terrain)
   if (!terrainAllowed) return { ok: false, reason: 'invalidTerrain' }
   if (getSiteAt(state, position)) return { ok: false, reason: 'siteOccupied' }
-  if (!isFarEnoughFromSites(state, position, 2)) {
+  if (
+    siteKind === 'outpost' &&
+    !isFarEnoughFromMilitarySites(state, position, 2)
+  ) {
+    return { ok: false, reason: 'tooCloseToMilitarySite' }
+  }
+  if (siteKind !== 'outpost' && !isFarEnoughFromSites(state, position, 2)) {
     return { ok: false, reason: 'tooCloseToSite' }
   }
   if (getOwnedAnchorGraphDistance(state, factionId, position) === undefined) {
@@ -197,7 +208,30 @@ export function canConstructAt(
   ) {
     return { ok: false, reason: 'outsideTerritory' }
   }
+  const territoryOwner = getTerritoryOwnerAt(territory, position)
+  if (
+    siteKind === 'outpost' &&
+    territoryOwner !== undefined &&
+    territoryOwner !== 'contested' &&
+    territoryOwner !== factionId
+  ) {
+    return { ok: false, reason: 'enemyTerritory' }
+  }
   return { ok: true }
+}
+
+function isFarEnoughFromMilitarySites(
+  state: GameState,
+  position: Position,
+  minimumDistance: number,
+) {
+  return state.sites
+    .filter((site) => isMilitarySiteKind(site.kind))
+    .every((site) =>
+      getSiteOccupiedPositions(site).every(
+        (occupied) => getHexDistance(position, occupied) >= minimumDistance,
+      ),
+    )
 }
 
 export function getSettleablePositions(
@@ -336,7 +370,7 @@ function createFoundedSite(
       ? { level: 1 as const }
       : {}),
     ...(kind === 'outpost' && maxHp !== undefined
-      ? { hp: maxHp, maxHp, lastProducedTurn: state.turn }
+      ? { hp: maxHp, maxHp }
       : {}),
   }
 }

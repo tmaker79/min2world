@@ -2,6 +2,7 @@ import {
   getSiteCombatStats,
   getSiteIncome,
   getSiteMaxHp,
+  isMilitarySiteKind,
   SITE_TYPE_LABELS,
 } from '../game/rules'
 import type { Site } from '../game/types'
@@ -53,7 +54,11 @@ export function CityPanel({
         <dl>
           <div>
             <dt>수입</dt>
-            <dd>{getSiteIncome(site)} 자원/턴</dd>
+            <dd>
+              {isMilitarySiteKind(site.kind)
+                ? '없음'
+                : `${getSiteIncome(site)} 자원/턴`}
+            </dd>
           </div>
           <div>
             <dt>소유</dt>

@@ -206,7 +206,7 @@ describe('site development', () => {
     })
   })
 
-  it('uses the developed site income when checking the upkeep reserve', () => {
+  it('does not project income from military-site development', () => {
     const initial = developmentState('outpost')
     const units = Array.from({ length: 3 }, (_, index) => ({
       id: `development-cavalry-${index}`,
@@ -225,18 +225,18 @@ describe('site development', () => {
       units,
     }
     expect(canDevelopSite(allowed, 'site-1')).toEqual({
+      ok: false,
+      reason: 'insufficientUpkeepReserve',
+    })
+
+    const affordable = {
+      ...allowed,
+      resources: { ...allowed.resources, [initial.activeFactionId]: 17 },
+    }
+    expect(canDevelopSite(affordable, 'site-1')).toEqual({
       ok: true,
       cost: 8,
       footprint: [initial.sites[0].position],
-    })
-
-    const blocked = {
-      ...allowed,
-      resources: { ...allowed.resources, [initial.activeFactionId]: 10 },
-    }
-    expect(canDevelopSite(blocked, 'site-1')).toEqual({
-      ok: false,
-      reason: 'insufficientUpkeepReserve',
     })
   })
 

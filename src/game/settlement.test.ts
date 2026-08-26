@@ -176,7 +176,160 @@ describe('settlement and construction rules', () => {
     ).toEqual({ ok: true })
   })
 
-  it('restricts production sites to owned territory while leaving Outposts unchanged', () => {
+  it('allows Outposts only on ordinary plains and hills', () => {
+    const state = openState('outpost-terrain')
+    const origin = state.tiles[Math.floor(state.tiles.length / 2)].position
+    const destination = state.tiles.find(
+      (tile) => getHexDistance(origin, tile.position) === 2,
+    )!.position
+    const anchored = { ...state, sites: [singleCellCity(origin)] }
+    const withTerrain = (terrain: GameState['tiles'][number]['terrain']) => ({
+      ...anchored,
+      tiles: anchored.tiles.map((tile) =>
+        positionKey(tile.position) === positionKey(destination)
+          ? { ...tile, terrain }
+          : tile,
+      ),
+    })
+
+    for (const terrain of ['plain', 'hill'] as const) {
+      expect(
+        canConstructAt(withTerrain(terrain), 'player', destination, 'outpost'),
+      ).toEqual({ ok: true })
+    }
+    for (const terrain of [
+      'forest',
+      'desert',
+      'desertHill',
+      'oasis',
+      'tundra',
+      'tundraForest',
+      'bridge',
+      'water',
+      'mountain',
+      'tundraMountain',
+    ] as const) {
+      expect(
+        canConstructAt(withTerrain(terrain), 'player', destination, 'outpost'),
+      ).toEqual({ ok: false, reason: 'invalidTerrain' })
+    }
+  })
+
+  it('rejects enemy territory while allowing owned, contested, and unclaimed Outpost tiles', () => {
+    const state = openState('outpost-territory')
+    const origin = state.tiles[Math.floor(state.tiles.length / 2)].position
+    const destination = state.tiles.find(
+      (tile) => getHexDistance(origin, tile.position) === 2,
+    )!.position
+    const anchored = { ...state, sites: [singleCellCity(origin)] }
+    const key = positionKey(destination)
+
+    expect(
+      canConstructAt(
+        anchored,
+        'player',
+        destination,
+        'outpost',
+        new Map([[key, 'enemy']]),
+      ),
+    ).toEqual({ ok: false, reason: 'enemyTerritory' })
+    for (const owner of ['player', 'contested'] as const) {
+      expect(
+        canConstructAt(
+          anchored,
+          'player',
+          destination,
+          'outpost',
+          new Map([[key, owner]]),
+        ),
+      ).toEqual({ ok: true })
+    }
+    expect(
+      canConstructAt(anchored, 'player', destination, 'outpost', new Map()),
+    ).toEqual({ ok: true })
+  })
+
+  it('separates military sites by one tile without spacing them from other sites', () => {
+    const state = openState('outpost-spacing')
+    const origin = state.tiles[Math.floor(state.tiles.length / 2)].position
+    const destination = state.tiles.find(
+      (tile) => getHexDistance(origin, tile.position) === 2,
+    )!.position
+    const adjacent = getHexNeighbors(destination, state.boardSize).find(
+      (position) => positionKey(position) !== positionKey(origin),
+    )!
+    const distanceTwo = state.tiles.find(
+      (tile) =>
+        getHexDistance(destination, tile.position) === 2 &&
+        positionKey(tile.position) !== positionKey(origin),
+    )!.position
+    const city = singleCellCity(origin)
+
+    for (const kind of ['outpost', 'keep', 'stronghold'] as const) {
+      for (const ownerId of ['player', 'enemy', 'neutral'] as const) {
+        const militarySite: Site = {
+          id: `${ownerId}-${kind}`,
+          name: kind,
+          kind,
+          position: adjacent,
+          ownerId,
+          buildings: [],
+        }
+        expect(
+          canConstructAt(
+            { ...state, sites: [city, militarySite] },
+            'player',
+            destination,
+            'outpost',
+          ),
+        ).toEqual({ ok: false, reason: 'tooCloseToMilitarySite' })
+      }
+    }
+
+    const farm: Site = {
+      id: 'adjacent-farm',
+      name: 'Farm',
+      kind: 'farm',
+      position: adjacent,
+      ownerId: 'player',
+      level: 1,
+      buildings: [],
+    }
+    const distantOutpost: Site = {
+      id: 'distant-outpost',
+      name: 'Outpost',
+      kind: 'outpost',
+      position: distanceTwo,
+      ownerId: 'enemy',
+      buildings: [],
+    }
+    expect(
+      canConstructAt(
+        { ...state, sites: [city, farm] },
+        'player',
+        destination,
+        'outpost',
+      ),
+    ).toEqual({ ok: true })
+    expect(
+      canConstructAt(
+        { ...state, sites: [city, { ...farm, position: destination }] },
+        'player',
+        destination,
+        'outpost',
+      ),
+    ).toEqual({ ok: false, reason: 'siteOccupied' })
+    expect(
+      canConstructAt(
+        { ...state, sites: [city, distantOutpost] },
+        'player',
+        destination,
+        'outpost',
+      ),
+    ).toEqual({ ok: true })
+  })
+
+  it('restricts production sites to owned territory while allowing contested Outposts', () => {
     const state = openState('territory-construction')
     const destination = state.tiles[Math.floor(state.tiles.length / 2)].position
     const ownedOrigin = { q: destination.q - 2, r: destination.r }
@@ -328,7 +481,6 @@ describe('settlement and construction actions', () => {
         foundedBy: 'player',
         hp: 50,
         maxHp: 50,
-        lastProducedTurn: state.turn,
       }),
     )
   })

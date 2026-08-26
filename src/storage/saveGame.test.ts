@@ -148,6 +148,28 @@ describe('saved games', () => {
     }
   })
 
+  it('ignores legacy production-turn metadata on military sites without a schema change', () => {
+    const storage = new MemoryStorage()
+    const state = createInitialGameState('save-military-no-production')
+    const site = state.sites.find((candidate) => candidate.kind === 'farm')!
+    site.kind = 'keep'
+    site.level = undefined
+    site.hp = 75
+    site.maxHp = 75
+    site.lastProducedTurn = state.turn
+
+    expect(saveGame(state, storage).ok).toBe(true)
+    const loaded = loadGame(storage)
+    expect(loaded.ok).toBe(true)
+    if (loaded.ok) {
+      expect(loaded.value.schemaVersion).toBe(GAME_SCHEMA_VERSION)
+      expect(
+        loaded.value.gameState.sites.find((candidate) => candidate.id === site.id)
+          ?.lastProducedTurn,
+      ).toBeUndefined()
+    }
+  })
+
   it('migrates schema 11 sites with empty building state', () => {
     const storage = new MemoryStorage()
     const current = createInitialGameState('schema-11-buildings')

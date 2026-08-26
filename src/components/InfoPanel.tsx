@@ -45,10 +45,14 @@ function failureMessage(reason: SiteActionFailure) {
       return '현재 타일에 이미 거점이 있습니다.'
     case 'tooCloseToSite':
       return '기존 거점과의 최소 거리가 부족합니다.'
+    case 'tooCloseToMilitarySite':
+      return '군사 거점 사이에는 최소 한 칸을 두어야 합니다.'
     case 'notConnected':
       return '아군 소도시·도시·요새·성채에서 연결 거리 3 이내여야 합니다.'
     case 'outsideTerritory':
       return '생산 거점은 자기 영토에만 건설할 수 있습니다.'
+    case 'enemyTerritory':
+      return '적 영토에는 군사 거점을 건설할 수 없습니다.'
     case 'insufficientResources':
       return '건설 비용을 지불할 자원이 부족합니다.'
     case 'insufficientUpkeepReserve':

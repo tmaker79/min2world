@@ -3,7 +3,11 @@ import {
   getSiteDevelopmentCost,
   getSiteDevelopmentTarget,
 } from '../game/siteDevelopment'
-import { getSiteIncome, SITE_TYPE_LABELS } from '../game/rules'
+import {
+  getSiteIncome,
+  isMilitarySiteKind,
+  SITE_TYPE_LABELS,
+} from '../game/rules'
 import type { GameState, Position, Site } from '../game/types'
 import { getProjectedUpkeepReserve } from '../game/upkeep'
 
@@ -21,6 +25,9 @@ function developmentEffect(site: Site, targetKind?: Site['kind']) {
   if (site.kind === 'blacksmith') return '부대 생산 비용 할인이 강화됩니다.'
   if (site.kind === 'farm' || site.kind === 'mine') {
     return '턴당 자원 수입이 1 증가합니다.'
+  }
+  if (isMilitarySiteKind(site.kind)) {
+    return '최대 체력과 방어력이 강화됩니다.'
   }
   if (site.kind === 'village') return '같은 타일에서 수입이 증가하는 소도시로 발전합니다.'
   if (site.kind === 'town') return '수입이 증가하고 병력 생산이 가능한 1타일 도시가 됩니다.'
@@ -108,8 +115,11 @@ export function DevelopmentPanel({
         <div>
           <dt>수입</dt>
           <dd>
-            {getSiteIncome(site)}
-            {nextSite ? ` → ${getSiteIncome(nextSite)}` : ''} 자원/턴
+            {isMilitarySiteKind(site.kind)
+              ? '없음'
+              : `${getSiteIncome(site)}${
+                  nextSite ? ` → ${getSiteIncome(nextSite)}` : ''
+                } 자원/턴`}
           </dd>
         </div>
         <div>

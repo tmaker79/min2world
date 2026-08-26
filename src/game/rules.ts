@@ -84,9 +84,9 @@ export const UNIT_TYPE_LABELS: Record<UnitType, string> = {
 }
 
 export const SITE_STATS: Record<SiteType, SiteStats> = {
-  outpost: { income: 2, canProduce: true },
-  keep: { income: 3, canProduce: true },
-  stronghold: { income: 5, canProduce: true },
+  outpost: { income: 0, canProduce: false },
+  keep: { income: 0, canProduce: false },
+  stronghold: { income: 0, canProduce: false },
   village: { income: 3, canProduce: false },
   town: { income: 5, canProduce: false },
   city: { income: 7, canProduce: true },
@@ -96,6 +96,11 @@ export const SITE_STATS: Record<SiteType, SiteStats> = {
 }
 
 export type FortifiedSiteKind = 'outpost' | 'keep' | 'stronghold' | 'city'
+export type MilitarySiteKind = 'outpost' | 'keep' | 'stronghold'
+
+export function isMilitarySiteKind(kind: SiteType): kind is MilitarySiteKind {
+  return kind === 'outpost' || kind === 'keep' || kind === 'stronghold'
+}
 
 export const SITE_COMBAT_STATS: Record<FortifiedSiteKind, SiteCombatStats> = {
   outpost: { maxHp: 50, defense: 35 },
@@ -148,9 +153,9 @@ export const SITE_TYPE_LABELS: Record<SiteType, string> = {
 }
 
 const PRODUCIBLE_UNIT_TYPES: Record<SiteType, readonly UnitType[]> = {
-  outpost: ['infantry'],
-  keep: ['infantry', 'spearman', 'archer'],
-  stronghold: MILITARY_UNIT_TYPES,
+  outpost: [],
+  keep: [],
+  stronghold: [],
   village: [],
   town: [],
   city: UNIT_TYPES,
@@ -164,6 +169,7 @@ export function getSiteLevel(site: Site): 1 | 2 | 3 {
 }
 
 export function getSiteIncome(site: Site): number {
+  if (isMilitarySiteKind(site.kind)) return 0
   const level = getSiteLevel(site)
   if (site.kind === 'farm' || site.kind === 'blacksmith') return level + 1
   if (site.kind === 'mine') return level + 2

@@ -360,7 +360,7 @@ describe('gameReducer on a hex map', () => {
     })).toBe(state)
   })
 
-  it('routes site development and validates production unlocks and discounts', () => {
+  it('routes military-site development without enabling unit production', () => {
     const original = createInitialGameState('reducer-development')
     const initial = {
       ...original,
@@ -407,7 +407,10 @@ describe('gameReducer on a hex map', () => {
     expect(keep.kind).toBe('keep')
     expect(developed.resources[ownerId]).toBe(92)
 
-    const destination = getDeployablePositions(developed, keep)[0]
+    expect(getDeployablePositions(developed, keep)).toEqual([])
+    const destination = initial.tiles.find(
+      (tile) => tile.position.q !== keep.position.q || tile.position.r !== keep.position.r,
+    )!.position
     expect(
       gameReducer(developed, {
         type: 'unitProduced',
@@ -416,13 +419,12 @@ describe('gameReducer on a hex map', () => {
         destination,
       }),
     ).toBe(developed)
-    const produced = gameReducer(developed, {
+    expect(gameReducer(developed, {
       type: 'unitProduced',
       siteId: keep.id,
       unitType: 'infantry',
       destination,
-    })
-    expect(produced.resources[ownerId]).toBe(83)
+    })).toBe(developed)
   })
 
   it('adds the ending faction income and refreshes the next faction', () => {
