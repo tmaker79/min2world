@@ -176,7 +176,7 @@ describe('settlement and construction rules', () => {
     ).toEqual({ ok: true })
   })
 
-  it('allows Outposts only on ordinary plains and hills', () => {
+  it('allows Outposts only on ordinary plains, hills, and forests', () => {
     const state = openState('outpost-terrain')
     const origin = state.tiles[Math.floor(state.tiles.length / 2)].position
     const destination = state.tiles.find(
@@ -192,13 +192,12 @@ describe('settlement and construction rules', () => {
       ),
     })
 
-    for (const terrain of ['plain', 'hill'] as const) {
+    for (const terrain of ['plain', 'hill', 'forest'] as const) {
       expect(
         canConstructAt(withTerrain(terrain), 'player', destination, 'outpost'),
       ).toEqual({ ok: true })
     }
     for (const terrain of [
-      'forest',
       'desert',
       'desertHill',
       'oasis',
@@ -378,6 +377,25 @@ describe('settlement and construction rules', () => {
       reason: 'outsideTerritory',
     })
     expect(canConstructAt(withTown, 'player', destination, 'outpost')).toEqual({
+      ok: true,
+    })
+  })
+
+  it('allows Outposts beyond both owned territory and the anchor connection range', () => {
+    const state = openState('unclaimed-outpost-expansion')
+    const origin = state.tiles[Math.floor(state.tiles.length / 2)].position
+    const destination = state.tiles.find(
+      (tile) => getHexDistance(origin, tile.position) === 4,
+    )!.position
+    const withCity = { ...state, sites: [singleCellCity(origin)] }
+
+    expect(getOwnedAnchorGraphDistance(withCity, 'player', destination))
+      .toBeUndefined()
+    expect(canConstructAt(withCity, 'player', destination, 'farm')).toEqual({
+      ok: false,
+      reason: 'notConnected',
+    })
+    expect(canConstructAt(withCity, 'player', destination, 'outpost')).toEqual({
       ok: true,
     })
   })

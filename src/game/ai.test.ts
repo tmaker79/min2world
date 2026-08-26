@@ -883,6 +883,21 @@ describe('hex-map AI', () => {
     }
   })
 
+  it('includes unclaimed Outpost candidates beyond the anchor connection range', () => {
+    const initial = economyState('ai-unclaimed-outpost')
+    const city = initial.sites.find(
+      (site) => site.ownerId === 'enemy' && site.kind === 'city',
+    )!
+    const destination = initial.tiles.find(
+      (tile) => getHexDistance(city.position, tile.position) === 4,
+    )!.position
+    const state = { ...initial, sites: [city] }
+
+    expect(getConstructiblePositions(state, 'enemy', 'outpost')).toContainEqual(
+      destination,
+    )
+  })
+
   it('waits on its chosen construction tile when the builder cannot pay', () => {
     const initial = economyState('ai-builder-waits-for-cost')
     const city = initial.sites.find(

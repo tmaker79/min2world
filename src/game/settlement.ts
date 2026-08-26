@@ -182,7 +182,9 @@ export function canConstructAt(
   if (!tile) return { ok: false, reason: 'tileNotFound' }
   const terrainAllowed =
     siteKind === 'outpost'
-      ? tile.terrain === 'plain' || tile.terrain === 'hill'
+      ? tile.terrain === 'plain' ||
+        tile.terrain === 'hill' ||
+        tile.terrain === 'forest'
       : siteKind === 'farm'
       ? tile.terrain === 'plain'
       : siteKind === 'mine'
@@ -199,7 +201,10 @@ export function canConstructAt(
   if (siteKind !== 'outpost' && !isFarEnoughFromSites(state, position, 2)) {
     return { ok: false, reason: 'tooCloseToSite' }
   }
-  if (getOwnedAnchorGraphDistance(state, factionId, position) === undefined) {
+  if (
+    siteKind !== 'outpost' &&
+    getOwnedAnchorGraphDistance(state, factionId, position) === undefined
+  ) {
     return { ok: false, reason: 'notConnected' }
   }
   if (
