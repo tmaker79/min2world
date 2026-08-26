@@ -787,7 +787,6 @@ function GameMapComponent({
       ...attackableSiteKeys,
       ...deployableKeys,
       ...developmentFootprintKeys,
-      ...foundingCandidateKeys,
       ...selectedDevelopmentFootprintKeys,
       ...zoneOfControlKeys,
     ]) {
@@ -806,7 +805,6 @@ function GameMapComponent({
     attackableSiteKeys,
     deployableKeys,
     developmentFootprintKeys,
-    foundingCandidateKeys,
     reachableKeys,
     selectedDevelopmentFootprintKeys,
     siteAssetPreviews,

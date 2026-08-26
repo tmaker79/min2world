@@ -1,5 +1,6 @@
 import { render } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import { positionKey } from '../game/hex'
 import { GAME_SCHEMA_VERSION, type GameState, type Tile } from '../game/types'
 import { createTerritoryIndex } from '../game/territory'
 import { GameMap } from './GameMap'
@@ -57,6 +58,9 @@ function createLargeRenderState(columns: number, rows: number): GameState {
 describe('GameMap large-map rendering', () => {
   it('keeps a 10,000-tile map canvas while mounting only the viewport window', () => {
     const state = createLargeRenderState(100, 100)
+    const foundingCandidateKeys = new Set(
+      state.tiles.map((tile) => positionKey(tile.position)),
+    )
     const { container } = render(
       <GameMap
         state={state}
@@ -66,6 +70,7 @@ describe('GameMap large-map rendering', () => {
         attackableKeys={new Set()}
         attackableSiteKeys={new Set()}
         deployableKeys={new Set()}
+        foundingCandidateKeys={foundingCandidateKeys}
         zoneOfControlKeys={new Set()}
         showSiteAssetPreview
         disabled={false}
@@ -76,6 +81,9 @@ describe('GameMap large-map rendering', () => {
     const renderedTiles = container.querySelectorAll('.map-tile')
     expect(renderedTiles.length).toBeGreaterThan(100)
     expect(renderedTiles.length).toBeLessThan(2_000)
+    expect(
+      container.querySelectorAll('[data-founding-candidate="true"]'),
+    ).toHaveLength(renderedTiles.length)
     expect(screenSize(container, 'width')).toBeGreaterThan(5_000)
     expect(screenSize(container, 'height')).toBeGreaterThan(4_000)
     const previewMarkers = [
