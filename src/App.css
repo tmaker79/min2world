@@ -1723,6 +1723,7 @@
 }
 
 .site-marker--selected {
+  z-index: 3;
   animation: site-selected-pulse 1.4s ease-in-out infinite;
 }
 
@@ -2353,11 +2354,16 @@
   .unit-token--hit,
   .unit-token--defeated,
   .site-marker--hit,
-  .site-marker--selected,
   .damage-popup,
   .arrow-volley__arrow {
     animation-duration: 1ms;
     animation-delay: 0ms;
+  }
+
+  /* Infinite pulse would restart every 1ms; stop it entirely. The static
+     icon glow and tile border keep the selection visible. */
+  .site-marker--selected {
+    animation: none;
   }
 
   .start-screen__actions button,
