@@ -1,4 +1,4 @@
-import { getFactionIncome } from './rules'
+import { getFactionIncome } from './economy'
 import { getFactionAdjustedCost } from './playerEconomy'
 import type { FactionId, GameState, UnitType } from './types'
 
