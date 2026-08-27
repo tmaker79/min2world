@@ -52,6 +52,9 @@ import { hasTerrainImage, TerrainIcon } from './TerrainIcon'
 import { UnitIcon } from './UnitIcon'
 
 const VIEWPORT_OVERSCAN_PX = Math.max(HEX_WIDTH, HEX_HEIGHT) * 2
+// 컬링 경계를 이 단위로 바깥쪽 반올림해, 1px 스크롤마다 컬링이 다시 돌지 않게 한다.
+// 오버스캔보다 작아야 반올림 오차가 화면 밖에서 흡수된다.
+const VIEWPORT_QUANTUM_PX = 64
 /** Matches `.game-map` content-box padding (8*2) + border (1*2). */
 const MAP_FRAME_PX = 18
 const MAP_CAMERA_MINIMUM_GUTTER_X = 12
@@ -66,6 +69,50 @@ const HEX_BOUNDARY_EDGES = [
   [29, 66, 0, 49.5],
   [58, 49.5, 29, 66],
 ] as const
+
+// 경계면 집합은 배열이 아니라 6비트 마스크로 넘긴다. 배열이면 매 렌더 새 참조가
+// 되어 TileButton의 memo 비교가 항상 실패하고, 팬 중 보이는 타일 전부가 다시
+// 렌더된다.
+function getKeySetBoundaryMask(
+  position: Position,
+  keys: ReadonlySet<string>,
+): number {
+  let mask = 0
+  for (let side = 0; side < HEX_DIRECTIONS.length; side += 1) {
+    const direction = HEX_DIRECTIONS[side]
+    const neighborKey = positionKey({
+      q: position.q + direction.q,
+      r: position.r + direction.r,
+    })
+    if (!keys.has(neighborKey)) mask |= 1 << side
+  }
+  return mask
+}
+
+function getTerritoryBoundaryMask(
+  position: Position,
+  territoryByKey: TerritoryIndex,
+  owner: TerritoryOwner,
+): number {
+  let mask = 0
+  for (let side = 0; side < HEX_DIRECTIONS.length; side += 1) {
+    const direction = HEX_DIRECTIONS[side]
+    const neighborKey = positionKey({
+      q: position.q + direction.q,
+      r: position.r + direction.r,
+    })
+    if (territoryByKey.get(neighborKey) !== owner) mask |= 1 << side
+  }
+  return mask
+}
+
+function getBoundarySides(mask: number): number[] {
+  const sides: number[] = []
+  for (let side = 0; side < HEX_DIRECTIONS.length; side += 1) {
+    if (mask & (1 << side)) sides.push(side)
+  }
+  return sides
+}
 const PRODUCTION_SITE_ASSET_PREVIEW_ICONS = {
   'farm-1': farmLevel1Icon,
   'farm-2': farmLevel2Icon,
@@ -167,8 +214,8 @@ type TileButtonProps = {
   site?: Site
   mapSeed: string
   territoryOwner?: TerritoryOwner
-  territoryBoundarySides: number[]
-  reachableBoundarySides: number[]
+  territoryBoundaryMask: number
+  reachableBoundaryMask: number
   selected: boolean
   siteSelected: boolean
   inspected: boolean
@@ -275,8 +322,8 @@ const TileButton = memo(function TileButton({
   site,
   mapSeed,
   territoryOwner,
-  territoryBoundarySides,
-  reachableBoundarySides,
+  territoryBoundaryMask,
+  reachableBoundaryMask,
   selected,
   siteSelected,
   inspected,
@@ -338,9 +385,7 @@ const TileButton = memo(function TileButton({
       }
       data-coordinate={positionKey(tile.position)}
       data-reachable={reachable ? 'true' : undefined}
-      data-reachable-boundary={
-        reachableBoundarySides.length > 0 ? 'true' : undefined
-      }
+      data-reachable-boundary={reachableBoundaryMask > 0 ? 'true' : undefined}
       data-attackable={attackable ? 'true' : undefined}
       data-attackable-site={attackableSite ? 'true' : undefined}
       data-deployable={deployable ? 'true' : undefined}
@@ -388,12 +433,12 @@ const TileButton = memo(function TileButton({
           className={`territory-mark territory-mark--${territoryOwner}`}
           aria-hidden="true"
         >
-          {territoryBoundarySides.length > 0 && (
+          {territoryBoundaryMask > 0 && (
             <svg
               className="territory-mark__boundary"
               viewBox={`0 0 ${HEX_WIDTH} ${HEX_HEIGHT}`}
             >
-              {territoryBoundarySides.map((side) => {
+              {getBoundarySides(territoryBoundaryMask).map((side) => {
                 const [x1, y1, x2, y2] = HEX_BOUNDARY_EDGES[side]
                 return <line key={side} x1={x1} y1={y1} x2={x2} y2={y2} />
               })}
@@ -401,13 +446,13 @@ const TileButton = memo(function TileButton({
           )}
         </span>
       )}
-      {reachableBoundarySides.length > 0 && (
+      {reachableBoundaryMask > 0 && (
         <span className="reachable-area-mark" aria-hidden="true">
           <svg
             className="reachable-area-mark__boundary"
             viewBox={`0 0 ${HEX_WIDTH} ${HEX_HEIGHT}`}
           >
-            {reachableBoundarySides.map((side) => {
+            {getBoundarySides(reachableBoundaryMask).map((side) => {
               const [x1, y1, x2, y2] = HEX_BOUNDARY_EDGES[side]
               return <line key={side} x1={x1} y1={y1} x2={x2} y2={y2} />
             })}
@@ -730,17 +775,21 @@ function GameMapComponent({
     state.tiles,
     state.units,
   ])
+  const rawLeft = (viewport.left - cameraGutterX) / zoom - VIEWPORT_OVERSCAN_PX
+  const rawTop = (viewport.top - cameraGutterY) / zoom - VIEWPORT_OVERSCAN_PX
+  const rawRight =
+    (viewport.left - cameraGutterX + viewport.width) / zoom +
+    VIEWPORT_OVERSCAN_PX
+  const rawBottom =
+    (viewport.top - cameraGutterY + viewport.height) / zoom +
+    VIEWPORT_OVERSCAN_PX
+  const quantum = VIEWPORT_QUANTUM_PX
+  const cullLeft = Math.floor(rawLeft / quantum) * quantum
+  const cullTop = Math.floor(rawTop / quantum) * quantum
+  const cullRight = Math.ceil(rawRight / quantum) * quantum
+  const cullBottom = Math.ceil(rawBottom / quantum) * quantum
+
   const visibleTiles = useMemo(() => {
-    const left =
-      (viewport.left - cameraGutterX) / zoom - VIEWPORT_OVERSCAN_PX
-    const top =
-      (viewport.top - cameraGutterY) / zoom - VIEWPORT_OVERSCAN_PX
-    const right =
-      (viewport.left - cameraGutterX + viewport.width) / zoom +
-      VIEWPORT_OVERSCAN_PX
-    const bottom =
-      (viewport.top - cameraGutterY + viewport.height) / zoom +
-      VIEWPORT_OVERSCAN_PX
     const visible = new Map<
       string,
       { tile: Tile; left: number; top: number; style: CSSProperties }
@@ -748,9 +797,9 @@ function GameMapComponent({
 
     for (const row of layout.rows) {
       const rowTop = row[0]?.top ?? 0
-      if (rowTop + HEX_HEIGHT < top || rowTop > bottom) continue
+      if (rowTop + HEX_HEIGHT < cullTop || rowTop > cullBottom) continue
       for (const entry of row) {
-        if (entry.left + HEX_WIDTH < left || entry.left > right) continue
+        if (entry.left + HEX_WIDTH < cullLeft || entry.left > cullRight) continue
         visible.set(entry.tile.id, entry)
       }
     }
@@ -769,17 +818,19 @@ function GameMapComponent({
       const entry = layout.byKey.get(positionKey(position))
       if (entry) visible.set(entry.tile.id, entry)
     }
-    for (const key of [
-      ...reachableKeys,
-      ...attackableKeys,
-      ...attackableSiteKeys,
-      ...deployableKeys,
-      ...developmentFootprintKeys,
-      ...selectedDevelopmentFootprintKeys,
-      ...zoneOfControlKeys,
+    for (const keys of [
+      reachableKeys,
+      attackableKeys,
+      attackableSiteKeys,
+      deployableKeys,
+      developmentFootprintKeys,
+      selectedDevelopmentFootprintKeys,
+      zoneOfControlKeys,
     ]) {
-      const entry = layout.byKey.get(key)
-      if (entry) visible.set(entry.tile.id, entry)
+      for (const key of keys) {
+        const entry = layout.byKey.get(key)
+        if (entry) visible.set(entry.tile.id, entry)
+      }
     }
 
     return [...visible.values()]
@@ -798,11 +849,11 @@ function GameMapComponent({
     siteAssetPreviews,
     state.sites,
     state.units,
-    viewport,
-    cameraGutterX,
-    cameraGutterY,
+    cullLeft,
+    cullTop,
+    cullRight,
+    cullBottom,
     zoneOfControlKeys,
-    zoom,
   ])
   const hitEffects =
     combatAnimation?.phase === 'hit'
@@ -873,15 +924,9 @@ function GameMapComponent({
           const selected = Boolean(unit && unit.id === state.selectedUnitId)
           const siteSelected = Boolean(selectedSiteId && site?.id === selectedSiteId)
           const reachable = reachableKeys.has(tileKey)
-          const reachableBoundarySides = reachable
-            ? HEX_DIRECTIONS.flatMap((direction, side) => {
-                const neighborKey = positionKey({
-                  q: tile.position.q + direction.q,
-                  r: tile.position.r + direction.r,
-                })
-                return reachableKeys.has(neighborKey) ? [] : [side]
-              })
-            : []
+          const reachableBoundaryMask = reachable
+            ? getKeySetBoundaryMask(tile.position, reachableKeys)
+            : 0
           const attackable = attackableKeys.has(tileKey)
           const attackableSite = attackableSiteKeys.has(
             tileKey,
@@ -897,17 +942,13 @@ function GameMapComponent({
             selectedDevelopmentFootprintKeys.has(tileKey)
           const inZoneOfControl = zoneOfControlKeys.has(tileKey)
           const territoryOwner = territoryByKey.get(tileKey)
-          const territoryBoundarySides = territoryOwner
-            ? HEX_DIRECTIONS.flatMap((direction, side) => {
-                const neighborKey = positionKey({
-                  q: tile.position.q + direction.q,
-                  r: tile.position.r + direction.r,
-                })
-                return territoryByKey.get(neighborKey) === territoryOwner
-                  ? []
-                  : [side]
-              })
-            : []
+          const territoryBoundaryMask = territoryOwner
+            ? getTerritoryBoundaryMask(
+                tile.position,
+                territoryByKey,
+                territoryOwner,
+              )
+            : 0
 
           return (
             <TileButton
@@ -917,8 +958,8 @@ function GameMapComponent({
               site={site}
               mapSeed={state.mapSeed}
               territoryOwner={territoryOwner}
-              territoryBoundarySides={territoryBoundarySides}
-              reachableBoundarySides={reachableBoundarySides}
+              territoryBoundaryMask={territoryBoundaryMask}
+              reachableBoundaryMask={reachableBoundaryMask}
               selected={selected}
               siteSelected={siteSelected}
               inspected={inspectedTileKey === positionKey(tile.position)}

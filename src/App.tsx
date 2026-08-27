@@ -305,6 +305,12 @@ function GameApp({ initialState }: { initialState: GameState }) {
     !cityInfoSite &&
     !state.selectedUnitId &&
     !inspectedTile
+  const handlePreviewTileChange = useCallback(
+    (tileKey?: string) => {
+      setPreviewTileKey(canPreviewMapInfo ? tileKey : undefined)
+    },
+    [canPreviewMapInfo],
+  )
   let sidebarContent: SidebarContent
   if (activeProductionUnitType) {
     sidebarContent = {
@@ -1221,9 +1227,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
                   suppressClickRef={mapDragMovedRef}
                   onTileClick={handleTileClick}
                   onTileContextMenu={handleTileContextMenu}
-                  onPreviewTileChange={(tileKey) => {
-                    setPreviewTileKey(canPreviewMapInfo ? tileKey : undefined)
-                  }}
+                  onPreviewTileChange={handlePreviewTileChange}
                 />
               </div>
               <div className="map-zoom-controls" aria-label="지도 확대/축소">
