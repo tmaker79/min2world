@@ -861,6 +861,7 @@ describe('hex-map AI', () => {
       kind: (['farm', 'mine', 'blacksmith', 'farm'] as const)[index],
       position,
       ownerId: 'enemy',
+      foundedBy: 'enemy',
       level: 1,
       buildings: [],
     }))

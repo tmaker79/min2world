@@ -107,6 +107,7 @@ describe('InfoPanel territory feedback', () => {
       kind: index === 0 ? 'farm' : 'mine',
       position,
       ownerId: factionId,
+      foundedBy: factionId,
       level: 1,
       buildings: [],
     }))

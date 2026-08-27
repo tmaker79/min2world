@@ -4,13 +4,16 @@ import {
   getSiteMaxHp,
   isMilitarySiteKind,
   SITE_TYPE_LABELS,
+  TERRAIN_COMBAT_BONUS,
+  TERRAIN_LABELS,
+  TERRAIN_MOVEMENT_COST,
 } from '../game/rules'
 import { getFactionLabel } from '../game/factions'
 import type {
   ProductionSupport,
   SettlementProductionCapacity,
 } from '../game/settlement'
-import type { GameMode, Site } from '../game/types'
+import type { GameMode, Site, Tile } from '../game/types'
 import type { ReactNode } from 'react'
 import { SiteIcon } from './SiteIcon'
 
@@ -18,6 +21,7 @@ export type CityPanelTab = 'production' | 'development' | 'construction'
 
 type CityPanelProps = {
   site: Site
+  tile: Tile
   gameMode: GameMode
   activeTab?: CityPanelTab
   canProduce: boolean
@@ -31,6 +35,7 @@ type CityPanelProps = {
 
 export function CityPanel({
   site,
+  tile,
   gameMode,
   activeTab,
   canProduce,
@@ -43,6 +48,11 @@ export function CityPanel({
 }: CityPanelProps) {
   const combatStats = getSiteCombatStats(site)
   const maxHp = getSiteMaxHp(site)
+  const isCapacityExemptProductionSite =
+    site.foundedBy === undefined &&
+    (site.kind === 'farm' ||
+      site.kind === 'mine' ||
+      site.kind === 'blacksmith')
 
   return (
     <div className="city-stack">
@@ -77,6 +87,24 @@ export function CityPanel({
             <dt>소유</dt>
             <dd>{getFactionLabel(site.ownerId)}</dd>
           </div>
+          <div>
+            <dt>지형</dt>
+            <dd>{TERRAIN_LABELS[tile.terrain]}</dd>
+          </div>
+          <div>
+            <dt>이동 비용</dt>
+            <dd>
+              {TERRAIN_MOVEMENT_COST[tile.terrain] === null
+                ? '통과 불가'
+                : TERRAIN_MOVEMENT_COST[tile.terrain]}
+            </dd>
+          </div>
+          {TERRAIN_COMBAT_BONUS[tile.terrain] > 0 && (
+            <div>
+              <dt>방어 보정치</dt>
+              <dd>+{TERRAIN_COMBAT_BONUS[tile.terrain]}</dd>
+            </div>
+          )}
           {gameMode === 'standard' && site.kind === 'city' && (
             <div>
               <dt>건물</dt>
@@ -91,7 +119,13 @@ export function CityPanel({
               </dd>
             </div>
           )}
-          {showProductionSupport && (
+          {isCapacityExemptProductionSite && (
+            <div>
+              <dt>도시 제한</dt>
+              <dd>제외</dd>
+            </div>
+          )}
+          {showProductionSupport && !isCapacityExemptProductionSite && (
             <>
               <div>
                 <dt>지원 정착지</dt>

@@ -703,9 +703,11 @@ describe('Milestone 07 UI', () => {
       'data-terrain-variant',
       mapTerrainImage.dataset.terrainVariant,
     )
-    expect(info).toHaveTextContent('좌표')
+    expect(within(info).queryByText('지형', { selector: 'dt' })).not.toBeInTheDocument()
+    expect(info).not.toHaveTextContent('좌표')
     expect(info).toHaveTextContent('이동 비용')
-    expect(info).toHaveTextContent('영토')
+    expect(info).toHaveTextContent('소유')
+    expect(info).not.toHaveTextContent('영토')
     expect(info).toHaveTextContent('1')
     expect(info).not.toHaveTextContent('방어 보정치')
     expect(tile).toHaveAttribute('data-territory-owner')
@@ -728,6 +730,19 @@ describe('Milestone 07 UI', () => {
     expect(
       container.querySelector('.mobile-info-sheet__toggle'),
     ).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('omits ownership from terrain information when a tile has no owner', () => {
+    const state = createInitialGameState('ui-unowned-terrain-info')
+    state.sites = []
+    state.units = []
+    const { container } = renderApp(state)
+    const tile = container.querySelector<HTMLButtonElement>('.map-tile')!
+
+    fireEvent.click(tile)
+
+    const info = screen.getByLabelText('타일 정보')
+    expect(within(info).queryByText('소유', { selector: 'dt' })).not.toBeInTheDocument()
   })
 
   it('keeps selected unit information while hovering an attack target', () => {

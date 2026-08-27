@@ -174,7 +174,13 @@ export function createProductionSupportIndex(
     settlements.map((settlement) => [settlement.id, 0]),
   )
   for (const site of state.sites) {
-    if (site.ownerId !== factionId || !isProductionSite(site)) continue
+    if (
+      site.ownerId !== factionId ||
+      !isProductionSite(site) ||
+      site.foundedBy === undefined
+    ) {
+      continue
+    }
     const support = supportByPosition.get(positionKey(site.position))
     if (!support) continue
     usageBySettlementId.set(

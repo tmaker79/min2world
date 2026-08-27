@@ -119,20 +119,18 @@ export function MapInfoPanel({
               )}
             </>
           )}
-          <div>
-            <dt>지형</dt>
-            <dd>{TERRAIN_LABELS[tile.terrain]}</dd>
-          </div>
-          <div>
-            <dt>영토</dt>
-            <dd>
-              {territoryOwner === 'contested'
-                ? '분쟁 지역'
-                : territoryOwner
-                  ? getFactionLabel(territoryOwner)
-                  : '미편입'}
-            </dd>
-          </div>
+          {(unit || site) && (
+            <div>
+              <dt>지형</dt>
+              <dd>{TERRAIN_LABELS[tile.terrain]}</dd>
+            </div>
+          )}
+          {territoryOwner && territoryOwner !== 'contested' && (
+            <div>
+              <dt>소유</dt>
+              <dd>{getFactionLabel(territoryOwner)}</dd>
+            </div>
+          )}
           <div>
             <dt>이동 비용</dt>
             <dd>{movementCostLabel(tile)}</dd>
@@ -143,12 +141,6 @@ export function MapInfoPanel({
               <dd>+{TERRAIN_COMBAT_BONUS[tile.terrain]}</dd>
             </div>
           )}
-          <div>
-            <dt>좌표</dt>
-            <dd>
-              {tile.position.q}, {tile.position.r}
-            </dd>
-          </div>
         </dl>
       </section>
     </div>

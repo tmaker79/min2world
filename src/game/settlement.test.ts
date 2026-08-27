@@ -536,7 +536,7 @@ describe('settlement and construction rules', () => {
     ).toBeUndefined()
   })
 
-  it('uses Town and City production capacities while excluding other owners', () => {
+  it('counts built production sites while excluding captured neutral sites', () => {
     const state = openState('production-capacity')
     const origin = state.tiles[Math.floor(state.tiles.length / 2)].position
     const positions = state.tiles
@@ -564,6 +564,7 @@ describe('settlement and construction rules', () => {
         kind: 'farm',
         position: positions[0],
         ownerId: 'player',
+        foundedBy: 'player',
         level: 1,
         buildings: [],
       },
@@ -573,15 +574,16 @@ describe('settlement and construction rules', () => {
         kind: 'mine',
         position: positions[1],
         ownerId: 'player',
+        foundedBy: 'player',
         level: 1,
         buildings: [],
       },
       {
-        id: 'neutral-blacksmith',
-        name: 'Neutral Blacksmith',
+        id: 'captured-neutral-blacksmith',
+        name: 'Captured Neutral Blacksmith',
         kind: 'blacksmith',
         position: positions[3],
-        ownerId: 'neutral',
+        ownerId: 'player',
         level: 1,
         buildings: [],
       },
@@ -637,6 +639,7 @@ describe('settlement and construction rules', () => {
       kind: (['farm', 'mine', 'blacksmith'] as const)[index],
       position,
       ownerId: 'player',
+      foundedBy: 'player',
       level: 1,
       buildings: [],
     }))
@@ -813,6 +816,7 @@ describe('settlement and construction actions', () => {
       kind: (['farm', 'mine', 'blacksmith', 'farm'] as const)[index],
       position,
       ownerId: 'player',
+      foundedBy: 'player',
       level: 1,
       buildings: [],
     }))

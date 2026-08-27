@@ -4,7 +4,7 @@ import type {
   ProductionSupport,
   SettlementProductionCapacity,
 } from '../game/settlement'
-import type { Site } from '../game/types'
+import type { Site, Tile } from '../game/types'
 import { CityPanel } from './CityPanel'
 
 const town: Site = {
@@ -14,6 +14,12 @@ const town: Site = {
   position: { q: 0, r: 0 },
   ownerId: 'player',
   buildings: [],
+}
+
+const terrainTile: Tile = {
+  id: 'terrain-tile',
+  position: { q: 0, r: 0 },
+  terrain: 'forest',
 }
 
 describe('CityPanel production support', () => {
@@ -32,6 +38,7 @@ describe('CityPanel production support', () => {
       <CityPanel
         gameMode="quick"
         site={city}
+        tile={terrainTile}
         canProduce
         onTabChange={() => undefined}
         onClose={() => undefined}
@@ -45,6 +52,9 @@ describe('CityPanel production support', () => {
     expect(screen.getByText('소유').nextElementSibling).toHaveTextContent(
       '청색 연맹',
     )
+    expect(screen.getByText('지형').nextElementSibling).toHaveTextContent('숲')
+    expect(screen.getByText('이동 비용').nextElementSibling).toHaveTextContent('2')
+    expect(screen.getByText('방어 보정치').nextElementSibling).toHaveTextContent('+3')
   })
 
   it('shows a settlement production usage and capacity', () => {
@@ -58,6 +68,7 @@ describe('CityPanel production support', () => {
       <CityPanel
         gameMode="standard"
         site={town}
+        tile={terrainTile}
         canProduce={false}
         settlementCapacity={settlementCapacity}
         onTabChange={() => undefined}
@@ -77,6 +88,7 @@ describe('CityPanel production support', () => {
       kind: 'farm',
       position: { q: 2, r: 0 },
       ownerId: 'player',
+      foundedBy: 'player',
       level: 1,
       buildings: [],
     }
@@ -91,6 +103,7 @@ describe('CityPanel production support', () => {
       <CityPanel
         gameMode="standard"
         site={farm}
+        tile={terrainTile}
         canProduce={false}
         showProductionSupport
         productionSupport={productionSupport}
@@ -114,6 +127,7 @@ describe('CityPanel production support', () => {
       kind: 'farm',
       position: { q: 4, r: 0 },
       ownerId: 'player',
+      foundedBy: 'player',
       level: 1,
       buildings: [],
     }
@@ -122,6 +136,7 @@ describe('CityPanel production support', () => {
       <CityPanel
         gameMode="standard"
         site={farm}
+        tile={terrainTile}
         canProduce={false}
         showProductionSupport
         onTabChange={() => undefined}
@@ -132,5 +147,40 @@ describe('CityPanel production support', () => {
     expect(screen.getByText('지원 정착지').nextElementSibling).toHaveTextContent(
       '없음',
     )
+  })
+
+  it('shows a map-generated production site as exempt from the city limit', () => {
+    const capturedNeutralFarm: Site = {
+      id: 'captured-neutral-farm',
+      name: '중립 농장 1',
+      kind: 'farm',
+      position: { q: 2, r: 0 },
+      ownerId: 'player',
+      level: 1,
+      buildings: [],
+    }
+
+    render(
+      <CityPanel
+        gameMode="standard"
+        site={capturedNeutralFarm}
+        tile={terrainTile}
+        canProduce={false}
+        showProductionSupport
+        productionSupport={{
+          settlement: town,
+          distance: 2,
+          used: 2,
+          capacity: 2,
+        }}
+        onTabChange={() => undefined}
+        onClose={() => undefined}
+      />,
+    )
+
+    expect(screen.getByText('도시 제한').nextElementSibling).toHaveTextContent(
+      '제외',
+    )
+    expect(screen.queryByText('지원 정착지')).not.toBeInTheDocument()
   })
 })

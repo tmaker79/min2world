@@ -1440,10 +1440,12 @@ function GameApp({ initialState }: { initialState: GameState }) {
                 {sidebarContent.kind === 'site' && (
                   <CityPanel
                     site={sidebarContent.site}
+                    tile={tileIndex.get(positionKey(sidebarContent.site.position))!}
                     gameMode={state.gameMode}
                     activeTab={activeSiteTab}
                     showProductionSupport={
                       sidebarContent.site.ownerId === state.humanFactionId &&
+                      sidebarContent.site.foundedBy !== undefined &&
                       (sidebarContent.site.kind === 'farm' ||
                         sidebarContent.site.kind === 'mine' ||
                         sidebarContent.site.kind === 'blacksmith')
