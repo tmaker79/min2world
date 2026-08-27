@@ -81,7 +81,7 @@
 - City 전용 건물 7종과 도시당 하나의 건설 대기열
 - 곡창·시장 수입, 성벽 방어, 병영 생산비, 선술집·신전 회복, 도서관 개발비 효과
 - 규칙 기반 AI 턴(활성 세력 순회)
-- localStorage 저장과 불러오기(스키마 14, 스키마 6~13 연쇄 마이그레이션)
+- 모드별 localStorage 저장과 불러오기(스키마 16, 스키마 6~15 연쇄 마이그레이션)
 - 시작 화면·자동 무작위 지도·새 게임
 - 지도 휠 줌·드래그 팬·미니맵
 - 지형/유닛 사이드바 미리보기·고정 정보, 성·부대 정보창, 우클릭 이동
@@ -285,13 +285,15 @@ type Site = {
 }
 
 type GameState = {
-  schemaVersion: number // 14
+  schemaVersion: number // 16
+  gameMode: 'quick' | 'standard'
   mapSeed: string
   mapType: MapType
   mapGenerationVersion: number // 25
   boardSize: BoardSize
   factionCount: FactionCount
   humanFactionId: FactionId
+  difficulty: Difficulty
   factionOrder: FactionId[]
   turn: number
   phase: GamePhase
@@ -501,7 +503,7 @@ src/
 localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지만 사용자가 사이트 데이터를 삭제하거나 저장 공간이 제한되면 사라질 수 있다. 따라서 저장은 편의 기능으로 간주하며 영구 보관을 보장하지 않는다.
 
 - 저장 데이터에 `schemaVersion`, `mapSeed`, `mapType`, `mapGenerationVersion`, `boardSize`, `factionCount`, `humanFactionId`, `factionOrder`를 포함한다.
-- 현재 스키마는 14다.
+- 현재 스키마는 16이다.
 - 스키마 6은 `player`/`enemy`를 `f1`/`f2`로 바꾼 뒤 연쇄 마이그레이션한다.
 - 스키마 7은 기존 `city`(마을)를 `village`로, `village`(농장)를 `farm`으로 바꿔 불러온다.
 - 스키마 8 저장에 `mapType`이 없으면 기존 생성 방식인 `balanced`로 불러온다.
@@ -511,6 +513,8 @@ localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지
 - 스키마 11의 모든 거점은 빈 건물 목록과 건설 대기열 없음으로 채워 스키마 12로 불러온다.
 - 스키마 12 저장은 민간 유닛과 `foundedBy`를 허용하는 스키마 13으로 올리며 기존 거점의 `foundedBy`는 생략한다.
 - 스키마 13의 Town·City footprint와 타일 참조는 기준 위치 한 칸으로 정규화해 스키마 14로 불러온다.
+- 스키마 14 저장은 기존 플레이어 비용 면제 동작을 보존하도록 `easy` 난이도를 채워 스키마 15로 불러온다.
+- 스키마 15 저장은 기존 전체 규칙을 보존하도록 `standard` 게임 모드를 채워 스키마 16으로 불러온다.
 - 마이그레이션은 저장된 `mapGenerationVersion`을 바꾸지 않으며, 새 지도 생성 버전은 25를 사용한다.
 - 맵 생성 버전 5~23과 현재 버전 25의 저장 타일을 재생성하지 않고 지원한다.
 - JSON을 읽은 뒤 필요한 필드와 값의 범위를 검증한다.

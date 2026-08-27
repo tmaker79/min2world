@@ -14,6 +14,7 @@ import {
   deleteSavedGame,
   inspectSavedGame,
   loadGame,
+  QUICK_SAVE_STORAGE_KEY,
   SAVE_STORAGE_KEY,
   saveGame,
   type StorageLike,
@@ -82,6 +83,27 @@ function createSchema8State(seed: string): GameState {
 }
 
 describe('saved games', () => {
+  it('keeps quick saves separate without overwriting the legacy standard slot', () => {
+    const storage = new MemoryStorage()
+    const standard = createInitialGameState('standard-save-slot')
+    const quick = createInitialGameState('quick-save-slot', {
+      gameMode: 'quick',
+    })
+
+    expect(saveGame(standard, storage).ok).toBe(true)
+    const legacyValue = storage.getItem(SAVE_STORAGE_KEY)
+    expect(saveGame(quick, storage).ok).toBe(true)
+
+    expect(storage.getItem(SAVE_STORAGE_KEY)).toBe(legacyValue)
+    expect(storage.getItem(QUICK_SAVE_STORAGE_KEY)).not.toBeNull()
+    expect(inspectSavedGame(storage, 'quick')).toMatchObject({
+      ok: true,
+      value: { gameState: { gameMode: 'quick' } },
+    })
+    expect(deleteSavedGame(storage, 'quick').ok).toBe(true)
+    expect(storage.getItem(SAVE_STORAGE_KEY)).toBe(legacyValue)
+  })
+
   it('round-trips the seed, hex map, sites, and fractional movement', () => {
     const storage = new MemoryStorage()
     const state = createInitialGameState('save-roundtrip', {
@@ -210,8 +232,8 @@ describe('saved games', () => {
 
     expect(loaded.ok).toBe(true)
     if (loaded.ok) {
-      expect(loaded.value.schemaVersion).toBe(15)
-      expect(loaded.value.gameState.schemaVersion).toBe(15)
+      expect(loaded.value.schemaVersion).toBe(GAME_SCHEMA_VERSION)
+      expect(loaded.value.gameState.schemaVersion).toBe(GAME_SCHEMA_VERSION)
       expect(
         loaded.value.gameState.sites.every((site) => site.foundedBy === undefined),
       ).toBe(true)
@@ -230,8 +252,27 @@ describe('saved games', () => {
 
     expect(loaded.ok).toBe(true)
     if (loaded.ok) {
-      expect(loaded.value.schemaVersion).toBe(15)
+      expect(loaded.value.schemaVersion).toBe(GAME_SCHEMA_VERSION)
       expect(loaded.value.gameState.difficulty).toBe('easy')
+    }
+  })
+
+  it('migrates schema 15 saves to standard mode', () => {
+    const storage = new MemoryStorage()
+    const current = createInitialGameState('schema-15-mode')
+    const { gameMode: _gameMode, ...withoutGameMode } = current
+    void _gameMode
+    storeEnvelope(
+      storage,
+      { ...withoutGameMode, schemaVersion: 15 },
+      15,
+    )
+
+    const loaded = loadGame(storage)
+
+    expect(loaded.ok).toBe(true)
+    if (loaded.ok) {
+      expect(loaded.value.gameState.gameMode).toBe('standard')
     }
   })
 

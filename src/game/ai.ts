@@ -942,6 +942,7 @@ function chooseCivilianDecision(
 }
 
 export function getAiUnitCap(state: GameState, factionId: FactionId) {
+  if (state.gameMode === 'quick') return 8
   const sites = state.sites.filter((site) => site.ownerId === factionId)
   return (
     3 +
@@ -1271,7 +1272,12 @@ export function chooseAiDecision(
   )
   if (!selectedUnit) {
     const nextUnit = state.units
-      .filter((unit) => unit.factionId === factionId && !unit.hasActed)
+      .filter(
+        (unit) =>
+          unit.factionId === factionId &&
+          !unit.hasActed &&
+          (state.gameMode !== 'quick' || isMilitaryUnitType(unit.type)),
+      )
       .sort(compareIds)[0]
     if (nextUnit) {
       const target = isMilitaryUnitType(nextUnit.type)
@@ -1292,17 +1298,26 @@ export function chooseAiDecision(
               : 'tacticalMove',
       }
     }
-    const investment = chooseInvestment(state, factionId)
+    const investment = state.gameMode === 'quick'
+      ? undefined
+      : chooseInvestment(state, factionId)
     if (investment) return { action: investment, reason: 'investment' }
-    const production =
-      chooseBuilderProduction(state, factionId) ??
-      chooseSettlerProduction(state, factionId) ??
-      chooseMilitaryProduction(state, factionId)
+    const production = state.gameMode === 'quick'
+      ? chooseMilitaryProduction(state, factionId)
+      : chooseBuilderProduction(state, factionId) ??
+        chooseSettlerProduction(state, factionId) ??
+        chooseMilitaryProduction(state, factionId)
     if (production) return { action: production, reason: 'production' }
     return { action: { type: 'turnEnded' }, reason: 'endTurn' }
   }
 
   if (isCivilianUnitType(selectedUnit.type)) {
+    if (state.gameMode === 'quick') {
+      return {
+        action: { type: 'unitWaited', unitId: selectedUnit.id },
+        reason: 'tacticalMove',
+      }
+    }
     return chooseCivilianDecision(state, selectedUnit)
   }
 

@@ -33,6 +33,7 @@ import type {
   Difficulty,
   FactionCount,
   FactionId,
+  GameMode,
   GameState,
   MapType,
   Position,
@@ -63,6 +64,13 @@ export const STARTING_UNIT_TYPES: readonly UnitType[] = [
   'cavalry',
   'settler',
   'builder',
+]
+export const QUICK_STARTING_UNIT_TYPES: readonly UnitType[] = [
+  'infantry',
+  'infantry',
+  'cavalry',
+  'archer',
+  'spearman',
 ]
 const TINY_RIVER_COLUMN = 7
 const TINY_RIVER_CROSSING_ROWS = [3, 7] as const
@@ -691,14 +699,15 @@ export function validateGeneratedMap(state: GameState): string[] {
   }
 
   const unitPositionKeys = state.units.map((unit) => positionKey(unit.position))
+  const startingUnitTypes = getStartingUnitTypes(state.gameMode)
   const startingUnitsAreValid = factionIds.every((factionId) => {
     const units = state.units.filter((unit) => unit.factionId === factionId)
     return (
-      units.length === STARTING_UNIT_TYPES.length &&
-      STARTING_UNIT_TYPES.every(
+      units.length === startingUnitTypes.length &&
+      startingUnitTypes.every(
         (type) =>
           units.filter((unit) => unit.type === type).length ===
-          STARTING_UNIT_TYPES.filter((candidate) => candidate === type).length,
+          startingUnitTypes.filter((candidate) => candidate === type).length,
       )
     )
   })
@@ -859,6 +868,7 @@ function createUnits(
   tiles: Tile[],
   factionCount: FactionCount,
   reservedKeys: ReadonlySet<string>,
+  startingUnitTypes: readonly UnitType[],
 ): Unit[] {
   const passable = getPassableKeys(tiles)
   const names: Partial<Record<FactionId, readonly string[]>> = {
@@ -867,6 +877,13 @@ function createUnits(
     f3: ['금빛 보병대', '사자 보병대', '태양 기병대', '황금 개척자', '황금 건설자'],
     f4: ['보랏빛 보병대', '까마귀 보병대', '황혼 기병대', '자색 개척자', '자색 건설자'],
   }
+  const quickNames: Partial<Record<FactionId, readonly string[]>> = {
+    f1: ['청룡 보병대', '백호 보병대', '바람 기병대', '청색 궁병대', '청색 창병대'],
+    f2: ['적월 보병대', '철창 보병대', '흑염 기병대', '적색 궁병대', '적색 창병대'],
+    f3: ['금빛 보병대', '사자 보병대', '태양 기병대', '황금 궁병대', '황금 창병대'],
+    f4: ['보랏빛 보병대', '까마귀 보병대', '황혼 기병대', '자색 궁병대', '자색 창병대'],
+  }
+  const usesQuickUnits = startingUnitTypes === QUICK_STARTING_UNIT_TYPES
 
   return getFactionIds(factionCount).flatMap((factionId) => {
     const cityKeys = new Set(
@@ -887,11 +904,13 @@ function createUnits(
             getHexDistance(right, capitals[factionId]) ||
           comparePositions(left, right),
       )
-      .slice(0, STARTING_UNIT_TYPES.length)
-    if (positions.length !== STARTING_UNIT_TYPES.length) return []
-    return STARTING_UNIT_TYPES.map((type, index) => ({
+      .slice(0, startingUnitTypes.length)
+    if (positions.length !== startingUnitTypes.length) return []
+    return startingUnitTypes.map((type, index) => ({
       id: `${factionId}-${type}-${index + 1}`,
-      name: names[factionId]?.[index] ?? `${factionId} 부대 ${index + 1}`,
+      name:
+        (usesQuickUnits ? quickNames[factionId]?.[index] : names[factionId]?.[index]) ??
+        `${factionId} 부대 ${index + 1}`,
       factionId,
       type,
       position: { ...positions[index] },
@@ -966,6 +985,11 @@ export type MapGenerationOptions = {
   humanFactionId?: FactionId
   mapType?: MapType
   difficulty?: Difficulty
+  gameMode?: GameMode
+}
+
+function getStartingUnitTypes(gameMode: GameMode): readonly UnitType[] {
+  return gameMode === 'quick' ? QUICK_STARTING_UNIT_TYPES : STARTING_UNIT_TYPES
 }
 
 function toLegacyTwoFactionState(state: GameState): GameState {
@@ -1001,6 +1025,7 @@ function buildCandidate(
   humanFactionId: FactionId,
   mapType: MapType,
   difficulty: Difficulty,
+  gameMode: GameMode,
   fallback = false,
 ): GameState | undefined {
   const random = createRandom(
@@ -1123,6 +1148,7 @@ function buildCandidate(
 
   const state: GameState = {
     schemaVersion: GAME_SCHEMA_VERSION,
+    gameMode,
     mapSeed: seed,
     mapType,
     mapGenerationVersion: MAP_GENERATION_VERSION,
@@ -1149,6 +1175,7 @@ function buildCandidate(
       tiles,
       factionCount,
       placementExcludedKeys,
+      getStartingUnitTypes(gameMode),
     ),
     sites,
   }
@@ -1172,6 +1199,7 @@ export function generateGameState(
   const factionCount: FactionCount = isTinyBoard ? 2 : requestedFactionCount
   const humanFactionId = options.humanFactionId ?? 'f1'
   const difficulty = options.difficulty ?? DEFAULT_DIFFICULTY
+  const gameMode = options.gameMode ?? 'standard'
   if (!getFactionIds(factionCount).includes(humanFactionId)) {
     throw new Error('Human faction must be active.')
   }
@@ -1185,6 +1213,7 @@ export function generateGameState(
       humanFactionId,
       mapType,
       difficulty,
+      gameMode,
     )
     if (state) return useLegacyIds ? toLegacyTwoFactionState(state) : state
   }
@@ -1197,6 +1226,7 @@ export function generateGameState(
     humanFactionId,
     mapType,
     difficulty,
+    gameMode,
     true,
   )
   if (!fallback) throw new Error('Unable to generate a valid map.')

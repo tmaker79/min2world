@@ -69,7 +69,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       action.factionCount === undefined &&
       action.humanFactionId === undefined &&
       action.mapType === undefined &&
-      action.difficulty === undefined
+      action.difficulty === undefined &&
+      action.gameMode === undefined
     ) {
       return createInitialGameState(action.seed)
     }
@@ -79,14 +80,28 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       humanFactionId: action.humanFactionId ?? state.humanFactionId,
       mapType: action.mapType ?? state.mapType,
       difficulty: action.difficulty ?? state.difficulty,
+      gameMode: action.gameMode ?? state.gameMode,
     })
   }
 
   if (action.type === 'gameLoaded') {
+    if (action.state.gameMode !== state.gameMode) return state
     return cloneGameState(action.state, true)
   }
 
   if (state.phase !== 'playing') {
+    return state
+  }
+
+  if (
+    state.gameMode === 'quick' &&
+    (action.type === 'siteSettled' ||
+      action.type === 'siteConstructed' ||
+      action.type === 'siteDeveloped' ||
+      action.type === 'constructionStarted' ||
+      action.type === 'constructionCancelled' ||
+      (action.type === 'unitProduced' && isCivilianUnitType(action.unitType)))
+  ) {
     return state
   }
 

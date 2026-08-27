@@ -10,6 +10,7 @@ type SavePanelProps = {
   canSave: boolean
   canLoad: boolean
   canDelete: boolean
+  hasBlockedLegacySave?: boolean
   feedback?: SaveFeedback
   onSave: () => void
   onLoad: () => void
@@ -28,6 +29,7 @@ export function SavePanel({
   canSave,
   canLoad,
   canDelete,
+  hasBlockedLegacySave = false,
   feedback,
   onSave,
   onLoad,
@@ -79,6 +81,11 @@ export function SavePanel({
       {(feedback?.type === 'error' || slotError) && (
         <p className="save-card__message save-card__message--error" role="alert">
           {feedback?.type === 'error' ? feedback.message : slotError}
+        </p>
+      )}
+      {hasBlockedLegacySave && (
+        <p className="save-card__message" role="status">
+          기존 전체모드 저장은 보존되어 있지만 빠른대전에서는 불러올 수 없습니다.
         </p>
       )}
     </section>

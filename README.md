@@ -18,12 +18,16 @@ npm run dev
 
 개발 서버가 출력한 로컬 주소를 브라우저에서 엽니다.
 
+- `?mode=quick`: 2인용 빠른대전 즉시 시작
+- `?mode=standard`: 시작 설정 화면과 전체 기능
+
 ## 검증
 
 ```bash
 npm test
 npm run lint
 npm run build
+npm run verify
 ```
 
 테스트를 수정하면서 계속 실행하려면 `npm run test:watch`를 사용합니다.
@@ -38,6 +42,8 @@ npm run deploy
 ```
 
 두 명령 모두 프로덕션 빌드를 먼저 만들며, 각각 새 버전 업로드와 실제 배포를 수행합니다.
+
+하나의 Worker가 `min2world.dev`의 빠른대전과 `beta.min2world.dev`의 전체모드를 함께 제공합니다. Cloudflare Builds는 GitHub 저장소와 연결해 production branch를 `main`, build command를 `npm run verify`, deploy command를 `npx wrangler deploy`, non-production deploy command를 `npx wrangler versions upload`로 설정합니다.
 
 ## 맵 크기
 
@@ -98,8 +104,8 @@ Farm·Mine·Blacksmith는 통행 가능한 육지 그래프 거리 3 이내에�
 
 ## 저장 데이터
 
-- 게임은 현재 컴퓨터와 브라우저의 `localStorage`에 단일 슬롯으로 저장됩니다.
-- 현재 스키마는 14입니다. 스키마 6의 세력 ID부터 스키마 11의 건물 필드 추가, 스키마 12의 거점 창건 정보 호환, 스키마 13의 다중 Town·City footprint 정규화까지 연쇄 마이그레이션해 불러옵니다. 스키마 8 저장에 `mapType`이 없으면 `balanced`로 처리하고, 스키마 9 군사 거점은 종류별 최대 HP로 채웁니다. 마이그레이션 중 기존 맵 생성 버전은 유지하며 새 지도는 버전 25를 사용합니다. 지도 생성 버전 5~23과 현재 버전 25를 지원하고, 사각 지도 기반 스키마 4·5는 불러오지 않습니다.
+- 게임은 현재 컴퓨터와 브라우저의 `localStorage`에 모드별 단일 슬롯으로 저장됩니다. 빠른대전은 기존 전체모드 저장을 덮어쓰지 않습니다.
+- 현재 스키마는 16입니다. 스키마 6부터 연쇄 마이그레이션하며 스키마 14에는 난이도, 스키마 15에는 `standard` 게임 모드를 채웁니다. 스키마 8 저장에 `mapType`이 없으면 `balanced`로 처리하고, 스키마 9 군사 거점은 종류별 최대 HP로 채웁니다. 마이그레이션 중 기존 맵 생성 버전은 유지하며 새 지도는 버전 25를 사용합니다. 지도 생성 버전 5~23과 현재 버전 25를 지원하고, 사각 지도 기반 스키마 4·5는 불러오지 않습니다.
 - 수입·유지비·순수입·예약액은 현재 거점·건물·유닛에서 계산하는 파생 정보이므로 별도 저장하지 않습니다.
 - 플레이어 턴에서만 저장할 수 있으며 AI 행동이나 전투 중에는 저장·불러오기가 잠깁니다.
 - 앱을 다시 열어도 저장은 자동 적용되지 않으며 `불러오기`를 직접 선택해야 합니다.

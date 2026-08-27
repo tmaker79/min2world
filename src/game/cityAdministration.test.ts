@@ -15,6 +15,7 @@ import {
 } from './rules'
 import { canDevelopSite } from './siteDevelopment'
 import { getFactionUpkeepReserve } from './upkeep'
+import { GAME_SCHEMA_VERSION } from './types'
 import type { GameState, Site, Unit } from './types'
 
 function ownedCity(state: GameState): Site {
@@ -44,7 +45,7 @@ function withPaidActiveFaction(state: GameState): GameState {
 describe('city administration', () => {
   it('initializes every site without buildings or a construction queue', () => {
     const state = createInitialGameState('building-initial')
-    expect(state.schemaVersion).toBe(15)
+    expect(state.schemaVersion).toBe(GAME_SCHEMA_VERSION)
     expect(state.sites.every((site) => site.buildings.length === 0)).toBe(true)
     expect(
       state.sites.every((site) => site.constructionQueue === undefined),

@@ -216,6 +216,10 @@ function migrateToV15(gameState: SaveRecord): StorageResult<SaveRecord> {
   return success({ ...gameState, difficulty: 'easy' })
 }
 
+function migrateToV16(gameState: SaveRecord): StorageResult<SaveRecord> {
+  return success({ ...gameState, gameMode: 'standard' })
+}
+
 const MIGRATION_STEPS: readonly MigrationStep[] = [
   { from: 6, migrate: migrateToV7 },
   { from: 7, migrate: migrateToV8 },
@@ -226,6 +230,7 @@ const MIGRATION_STEPS: readonly MigrationStep[] = [
   { from: 12, migrate: migrateToV13 },
   { from: 13, migrate: migrateToV14 },
   { from: 14, migrate: migrateToV15 },
+  { from: 15, migrate: migrateToV16 },
 ]
 
 // 적용 가능한 단계를 순서대로 통과시킨다. 버전이 맞지 않거나 gameState가

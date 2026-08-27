@@ -57,7 +57,45 @@ function mockViewport(width: number, height = 800) {
 describe('Milestone 07 UI', () => {
   beforeEach(() => {
     localStorage.clear()
+    window.history.replaceState({}, '', '/?mode=standard')
     vi.restoreAllMocks()
+  })
+
+  it('starts a quick match immediately when requested by the runtime mode', () => {
+    window.history.replaceState({}, '', '/?mode=quick')
+    render(<App />)
+
+    expect(screen.getByTestId('game-map')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('combobox', { name: '지도 크기 선택' }),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText('민간 유닛')).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: '발전' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: '건설' })).not.toBeInTheDocument()
+  })
+
+  it('offers only military production and no management tabs in quick mode', () => {
+    const state = createInitialGameState('quick-ui-controls', {
+      gameMode: 'quick',
+      humanFactionId: 'f1',
+    })
+    const city = state.sites.find(
+      (site) => site.ownerId === state.humanFactionId && site.kind === 'city',
+    )!
+    const { container } = renderApp(state)
+
+    fireEvent.click(
+      container.querySelector<HTMLButtonElement>(
+        `.map-tile[data-coordinate="${positionKey(city.position)}"]`,
+      )!,
+    )
+
+    expect(screen.getByRole('tab', { name: '생산' })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: '발전' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: '건설' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: '생산' }))
+    expect(screen.queryByText('민간 유닛')).not.toBeInTheDocument()
+    expect(container.querySelectorAll('.production-option')).toHaveLength(4)
   })
 
   it('starts an available two-faction map with the selected size and side', async () => {

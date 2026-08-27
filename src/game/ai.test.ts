@@ -55,6 +55,32 @@ function enemyIncomeSite(state: GameState): Site {
 }
 
 describe('hex-map AI', () => {
+  it('uses the quick cap and chooses military production without investing', () => {
+    const initial = createInitialGameState('quick-ai-production', {
+      gameMode: 'quick',
+      humanFactionId: 'f1',
+    })
+    const state: GameState = {
+      ...initial,
+      activeFactionId: 'f2',
+      resources: { ...initial.resources, f2: 100 },
+      units: initial.units.map((unit) =>
+        unit.factionId === 'f2'
+          ? { ...unit, hasActed: true, movementRemaining: 0 }
+          : unit,
+      ),
+    }
+
+    expect(getAiUnitCap(state, 'f2')).toBe(8)
+    const action = chooseAiAction(state, 'f2')
+    expect(action?.type).toBe('unitProduced')
+    if (action?.type === 'unitProduced') {
+      expect(['infantry', 'cavalry', 'archer', 'spearman']).toContain(
+        action.unitType,
+      )
+    }
+  })
+
   it('does nothing outside the enemy playing phase', () => {
     expect(chooseAiAction(createInitialGameState('ai-player'))).toBeUndefined()
     expect(chooseAiAction({ ...enemyTurn(), phase: 'victory' })).toBeUndefined()

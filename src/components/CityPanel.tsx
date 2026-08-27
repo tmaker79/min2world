@@ -9,7 +9,7 @@ import type {
   ProductionSupport,
   SettlementProductionCapacity,
 } from '../game/settlement'
-import type { Site } from '../game/types'
+import type { GameMode, Site } from '../game/types'
 import type { ReactNode } from 'react'
 import { SiteIcon } from './SiteIcon'
 
@@ -17,6 +17,7 @@ export type CityPanelTab = 'production' | 'development' | 'construction'
 
 type CityPanelProps = {
   site: Site
+  gameMode: GameMode
   activeTab?: CityPanelTab
   canProduce: boolean
   showProductionSupport?: boolean
@@ -29,6 +30,7 @@ type CityPanelProps = {
 
 export function CityPanel({
   site,
+  gameMode,
   activeTab,
   canProduce,
   showProductionSupport = false,
@@ -74,7 +76,7 @@ export function CityPanel({
             <dt>소유</dt>
             <dd>{site.ownerId === 'neutral' ? '중립' : site.ownerId}</dd>
           </div>
-          {site.kind === 'city' && (
+          {gameMode === 'standard' && site.kind === 'city' && (
             <div>
               <dt>건물</dt>
               <dd>{site.buildings.length} / 7</dd>
@@ -132,17 +134,19 @@ export function CityPanel({
             생산
           </button>
         )}
-        <button
-          id="site-tab-development"
-          type="button"
-          role="tab"
-          aria-controls="site-panel-development"
-          aria-selected={activeTab === 'development'}
-          onClick={() => onTabChange('development')}
-        >
-          발전
-        </button>
-        {site.kind === 'city' && (
+        {gameMode === 'standard' && (
+          <button
+            id="site-tab-development"
+            type="button"
+            role="tab"
+            aria-controls="site-panel-development"
+            aria-selected={activeTab === 'development'}
+            onClick={() => onTabChange('development')}
+          >
+            발전
+          </button>
+        )}
+        {gameMode === 'standard' && site.kind === 'city' && (
           <button
             id="site-tab-construction"
             type="button"

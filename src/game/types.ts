@@ -14,7 +14,9 @@ export type Terrain =
 
 export type MapType = 'balanced' | 'plains' | 'mountainous' | 'forested'
 
-export const GAME_SCHEMA_VERSION = 15
+export type GameMode = 'quick' | 'standard'
+
+export const GAME_SCHEMA_VERSION = 16
 export type Difficulty = 'easy' | 'normal'
 export const DEFAULT_DIFFICULTY: Difficulty = 'normal'
 export const MAP_GENERATION_VERSION = 25
@@ -144,6 +146,7 @@ export type Site = {
 
 export type GameState = {
   schemaVersion: number
+  gameMode: GameMode
   mapSeed: string
   mapType: MapType
   mapGenerationVersion: number
@@ -195,4 +198,5 @@ export type GameAction =
       humanFactionId?: FactionId
       mapType?: MapType
       difficulty?: Difficulty
+      gameMode?: GameMode
     }

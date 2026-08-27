@@ -45,6 +45,7 @@ import type {
   Difficulty,
   FactionCount,
   FactionId,
+  GameMode,
   GameState,
   MapType,
   Position,
@@ -58,6 +59,7 @@ import type {
 } from '../game/types'
 
 export const SAVE_STORAGE_KEY = 'min2world:save'
+export const QUICK_SAVE_STORAGE_KEY = 'min2world:quick:save'
 
 export type SavedGame = {
   schemaVersion: number
@@ -88,9 +90,13 @@ const UNIT_TYPES = new Set<UnitType>(UNIT_TYPE_LIST)
 const SITE_TYPES = new Set<SiteType>(Object.keys(SITE_STATS) as SiteType[])
 const MAP_TYPES = new Set<MapType>(['balanced', 'plains', 'mountainous', 'forested'])
 const DIFFICULTIES = new Set<Difficulty>(['easy', 'normal'])
+const GAME_MODES = new Set<GameMode>(['quick', 'standard'])
 
 function isDifficulty(value: unknown): value is Difficulty {
   return typeof value === 'string' && DIFFICULTIES.has(value as Difficulty)
+}
+function isGameMode(value: unknown): value is GameMode {
+  return typeof value === 'string' && GAME_MODES.has(value as GameMode)
 }
 const BUILDINGS = new Set<BuildingId>(BUILDING_IDS)
 
@@ -335,12 +341,14 @@ function parseGameState(value: unknown): StorageResult<GameState> {
   const factionOrder = value.factionOrder
   const mapType = value.mapType ?? 'balanced'
   const difficulty = value.difficulty ?? 'easy'
+  const gameMode = value.gameMode
   if (
     value.schemaVersion !== GAME_SCHEMA_VERSION ||
     !isNonEmptyString(value.mapSeed, 64) ||
     typeof mapType !== 'string' ||
     !MAP_TYPES.has(mapType as MapType) ||
     !isDifficulty(difficulty) ||
+    !isGameMode(gameMode) ||
     typeof value.mapGenerationVersion !== 'number' ||
     !SUPPORTED_MAP_GENERATION_VERSIONS.includes(value.mapGenerationVersion) ||
     !isIntegerInRange(value.turn, 1) ||
@@ -411,6 +419,7 @@ function parseGameState(value: unknown): StorageResult<GameState> {
 
   const state: GameState = {
     schemaVersion: GAME_SCHEMA_VERSION,
+    gameMode,
     mapSeed: value.mapSeed.trim(),
     mapType: mapType as MapType,
     mapGenerationVersion: value.mapGenerationVersion,
@@ -497,12 +506,19 @@ function resolveStorage(storage?: StorageLike): StorageResult<StorageLike> {
   }
 }
 
-function readSavedGame(storage?: StorageLike): StorageResult<SavedGame> {
+function getSaveStorageKey(gameMode: GameMode) {
+  return gameMode === 'quick' ? QUICK_SAVE_STORAGE_KEY : SAVE_STORAGE_KEY
+}
+
+function readSavedGame(
+  storage?: StorageLike,
+  gameMode: GameMode = 'standard',
+): StorageResult<SavedGame> {
   const resolvedStorage = resolveStorage(storage)
   if (!resolvedStorage.ok) return resolvedStorage
   let serialized: string | null
   try {
-    serialized = resolvedStorage.value.getItem(SAVE_STORAGE_KEY)
+    serialized = resolvedStorage.value.getItem(getSaveStorageKey(gameMode))
   } catch {
     return failure('storageUnavailable', '저장 데이터를 읽을 수 없습니다.')
   }
@@ -536,6 +552,12 @@ function readSavedGame(storage?: StorageLike): StorageResult<SavedGame> {
   }
   const gameState = parseGameState(normalizedRecord.gameState)
   if (!gameState.ok) return gameState
+  if (gameState.value.gameMode !== gameMode) {
+    return failure(
+      'invalidData',
+      '다른 게임 모드의 저장은 불러올 수 없습니다.',
+    )
+  }
   return success({
     schemaVersion: GAME_SCHEMA_VERSION,
     savedAt: normalizedRecord.savedAt,
@@ -550,6 +572,7 @@ export function saveGame(
 ): StorageResult<SavedGame> {
   if (
     state.schemaVersion !== GAME_SCHEMA_VERSION ||
+    !GAME_MODES.has(state.gameMode) ||
     !SUPPORTED_MAP_GENERATION_VERSIONS.includes(state.mapGenerationVersion) ||
     state.phase !== 'playing' ||
     state.activeFactionId !== state.humanFactionId ||
@@ -565,26 +588,38 @@ export function saveGame(
     gameState: cloneGameState(state, true),
   }
   try {
-    resolvedStorage.value.setItem(SAVE_STORAGE_KEY, JSON.stringify(savedGame))
+    resolvedStorage.value.setItem(
+      getSaveStorageKey(state.gameMode),
+      JSON.stringify(savedGame),
+    )
   } catch {
     return failure('storageUnavailable', '게임을 저장할 수 없습니다.')
   }
   return success(savedGame)
 }
 
-export function loadGame(storage?: StorageLike): StorageResult<SavedGame> {
-  return readSavedGame(storage)
+export function loadGame(
+  storage?: StorageLike,
+  gameMode: GameMode = 'standard',
+): StorageResult<SavedGame> {
+  return readSavedGame(storage, gameMode)
 }
 
-export function inspectSavedGame(storage?: StorageLike): StorageResult<SavedGame> {
-  return readSavedGame(storage)
+export function inspectSavedGame(
+  storage?: StorageLike,
+  gameMode: GameMode = 'standard',
+): StorageResult<SavedGame> {
+  return readSavedGame(storage, gameMode)
 }
 
-export function deleteSavedGame(storage?: StorageLike): StorageResult<undefined> {
+export function deleteSavedGame(
+  storage?: StorageLike,
+  gameMode: GameMode = 'standard',
+): StorageResult<undefined> {
   const resolvedStorage = resolveStorage(storage)
   if (!resolvedStorage.ok) return resolvedStorage
   try {
-    resolvedStorage.value.removeItem(SAVE_STORAGE_KEY)
+    resolvedStorage.value.removeItem(getSaveStorageKey(gameMode))
   } catch {
     return failure('storageUnavailable', '저장 데이터를 삭제할 수 없습니다.')
   }

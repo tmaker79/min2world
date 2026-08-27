@@ -3,7 +3,7 @@ import { getHexNeighbors } from './hex'
 import { createInitialGameState } from './initialState'
 import { gameReducer } from './reducer'
 import { getDeployablePositions, getFactionIncome } from './rules'
-import type { GameState, Site, Unit } from './types'
+import type { GameAction, GameState, Site, Unit } from './types'
 import { getFactionUpkeep } from './upkeep'
 
 function select(state: GameState, unitId: string) {
@@ -11,6 +11,47 @@ function select(state: GameState, unitId: string) {
 }
 
 describe('gameReducer on a hex map', () => {
+  it('blocks all construction, development, and civilian production in quick mode', () => {
+    const state = createInitialGameState('quick-reducer', {
+      gameMode: 'quick',
+    })
+    const city = state.sites.find((site) => site.kind === 'city')!
+    const unit = state.units[0]
+    const actions: GameAction[] = [
+      { type: 'siteSettled', unitId: unit.id },
+      { type: 'siteConstructed', unitId: unit.id, siteKind: 'outpost' },
+      { type: 'siteDeveloped', siteId: city.id },
+      { type: 'constructionStarted', siteId: city.id, buildingId: 'market' },
+      { type: 'constructionCancelled', siteId: city.id },
+      {
+        type: 'unitProduced',
+        siteId: city.id,
+        unitType: 'builder',
+        destination: unit.position,
+      },
+    ]
+
+    for (const action of actions) {
+      expect(gameReducer(state, action)).toBe(state)
+    }
+  })
+
+  it('restarts a quick match with the same ruleset', () => {
+    const state = createInitialGameState('quick-before-restart', {
+      gameMode: 'quick',
+    })
+    const restarted = gameReducer(state, {
+      type: 'gameRestarted',
+      seed: 'quick-after-restart',
+      gameMode: state.gameMode,
+    })
+
+    expect(restarted.gameMode).toBe('quick')
+    expect(restarted.mapSeed).toBe('quick-after-restart')
+    expect(restarted.units.every((unit) => unit.type !== 'settler')).toBe(true)
+    expect(restarted.units.every((unit) => unit.type !== 'builder')).toBe(true)
+  })
+
   it('selects only the active faction and toggles selection', () => {
     const state = createInitialGameState('reducer-select')
     const player = state.units.find((unit) => unit.factionId === 'player')!

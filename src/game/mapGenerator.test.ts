@@ -4,6 +4,7 @@ import {
   createRandomMapSeed,
   generateGameState,
   normalizeMapSeed,
+  QUICK_STARTING_UNIT_TYPES,
   validateGeneratedMap,
 } from './mapGenerator'
 import { getSiteMaxHp, isFortifiedSiteKind } from './rules'
@@ -30,6 +31,29 @@ function getDisplayPositionKey(
 }
 
 describe('procedural map generation', () => {
+  it('creates a valid quick match with five military units per faction', () => {
+    const state = generateGameState('quick-generation', {
+      boardSize: BOARD_SIZE_PRESETS.tiny,
+      factionCount: 2,
+      humanFactionId: 'f1',
+      mapType: 'balanced',
+      difficulty: 'normal',
+      gameMode: 'quick',
+    })
+
+    expect(state.gameMode).toBe('quick')
+    expect(validateGeneratedMap(state)).toEqual([])
+    for (const factionId of state.factionOrder) {
+      expect(
+        state.units
+          .filter((unit) => unit.factionId === factionId)
+          .map((unit) => unit.type),
+      ).toEqual(QUICK_STARTING_UNIT_TYPES)
+    }
+    expect(state.units.some((unit) => unit.type === 'settler')).toBe(false)
+    expect(state.units.some((unit) => unit.type === 'builder')).toBe(false)
+  })
+
   it('reproduces an identical state from the same seed', () => {
     expect(generateGameState('same-seed')).toEqual(generateGameState('same-seed'))
   })

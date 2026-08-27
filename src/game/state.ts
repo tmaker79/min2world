@@ -6,6 +6,7 @@ export function cloneGameState(
 ): GameState {
   return {
     schemaVersion: state.schemaVersion,
+    gameMode: state.gameMode,
     mapSeed: state.mapSeed,
     mapType: state.mapType,
     mapGenerationVersion: state.mapGenerationVersion,

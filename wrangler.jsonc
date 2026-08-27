@@ -2,8 +2,20 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "min2world",
   "compatibility_date": "2026-08-13",
+  "workers_dev": false,
+  "preview_urls": true,
   "assets": {
     "directory": "./dist",
     "not_found_handling": "single-page-application"
-  }
+  },
+  "routes": [
+    {
+      "pattern": "min2world.dev",
+      "custom_domain": true
+    },
+    {
+      "pattern": "beta.min2world.dev",
+      "custom_domain": true
+    }
+  ]
 }

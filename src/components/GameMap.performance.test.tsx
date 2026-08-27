@@ -19,6 +19,7 @@ function createLargeRenderState(columns: number, rows: number): GameState {
 
   return {
     schemaVersion: GAME_SCHEMA_VERSION,
+    gameMode: 'standard',
     mapSeed: 'large-render',
     mapType: 'balanced',
     mapGenerationVersion: 5,

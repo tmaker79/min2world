@@ -17,6 +17,32 @@ const town: Site = {
 }
 
 describe('CityPanel production support', () => {
+  it('shows only production controls in quick mode', () => {
+    const city: Site = {
+      ...town,
+      id: 'city',
+      kind: 'city',
+      footprint: [{ q: 0, r: 0 }],
+      hp: 120,
+      maxHp: 120,
+    }
+
+    render(
+      <CityPanel
+        gameMode="quick"
+        site={city}
+        canProduce
+        onTabChange={() => undefined}
+        onClose={() => undefined}
+      />,
+    )
+
+    expect(screen.getByRole('tab', { name: '생산' })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: '발전' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: '건설' })).not.toBeInTheDocument()
+    expect(screen.queryByText('건물')).not.toBeInTheDocument()
+  })
+
   it('shows a settlement production usage and capacity', () => {
     const settlementCapacity: SettlementProductionCapacity = {
       settlement: town,
@@ -26,6 +52,7 @@ describe('CityPanel production support', () => {
 
     render(
       <CityPanel
+        gameMode="standard"
         site={town}
         canProduce={false}
         settlementCapacity={settlementCapacity}
@@ -58,6 +85,7 @@ describe('CityPanel production support', () => {
 
     render(
       <CityPanel
+        gameMode="standard"
         site={farm}
         canProduce={false}
         showProductionSupport
@@ -88,6 +116,7 @@ describe('CityPanel production support', () => {
 
     render(
       <CityPanel
+        gameMode="standard"
         site={farm}
         canProduce={false}
         showProductionSupport

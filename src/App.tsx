@@ -27,6 +27,8 @@ import { ProductionPanel } from './components/ProductionPanel'
 import { SavePanel } from './components/SavePanel'
 import { StatusBar } from './components/StatusBar'
 import { StartScreen } from './components/StartScreen'
+import { resolveGameMode } from './game/gameMode'
+import { BOARD_SIZE_PRESETS } from './game/hex'
 import { createInitialGameState } from './game/initialState'
 import {
   createRandomMapSeed,
@@ -135,7 +137,14 @@ function GameApp({ initialState }: { initialState: GameState }) {
     captured: boolean
   }>()
   const [siteAttackAnnouncement, setSiteAttackAnnouncement] = useState<string>()
-  const [saveSlot, setSaveSlot] = useState(() => inspectSavedGame())
+  const [saveSlot, setSaveSlot] = useState(() =>
+    inspectSavedGame(undefined, initialState.gameMode),
+  )
+  const [hasBlockedLegacySave] = useState(
+    () =>
+      initialState.gameMode === 'quick' &&
+      inspectSavedGame(undefined, 'standard').ok,
+  )
   const [saveFeedback, setSaveFeedback] = useState<{
     type: 'status' | 'error'
     message: string
@@ -575,6 +584,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     !activeSiteAttack
   const canLoad =
     saveSlot.ok &&
+    saveSlot.value.gameState.gameMode === state.gameMode &&
     !activeCombat &&
     !activeSiteAttack &&
     (state.phase !== 'playing' || state.activeFactionId === state.humanFactionId)
@@ -612,7 +622,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
       return
     }
 
-    const result = loadGame()
+    const result = loadGame(undefined, state.gameMode)
     updateSlotFromResult(result)
 
     if (!result.ok) {
@@ -651,13 +661,13 @@ function GameApp({ initialState }: { initialState: GameState }) {
       return
     }
 
-    const result = deleteSavedGame()
+    const result = deleteSavedGame(undefined, state.gameMode)
     if (!result.ok) {
       setSaveFeedback({ type: 'error', message: result.message })
       return
     }
 
-    setSaveSlot(inspectSavedGame())
+    setSaveSlot(inspectSavedGame(undefined, state.gameMode))
     setSaveFeedback({ type: 'status', message: '저장된 게임을 삭제했습니다.' })
   }
 
@@ -1054,6 +1064,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
             humanFactionId: state.humanFactionId,
             mapType: state.mapType,
             difficulty: state.difficulty,
+            gameMode: state.gameMode,
           },
     )
     return true
@@ -1075,6 +1086,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
             canSave={canSave}
             canLoad={canLoad}
             canDelete={canDelete}
+            hasBlockedLegacySave={hasBlockedLegacySave}
             feedback={saveFeedback}
             onSave={handleSave}
             onLoad={handleLoad}
@@ -1085,11 +1097,19 @@ function GameApp({ initialState }: { initialState: GameState }) {
           <section className="help-card" aria-labelledby="help-heading">
             <p className="eyebrow">HOW TO PLAY</p>
             <h2 id="help-heading">작전 지침</h2>
-            <ol>
-              <li>푸른 유닛을 선택해 금색 칸으로 이동하거나 붉은 적을 공격합니다.</li>
-              <li>아군 성을 선택해 생산하고, 상단 메뉴에서 재시작·저장을 엽니다.</li>
-              <li>모든 행동 후 턴을 종료합니다. 상세 규칙은 README를 참고하세요.</li>
-            </ol>
+            {state.gameMode === 'quick' ? (
+              <ol>
+                <li>푸른 군사 유닛을 이동해 적 부대와 수도를 공격합니다.</li>
+                <li>아군 도시에서 군사 유닛을 생산하고 중립 거점을 점령해 수입을 늘립니다.</li>
+                <li>모든 행동 후 턴을 종료합니다. 상대 수도를 점령하면 승리합니다.</li>
+              </ol>
+            ) : (
+              <ol>
+                <li>푸른 유닛을 선택해 금색 칸으로 이동하거나 붉은 적을 공격합니다.</li>
+                <li>아군 성을 선택해 생산하고, 상단 메뉴에서 재시작·저장을 엽니다.</li>
+                <li>모든 행동 후 턴을 종료합니다. 상세 규칙은 README를 참고하세요.</li>
+              </ol>
+            )}
             <Legend embedded />
           </section>
         }
@@ -1342,6 +1362,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
                 {sidebarContent.kind === 'site' && (
                   <CityPanel
                     site={sidebarContent.site}
+                    gameMode={state.gameMode}
                     activeTab={activeSiteTab}
                     showProductionSupport={
                       sidebarContent.site.ownerId === state.humanFactionId &&
@@ -1409,7 +1430,8 @@ function GameApp({ initialState }: { initialState: GameState }) {
                         }}
                       />
                     )}
-                    {activeSiteTab === 'development' && (
+                    {state.gameMode === 'standard' &&
+                      activeSiteTab === 'development' && (
                       <DevelopmentPanel
                         state={state}
                         site={sidebarContent.site}
@@ -1427,7 +1449,8 @@ function GameApp({ initialState }: { initialState: GameState }) {
                         }}
                       />
                     )}
-                    {activeSiteTab === 'construction' &&
+                    {state.gameMode === 'standard' &&
+                      activeSiteTab === 'construction' &&
                       sidebarContent.site.kind === 'city' && (
                         <ConstructionPanel
                           state={state}
@@ -1576,7 +1599,20 @@ function GameApp({ initialState }: { initialState: GameState }) {
 }
 
 function App({ initialState }: AppProps = {}) {
-  const [gameState, setGameState] = useState<GameState | undefined>(initialState)
+  const gameMode = resolveGameMode(window.location.hostname, window.location.search)
+  const [gameState, setGameState] = useState<GameState | undefined>(() =>
+    initialState ??
+    (gameMode === 'quick'
+      ? createInitialGameState(createRandomMapSeed(), {
+          boardSize: BOARD_SIZE_PRESETS.tiny,
+          factionCount: 2,
+          humanFactionId: 'f1',
+          mapType: 'balanced',
+          difficulty: 'normal',
+          gameMode: 'quick',
+        })
+      : undefined),
+  )
 
   if (!gameState) {
     return (
@@ -1589,6 +1625,7 @@ function App({ initialState }: AppProps = {}) {
               humanFactionId,
               mapType,
               difficulty,
+              gameMode: 'standard',
             }),
           )
         }}

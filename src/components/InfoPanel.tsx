@@ -91,7 +91,9 @@ export function InfoPanel({
   const stats = UNIT_STATS[unit.type]
   const civilian = isCivilianUnitType(unit.type)
   const upkeep = getUnitUpkeep(state, unit.factionId, unit.type)
-  const foundingCheck = foundingKind === 'village'
+  const foundingCheck = state.gameMode === 'quick'
+    ? undefined
+    : foundingKind === 'village'
     ? canSettle(state, unit.id)
     : foundingKind
       ? canConstruct(state, unit.id, foundingKind)
@@ -174,7 +176,7 @@ export function InfoPanel({
         >
           이동
         </button>
-        {unit.type === 'settler' && (
+        {state.gameMode === 'standard' && unit.type === 'settler' && (
           <button
             type="button"
             aria-pressed={foundingKind === 'village'}
@@ -193,7 +195,7 @@ export function InfoPanel({
         </button>
       </div>
 
-      {unit.type === 'builder' && !foundingKind && (
+      {state.gameMode === 'standard' && unit.type === 'builder' && !foundingKind && (
         <section className="civilian-action-card" aria-label="거점 종류 선택">
           <h3>건설할 거점</h3>
           <div className="civilian-action-card__options">
@@ -213,7 +215,7 @@ export function InfoPanel({
         </section>
       )}
 
-      {foundingKind && (
+      {state.gameMode === 'standard' && foundingKind && (
         <section className="civilian-action-card" aria-label="정착 및 건설 확인">
           <h3>{SITE_TYPE_LABELS[foundingKind]} 건설</h3>
           <p>

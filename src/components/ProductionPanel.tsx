@@ -46,7 +46,7 @@ export function ProductionPanel({
   const unavailable =
     disabled || !site || site.lastProducedTurn === turn || deployableCount === 0
   const unlockedTypes = site ? getProducibleUnitTypes(site) : []
-  const groups = site?.kind === 'city'
+  const groups = site?.kind === 'city' && state.gameMode === 'standard'
     ? [
         { label: '군사 유닛', types: MILITARY_UNIT_TYPES },
         { label: '민간 유닛', types: CIVILIAN_UNIT_TYPES },
