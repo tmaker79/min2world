@@ -162,6 +162,15 @@ export const TERRAIN_MOVEMENT_COST: Record<Terrain, number | null> = {
   tundraMountain: null,
 }
 
+export function isTerrainPassable(terrain: Terrain): boolean {
+  return TERRAIN_MOVEMENT_COST[terrain] !== null
+}
+
+// 거점이 설 수 있는 땅. 다리는 통행만 가능하고 건설·footprint 대상은 아니다.
+export function isBuildableTerrain(terrain: Terrain): boolean {
+  return terrain !== 'bridge' && isTerrainPassable(terrain)
+}
+
 export const TERRAIN_COMBAT_BONUS: Record<Terrain, number> = {
   plain: 0,
   bridge: 0,

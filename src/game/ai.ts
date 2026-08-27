@@ -211,7 +211,6 @@ function getSiteApproachPositions(state: GameState, target: Site, unit: Unit) {
 
 type PathSearch = {
   costs: Map<string, number>
-  previous: Map<string, Position>
 }
 
 function getWeightedPathSearch(state: GameState, unit: Unit, start: Position): PathSearch {
@@ -230,7 +229,6 @@ function getWeightedPathSearch(state: GameState, unit: Unit, start: Position): P
       .map(positionKey),
   )
   const costs = new Map<string, number>([[positionKey(start), 0]])
-  const previous = new Map<string, Position>()
   const frontier = new MinPriorityQueue<{ position: Position; cost: number }>(
     (left, right) =>
       left.cost - right.cost || comparePositions(left.position, right.position),
@@ -256,11 +254,10 @@ function getWeightedPathSearch(state: GameState, unit: Unit, start: Position): P
       const nextCost = current.cost + movementCost
       if (nextCost >= (costs.get(neighborKey) ?? Infinity)) continue
       costs.set(neighborKey, nextCost)
-      previous.set(neighborKey, current.position)
       frontier.push({ position: neighbor, cost: nextCost })
     }
   }
-  return { costs, previous }
+  return { costs }
 }
 
 function getReverseTerrainCosts(

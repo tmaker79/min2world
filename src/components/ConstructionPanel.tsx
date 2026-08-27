@@ -7,7 +7,10 @@ import {
   getBuildingConstructionCost,
 } from '../game/cityAdministration'
 import type { BuildingId, GameState, Site } from '../game/types'
-import { getFactionUpkeepReserve } from '../game/upkeep'
+import {
+  formatUpkeepReserveMessage,
+  getFactionUpkeepReserve,
+} from '../game/upkeep'
 
 type ConstructionPanelProps = {
   state: GameState
@@ -36,7 +39,9 @@ function getBlockedReason(
     case 'insufficientResources':
       return '자원 부족'
     case 'insufficientUpkeepReserve':
-      return `다음 유지비 ${getFactionUpkeepReserve(state, state.humanFactionId)} 자원을 남겨야 합니다.`
+      return formatUpkeepReserveMessage(
+        getFactionUpkeepReserve(state, state.humanFactionId),
+      )
     case 'notOwned':
       return '비소유 도시'
     case 'inactiveFaction':

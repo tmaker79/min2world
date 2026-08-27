@@ -45,6 +45,10 @@ export function getFactionUpkeepReserve(
   return Math.max(0, -getFactionNetIncome(state, factionId))
 }
 
+export function formatUpkeepReserveMessage(reserve: number): string {
+  return `다음 유지비 ${reserve} 자원을 남겨야 합니다.`
+}
+
 export type EconomyProjection = {
   incomeDelta?: number
   upkeepDelta?: number

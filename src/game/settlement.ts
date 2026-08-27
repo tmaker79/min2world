@@ -4,9 +4,10 @@ import {
   getSiteAt,
   getSiteMaxHp,
   getTileAt,
+  isBuildableTerrain,
   isMilitarySiteKind,
+  isTerrainPassable,
   SITE_TYPE_LABELS,
-  TERRAIN_MOVEMENT_COST,
 } from './rules'
 import { getSiteOccupiedPositions } from './siteFootprint'
 import {
@@ -51,11 +52,6 @@ export function getSiteConstructionCost(
   )
 }
 
-const IMPASSABLE_TERRAINS = new Set<Terrain>([
-  'water',
-  'mountain',
-  'tundraMountain',
-])
 const MOUNTAIN_TERRAINS = new Set<Terrain>(['mountain', 'tundraMountain'])
 const HILL_TERRAINS = new Set<Terrain>(['hill', 'desertHill'])
 const CONSTRUCTION_ANCHORS = new Set([
@@ -97,14 +93,6 @@ export type SettlementProductionCapacity = {
 
 export type ProductionSupport = SettlementProductionCapacity & {
   distance: number
-}
-
-function isBuildableLand(terrain: Terrain) {
-  return terrain !== 'bridge' && !IMPASSABLE_TERRAINS.has(terrain)
-}
-
-function isConnectionTerrain(terrain: Terrain) {
-  return TERRAIN_MOVEMENT_COST[terrain] !== null
 }
 
 function isProductionSite(site: Site) {
@@ -172,7 +160,7 @@ export function createProductionSupportIndex(
         const neighborKey = positionKey(neighbor)
         if (visited.has(neighborKey)) continue
         const tile = tilesByKey.get(neighborKey)
-        if (!tile || !isConnectionTerrain(tile.terrain)) continue
+        if (!tile || !isTerrainPassable(tile.terrain)) continue
         visited.add(neighborKey)
         frontier.push({
           position: neighbor,
@@ -248,7 +236,7 @@ function isFarEnoughFromSites(
 
 function isMineTerrain(state: GameState, position: Position, terrain: Terrain) {
   if (HILL_TERRAINS.has(terrain)) return true
-  if (!isBuildableLand(terrain)) return false
+  if (!isBuildableTerrain(terrain)) return false
   return getHexNeighbors(position, state.boardSize).some((neighbor) => {
     const tile = getTileAt(state, neighbor)
     return Boolean(tile && MOUNTAIN_TERRAINS.has(tile.terrain))
@@ -284,7 +272,7 @@ export function getOwnedAnchorGraphDistance(
       const key = positionKey(neighbor)
       if (visited.has(key)) continue
       const tile = tilesByKey.get(key)
-      if (!tile || !isConnectionTerrain(tile.terrain)) continue
+      if (!tile || !isTerrainPassable(tile.terrain)) continue
       visited.add(key)
       frontier.push({ position: neighbor, distance: current.distance + 1 })
     }
@@ -314,7 +302,7 @@ export function canSettleAt(
 ): SitePlacementCheck {
   const tile = getTileAt(state, position)
   if (!tile) return { ok: false, reason: 'tileNotFound' }
-  if (!isBuildableLand(tile.terrain)) {
+  if (!isBuildableTerrain(tile.terrain)) {
     return { ok: false, reason: 'invalidTerrain' }
   }
   if (getSiteAt(state, position)) return { ok: false, reason: 'siteOccupied' }
@@ -343,7 +331,7 @@ export function canConstructAt(
       ? tile.terrain === 'plain'
       : siteKind === 'mine'
         ? isMineTerrain(state, position, tile.terrain)
-        : isBuildableLand(tile.terrain)
+        : isBuildableTerrain(tile.terrain)
   if (!terrainAllowed) return { ok: false, reason: 'invalidTerrain' }
   if (getSiteAt(state, position)) return { ok: false, reason: 'siteOccupied' }
   if (

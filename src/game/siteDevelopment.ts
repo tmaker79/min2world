@@ -4,6 +4,7 @@ import { getFactionAdjustedCost } from './playerEconomy'
 import {
   getSiteMaxHp,
   getSiteIncome,
+  isBuildableTerrain,
   isFortifiedSiteKind,
 } from './rules'
 import { canSpendWithUpkeepReserve } from './upkeep'
@@ -37,17 +38,6 @@ type DevelopmentTarget = {
   kind: SiteType
   level?: 1 | 2 | 3
 }
-
-const PASSABLE_TERRAINS = new Set([
-  'plain',
-  'hill',
-  'forest',
-  'desert',
-  'desertHill',
-  'oasis',
-  'tundra',
-  'tundraForest',
-])
 
 export function getSiteDevelopmentTarget(
   site: Site,
@@ -120,7 +110,7 @@ function isFootprintAvailable(
     const tile = tilesByPosition.get(key)
     return Boolean(
       tile &&
-        PASSABLE_TERRAINS.has(tile.terrain) &&
+        isBuildableTerrain(tile.terrain) &&
         !otherSiteKeys.has(key) &&
         !unitKeys.has(key),
     )

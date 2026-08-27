@@ -9,7 +9,10 @@ import {
   SITE_TYPE_LABELS,
 } from '../game/rules'
 import type { GameState, Position, Site } from '../game/types'
-import { getProjectedUpkeepReserve } from '../game/upkeep'
+import {
+  formatUpkeepReserveMessage,
+  getProjectedUpkeepReserve,
+} from '../game/upkeep'
 
 type DevelopmentPanelProps = {
   state: GameState
@@ -78,7 +81,7 @@ export function DevelopmentPanel({
       check.reason === 'invalidFootprint'
         ? '발전에 필요한 공간 또는 유효한 footprint가 없습니다.'
         : check.reason === 'insufficientUpkeepReserve'
-          ? `다음 유지비 ${projectedReserve} 자원을 남겨야 합니다.`
+          ? formatUpkeepReserveMessage(projectedReserve)
         : '현재 이 거점을 발전할 수 없습니다.'
   }
 

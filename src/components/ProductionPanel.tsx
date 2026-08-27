@@ -10,6 +10,7 @@ import {
 import type { GameState, Site, UnitType } from '../game/types'
 import {
   canSpendWithUpkeepReserve,
+  formatUpkeepReserveMessage,
   getUnitUpkeep,
 } from '../game/upkeep'
 import { UnitIcon } from './UnitIcon'
@@ -111,7 +112,7 @@ export function ProductionPanel({
                             ? `${site.kind} 단계에서는 해금되지 않은 병종입니다.`
                             : !spending.ok &&
                                   spending.reason === 'insufficientUpkeepReserve'
-                                ? `다음 유지비 ${spending.reserve} 자원을 남겨야 합니다.`
+                                ? formatUpkeepReserveMessage(spending.reserve)
                                 : !spending.ok
                                   ? '자원이 부족합니다.'
                                   : isCivilianUnitType(unitType)
