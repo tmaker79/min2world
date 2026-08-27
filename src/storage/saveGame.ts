@@ -27,9 +27,18 @@ import {
 } from '../game/cityAdministration'
 import {
   GAME_SCHEMA_VERSION,
-  MAP_GENERATION_VERSION,
   SUPPORTED_MAP_GENERATION_VERSIONS,
 } from '../game/types'
+import { migrateSaveRecord } from './saveMigrations'
+import {
+  failure,
+  hasUniqueValues,
+  isIntegerInRange,
+  isNonEmptyString,
+  isRecord,
+  success,
+} from './storageResult'
+import type { StorageResult } from './storageResult'
 import type {
   BoardSize,
   BuildingId,
@@ -55,15 +64,7 @@ export type SavedGame = {
   gameState: GameState
 }
 
-export type StorageErrorCode =
-  | 'notFound'
-  | 'invalidData'
-  | 'unsupportedVersion'
-  | 'storageUnavailable'
-
-export type StorageResult<T> =
-  | { ok: true; value: T }
-  | { ok: false; code: StorageErrorCode; message: string }
+export type { StorageErrorCode, StorageResult } from './storageResult'
 
 export type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 
@@ -86,26 +87,6 @@ const UNIT_TYPES = new Set<UnitType>(UNIT_TYPE_LIST)
 const SITE_TYPES = new Set<SiteType>(Object.keys(SITE_STATS) as SiteType[])
 const MAP_TYPES = new Set<MapType>(['balanced', 'plains', 'mountainous', 'forested'])
 const BUILDINGS = new Set<BuildingId>(BUILDING_IDS)
-
-function success<T>(value: T): StorageResult<T> {
-  return { ok: true, value }
-}
-
-function failure(code: StorageErrorCode, message: string): StorageResult<never> {
-  return { ok: false, code, message }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function isNonEmptyString(value: unknown, maximum = Infinity): value is string {
-  return typeof value === 'string' && value.trim().length > 0 && value.trim().length <= maximum
-}
-
-function isIntegerInRange(value: unknown, minimum: number, maximum = Infinity): value is number {
-  return typeof value === 'number' && Number.isInteger(value) && value >= minimum && value <= maximum
-}
 
 function parsePosition(value: unknown, boardSize = DEFAULT_BOARD_SIZE): Position | undefined {
   if (
@@ -303,10 +284,6 @@ function parseSite(value: unknown, boardSize: BoardSize): Site | undefined {
       ? {}
       : { lastDevelopedTurn: value.lastDevelopedTurn as number }),
   }
-}
-
-function hasUniqueValues(values: string[]): boolean {
-  return new Set(values).size === values.length
 }
 
 function parseBoardSize(value: unknown): BoardSize | undefined {
@@ -531,261 +508,9 @@ function readSavedGame(storage?: StorageLike): StorageResult<SavedGame> {
   if (!isRecord(parsed) || !isIntegerInRange(parsed.schemaVersion, 1)) {
     return failure('invalidData', '저장 데이터 형식이 올바르지 않습니다.')
   }
-  const savedRecord = parsed as Record<string, unknown>
-  if (savedRecord.schemaVersion === 6 && isRecord(savedRecord.gameState)) {
-    const legacyState = savedRecord.gameState
-    if (legacyState.mapGenerationVersion !== 4) {
-      return failure('invalidData', '저장된 지도 생성 버전이 올바르지 않습니다.')
-    }
-    const remapFaction = (value: unknown) =>
-      value === 'player' ? 'f1' : value === 'enemy' ? 'f2' : value
-    const remapEntity = (entity: unknown) => {
-      if (!isRecord(entity)) return entity
-      return {
-        ...entity,
-        factionId: remapFaction(entity.factionId),
-        ownerId: remapFaction(entity.ownerId),
-        capitalFor: remapFaction(entity.capitalFor),
-      }
-    }
-    parsed = {
-      ...savedRecord,
-      schemaVersion: 7,
-      gameState: {
-        ...legacyState,
-        schemaVersion: 7,
-        mapGenerationVersion: MAP_GENERATION_VERSION,
-        boardSize: { columns: 48, rows: 32 },
-        factionCount: 2,
-        humanFactionId: 'f1',
-        factionOrder: ['f1', 'f2'],
-        activeFactionId: remapFaction(legacyState.activeFactionId),
-        resources: {
-          f1: isRecord(legacyState.resources) ? legacyState.resources.player : undefined,
-          f2: isRecord(legacyState.resources) ? legacyState.resources.enemy : undefined,
-        },
-        units: Array.isArray(legacyState.units)
-          ? legacyState.units.map(remapEntity)
-          : legacyState.units,
-        sites: Array.isArray(legacyState.sites)
-          ? legacyState.sites.map(remapEntity)
-          : legacyState.sites,
-      },
-    }
-  }
-  const siteTypeRecord = parsed as Record<string, unknown>
-  if (siteTypeRecord.schemaVersion === 7 && isRecord(siteTypeRecord.gameState)) {
-    const legacyState = siteTypeRecord.gameState
-    const remapSiteType = (site: unknown) => {
-      if (!isRecord(site)) return site
-      return {
-        ...site,
-        kind: site.kind === 'city' ? 'village' : site.kind === 'village' ? 'farm' : site.kind,
-      }
-    }
-    parsed = {
-      ...siteTypeRecord,
-      schemaVersion: 8,
-      gameState: {
-        ...legacyState,
-        schemaVersion: 8,
-        sites: Array.isArray(legacyState.sites)
-          ? legacyState.sites.map(remapSiteType)
-          : legacyState.sites,
-      },
-    }
-  }
-  const developmentRecord = parsed as Record<string, unknown>
-  if (developmentRecord.schemaVersion === 8 && isRecord(developmentRecord.gameState)) {
-    const legacyState = developmentRecord.gameState
-    const migrateSite = (site: unknown) => {
-      if (!isRecord(site)) return site
-      const {
-        lastDevelopedTurn: _lastDevelopedTurn,
-        level: _level,
-        ...legacySite
-      } = site
-      void _lastDevelopedTurn
-      void _level
-      const requiresLevel = legacySite.kind === 'farm' || legacySite.kind === 'mine'
-      return {
-        ...legacySite,
-        ...(requiresLevel ? { level: 1 } : {}),
-      }
-    }
-    parsed = {
-      ...developmentRecord,
-      schemaVersion: 9,
-      gameState: {
-        ...legacyState,
-        schemaVersion: 9,
-        sites: Array.isArray(legacyState.sites)
-          ? legacyState.sites.map(migrateSite)
-          : legacyState.sites,
-      },
-    }
-  }
-  const siteCombatRecord = parsed as Record<string, unknown>
-  if (siteCombatRecord.schemaVersion === 9 && isRecord(siteCombatRecord.gameState)) {
-    const legacyState = siteCombatRecord.gameState
-    const legacyMaxHp: Record<string, number> = {
-      outpost: 50,
-      keep: 75,
-      stronghold: 100,
-      castle: 120,
-    }
-    const migrateSite = (site: unknown) => {
-      if (!isRecord(site) || typeof site.kind !== 'string') return site
-      const maxHp = legacyMaxHp[site.kind]
-      if (!maxHp) return site
-      return {
-        ...site,
-        hp: maxHp,
-        maxHp,
-      }
-    }
-    parsed = {
-      ...siteCombatRecord,
-      schemaVersion: 10,
-      gameState: {
-        ...legacyState,
-        schemaVersion: 10,
-        sites: Array.isArray(legacyState.sites)
-          ? legacyState.sites.map(migrateSite)
-          : legacyState.sites,
-      },
-    }
-  }
-  const settlementNamesRecord = parsed as Record<string, unknown>
-  if (
-    settlementNamesRecord.schemaVersion === 10 &&
-    isRecord(settlementNamesRecord.gameState)
-  ) {
-    const legacyState = settlementNamesRecord.gameState
-    const capitalNames: Record<string, string> = {
-      '청색 성': '청색 도시',
-      '적색 성': '적색 도시',
-      '황금 성': '황금 도시',
-      '자색 성': '자색 도시',
-    }
-    const migrateSite = (site: unknown) => {
-      if (!isRecord(site)) return site
-      return {
-        ...site,
-        kind:
-          site.kind === 'castle'
-            ? 'city'
-            : site.kind === 'city'
-              ? 'town'
-              : site.kind,
-        name:
-          site.kind === 'castle' && typeof site.name === 'string'
-            ? (capitalNames[site.name] ?? site.name)
-            : site.name,
-      }
-    }
-    parsed = {
-      ...settlementNamesRecord,
-      schemaVersion: 11,
-      gameState: {
-        ...legacyState,
-        schemaVersion: 11,
-        sites: Array.isArray(legacyState.sites)
-          ? legacyState.sites.map(migrateSite)
-          : legacyState.sites,
-      },
-    }
-  }
-  const buildingRecord = parsed as Record<string, unknown>
-  if (
-    buildingRecord.schemaVersion === 11 &&
-    isRecord(buildingRecord.gameState)
-  ) {
-    const legacyState = buildingRecord.gameState
-    const migrateSite = (site: unknown) =>
-      isRecord(site) ? { ...site, buildings: [] } : site
-    parsed = {
-      ...buildingRecord,
-      schemaVersion: 12,
-      gameState: {
-        ...legacyState,
-        schemaVersion: 12,
-        sites: Array.isArray(legacyState.sites)
-          ? legacyState.sites.map(migrateSite)
-          : legacyState.sites,
-      },
-    }
-  }
-  const settlementRecord = parsed as Record<string, unknown>
-  if (
-    settlementRecord.schemaVersion === 12 &&
-    isRecord(settlementRecord.gameState)
-  ) {
-    parsed = {
-      ...settlementRecord,
-      schemaVersion: 13,
-      gameState: {
-        ...settlementRecord.gameState,
-        schemaVersion: 13,
-      },
-    }
-  }
-  const singleTileSettlementRecord = parsed as Record<string, unknown>
-  if (
-    singleTileSettlementRecord.schemaVersion === 13 &&
-    isRecord(singleTileSettlementRecord.gameState)
-  ) {
-    const legacyState = singleTileSettlementRecord.gameState
-    const legacySites = Array.isArray(legacyState.sites)
-      ? legacyState.sites
-      : []
-    const settlementAnchors = new Map(
-      legacySites.flatMap((site) =>
-        isRecord(site) &&
-        (site.kind === 'town' || site.kind === 'city') &&
-        typeof site.id === 'string' &&
-        isRecord(site.position)
-          ? [[site.id, site.position] as const]
-          : [],
-      ),
-    )
-    const migrateSite = (site: unknown) =>
-      isRecord(site) && (site.kind === 'town' || site.kind === 'city')
-        ? { ...site, footprint: [site.position] }
-        : site
-    const migrateTile = (tile: unknown) => {
-      if (
-        !isRecord(tile) ||
-        typeof tile.siteId !== 'string' ||
-        !isRecord(tile.position)
-      ) {
-        return tile
-      }
-      const anchor = settlementAnchors.get(tile.siteId)
-      if (
-        !anchor ||
-        (tile.position.q === anchor.q && tile.position.r === anchor.r)
-      ) {
-        return tile
-      }
-      const { siteId: _siteId, ...withoutSiteId } = tile
-      void _siteId
-      return withoutSiteId
-    }
-    parsed = {
-      ...singleTileSettlementRecord,
-      schemaVersion: 14,
-      gameState: {
-        ...legacyState,
-        schemaVersion: 14,
-        sites: legacySites.map(migrateSite),
-        tiles: Array.isArray(legacyState.tiles)
-          ? legacyState.tiles.map(migrateTile)
-          : legacyState.tiles,
-      },
-    }
-  }
-  const normalizedRecord = parsed as Record<string, unknown>
+  const migrated = migrateSaveRecord(parsed)
+  if (!migrated.ok) return migrated
+  const normalizedRecord = migrated.value
   if (normalizedRecord.schemaVersion !== GAME_SCHEMA_VERSION) {
     return failure(
       'unsupportedVersion',
