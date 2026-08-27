@@ -1,3 +1,4 @@
+import { getFactionLabel } from '../game/factions'
 import {
   getSiteCombatStats,
   getSiteMaxHp,
@@ -19,19 +20,6 @@ type MapInfoPanelProps = {
   onClose?: () => void
 }
 
-function factionLabel(factionId: string): string {
-  const labels: Record<string, string> = {
-    player: '푸른 연맹',
-    enemy: '붉은 제국',
-    f1: '청색 연맹',
-    f2: '적색 제국',
-    f3: '황금 왕국',
-    f4: '자색 공국',
-    neutral: '중립',
-  }
-  return labels[factionId] ?? factionId
-}
-
 function movementCostLabel(tile: Tile) {
   const cost = TERRAIN_MOVEMENT_COST[tile.terrain]
   return cost === null ? '통과 불가' : String(cost)
@@ -47,9 +35,9 @@ export function MapInfoPanel({
 }: MapInfoPanelProps) {
   const title = unit?.name ?? site?.name ?? TERRAIN_LABELS[tile.terrain]
   const subtitle = unit
-    ? `${factionLabel(unit.factionId)} · ${UNIT_TYPE_LABELS[unit.type]}`
+    ? `${getFactionLabel(unit.factionId)} · ${UNIT_TYPE_LABELS[unit.type]}`
     : site
-      ? `${factionLabel(site.ownerId)} · ${SITE_TYPE_LABELS[site.kind]}`
+      ? `${getFactionLabel(site.ownerId)} · ${SITE_TYPE_LABELS[site.kind]}`
       : '지형'
   const siteStats = site ? getSiteCombatStats(site) : undefined
   const siteMaxHp = site ? getSiteMaxHp(site) : undefined
@@ -132,7 +120,7 @@ export function MapInfoPanel({
               {territoryOwner === 'contested'
                 ? '분쟁 지역'
                 : territoryOwner
-                  ? factionLabel(territoryOwner)
+                  ? getFactionLabel(territoryOwner)
                   : '미편입'}
             </dd>
           </div>

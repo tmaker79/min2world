@@ -14,6 +14,7 @@ import smithyLevel1Icon from '../assets/sites/smithy.png'
 import strongholdIcon from '../assets/sites/stronghold.png'
 import easternTownIcon from '../assets/sites/town-eastern-3tile-roofmatch.png'
 import easternVillageIcon from '../assets/sites/village-eastern.png'
+import { getFactionLabel } from '../game/factions'
 import {
   getHexDistance,
   getHexPixelPosition,
@@ -187,19 +188,6 @@ type TileButtonProps = {
   onPreviewTileChange?: (tileKey?: string) => void
 }
 
-function factionLabel(factionId: string): string {
-  const labels: Record<string, string> = {
-    player: '푸른 연맹',
-    enemy: '붉은 제국',
-    f1: '청색 연맹',
-    f2: '적색 제국',
-    f3: '황금 왕국',
-    f4: '자색 공국',
-    neutral: '중립',
-  }
-  return labels[factionId] ?? factionId
-}
-
 function getTileLabel(
   tile: Tile,
   unit?: Unit,
@@ -220,7 +208,7 @@ function getTileLabel(
     territoryOwner === 'contested'
       ? '영토 분쟁 지역'
       : territoryOwner
-        ? `${factionLabel(territoryOwner)} 영토`
+        ? `${getFactionLabel(territoryOwner)} 영토`
         : '미편입 지역',
   )
   if (inZoneOfControl) parts.push('적 통제 구역')
@@ -233,7 +221,7 @@ function getTileLabel(
   }
   if (site) {
     parts.push(
-      `${site.name}, ${factionLabel(site.ownerId)} ${SITE_TYPE_LABELS[site.kind]}`,
+      `${site.name}, ${getFactionLabel(site.ownerId)} ${SITE_TYPE_LABELS[site.kind]}`,
     )
     if (attackable) parts.push('공격 가능')
   }

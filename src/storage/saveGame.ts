@@ -18,6 +18,7 @@ import {
   SITE_STATS,
   TERRAIN_MOVEMENT_COST,
   UNIT_STATS,
+  UNIT_TYPES as UNIT_TYPE_LIST,
 } from '../game/rules'
 import {
   BUILDING_DEFINITIONS,
@@ -78,30 +79,11 @@ const SITE_OWNERS = new Set<SiteOwnerId>([
   'enemy',
   'neutral',
 ])
-const TERRAINS = new Set<Terrain>([
-  'plain', 'bridge', 'mountain', 'water', 'hill', 'forest', 'desert', 'desertHill', 'oasis', 'tundra',
-  'tundraForest',
-  'tundraMountain',
-])
-const UNIT_TYPES = new Set<UnitType>([
-  'infantry',
-  'cavalry',
-  'archer',
-  'spearman',
-  'settler',
-  'builder',
-])
-const SITE_TYPES = new Set<SiteType>([
-  'outpost',
-  'keep',
-  'stronghold',
-  'village',
-  'town',
-  'farm',
-  'mine',
-  'blacksmith',
-  'city',
-])
+const TERRAINS = new Set<Terrain>(
+  Object.keys(TERRAIN_MOVEMENT_COST) as Terrain[],
+)
+const UNIT_TYPES = new Set<UnitType>(UNIT_TYPE_LIST)
+const SITE_TYPES = new Set<SiteType>(Object.keys(SITE_STATS) as SiteType[])
 const MAP_TYPES = new Set<MapType>(['balanced', 'plains', 'mountainous', 'forested'])
 const BUILDINGS = new Set<BuildingId>(BUILDING_IDS)
 

@@ -1,4 +1,5 @@
 import {
+  comparePositions,
   getHexDistance,
   getHexNeighbors,
   isPositionOnBoard,
@@ -13,7 +14,7 @@ import {
   hasBuilding,
   MAX_PRODUCTION_DISCOUNT,
   WALL_DEFENSE_BONUS,
-} from './cityAdministration'
+} from './cityBuildings'
 import { getSiteOccupiedPositions } from './siteFootprint'
 import {
   getSitePositionIndex,
@@ -591,9 +592,7 @@ export function getDeployablePositions(
       candidatesByKey.set(positionKey(neighbor), neighbor)
     }
   }
-  const candidates = [...candidatesByKey.values()].sort(
-    (left, right) => left.r - right.r || left.q - right.q,
-  )
+  const candidates = [...candidatesByKey.values()].sort(comparePositions)
 
   return candidates.filter((position) => {
     const tile = getTileAt(state, position)

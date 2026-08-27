@@ -31,12 +31,36 @@ import {
   UNIT_TYPE_LABELS,
   UNIT_STATS,
 } from './rules'
-import type { GameAction, GameState } from './types'
+import type { FactionId, GameAction, GameState, Site } from './types'
 import {
   canSpendWithUpkeepReserve,
   getFactionUpkeep,
   UNIT_UPKEEP,
 } from './upkeep'
+
+const FACTION_SHORT_LABELS: Record<string, string> = {
+  f1: '청색',
+  f2: '적색',
+  f3: '황금',
+  f4: '자색',
+}
+
+function getFactionOrderAfterCapture(
+  state: GameState,
+  sites: readonly Site[],
+  capturerFactionId: FactionId,
+): GameState['factionOrder'] {
+  const defeatedFactionId = sites.find(
+    (site) =>
+      site.capitalFor &&
+      site.capitalFor !== state.humanFactionId &&
+      site.capitalFor !== capturerFactionId &&
+      site.ownerId === capturerFactionId,
+  )?.capitalFor
+  return defeatedFactionId
+    ? state.factionOrder.filter((factionId) => factionId !== defeatedFactionId)
+    : state.factionOrder
+}
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
   if (action.type === 'gameRestarted') {
@@ -127,16 +151,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             unit.factionId,
             state.turn,
           )
-      const defeatedFactionId = sites.find(
-        (site) =>
-          site.capitalFor &&
-          site.capitalFor !== state.humanFactionId &&
-          site.capitalFor !== unit.factionId &&
-          site.ownerId === unit.factionId,
-      )?.capitalFor
-      const factionOrder = defeatedFactionId
-        ? state.factionOrder.filter((factionId) => factionId !== defeatedFactionId)
-        : state.factionOrder
+      const factionOrder = getFactionOrderAfterCapture(
+        state,
+        sites,
+        unit.factionId,
+      )
 
       return {
         ...state,
@@ -254,19 +273,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             }
           : candidate,
       )
-      const defeatedFactionId = captured
-        ? sites.find(
-            (candidate) =>
-              candidate.capitalFor &&
-              candidate.capitalFor !== state.humanFactionId &&
-              candidate.capitalFor !== attacker.factionId &&
-              candidate.ownerId === attacker.factionId,
-          )?.capitalFor
-        : undefined
-      const factionOrder = defeatedFactionId
-        ? state.factionOrder.filter(
-            (factionId) => factionId !== defeatedFactionId,
-          )
+      const factionOrder = captured
+        ? getFactionOrderAfterCapture(state, sites, attacker.factionId)
         : state.factionOrder
 
       return {
@@ -356,13 +364,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         unitId = `${state.activeFactionId}-${action.unitType}-produced-${sequence}`
       }
 
-      const factionLabels: Record<string, string> = {
-        f1: '청색',
-        f2: '적색',
-        f3: '황금',
-        f4: '자색',
-      } as const
-      const factionLabel = factionLabels[state.activeFactionId]
+      const factionLabel = FACTION_SHORT_LABELS[state.activeFactionId]
       const unit = {
         id: unitId,
         name: `${factionLabel} ${UNIT_TYPE_LABELS[action.unitType]} ${sequence}`,

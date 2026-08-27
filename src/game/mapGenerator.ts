@@ -1,5 +1,6 @@
 import {
   BOARD_SIZE_PRESETS,
+  comparePositions,
   DEFAULT_BOARD_SIZE,
   getAllHexPositions,
   getHexDistance,
@@ -882,8 +883,7 @@ function createUnits(
         (left, right) =>
           getHexDistance(left, capitals[factionId]) -
             getHexDistance(right, capitals[factionId]) ||
-          left.r - right.r ||
-          left.q - right.q,
+          comparePositions(left, right),
       )
       .slice(0, STARTING_UNIT_TYPES.length)
     if (positions.length !== STARTING_UNIT_TYPES.length) return []

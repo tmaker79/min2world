@@ -312,9 +312,7 @@ export function canSettleAt(
   _factionId: FactionId,
   position: Position,
 ): SitePlacementCheck {
-  const tile = state.tiles.find(
-    (candidate) => positionKey(candidate.position) === positionKey(position),
-  )
+  const tile = getTileAt(state, position)
   if (!tile) return { ok: false, reason: 'tileNotFound' }
   if (!isBuildableLand(tile.terrain)) {
     return { ok: false, reason: 'invalidTerrain' }
@@ -334,9 +332,7 @@ export function canConstructAt(
   territory: TerritoryIndex = createTerritoryIndex(state),
   productionSupportIndex?: ProductionSupportIndex,
 ): SitePlacementCheck {
-  const tile = state.tiles.find(
-    (candidate) => positionKey(candidate.position) === positionKey(position),
-  )
+  const tile = getTileAt(state, position)
   if (!tile) return { ok: false, reason: 'tileNotFound' }
   const terrainAllowed =
     siteKind === 'outpost'

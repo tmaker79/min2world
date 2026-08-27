@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import { getFactionLabel } from '../game/factions'
 import type { FactionId } from '../game/types'
 
 type StatusBarProps = {
@@ -33,15 +34,7 @@ export function StatusBar({
   const [economyExpanded, setEconomyExpanded] = useState(false)
   const economyRef = useRef<HTMLDivElement>(null)
   const economyDetailsId = useId()
-  const factionLabels: Record<string, string> = {
-    player: '푸른 연맹',
-    enemy: '붉은 제국',
-    f1: '청색 연맹',
-    f2: '적색 제국',
-    f3: '황금 왕국',
-    f4: '자색 공국',
-  }
-  const factionLabel = factionLabels[activeFactionId] ?? activeFactionId
+  const factionLabel = getFactionLabel(activeFactionId)
 
   useEffect(() => {
     if (!economyExpanded) return

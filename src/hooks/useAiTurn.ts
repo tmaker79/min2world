@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Dispatch } from 'react'
 import { chooseAiDecision } from '../game/ai'
-import { getHexDistance } from '../game/hex'
+import { comparePositions, getHexDistance } from '../game/hex'
 import {
   getSiteMaxHp,
   SITE_TYPE_LABELS,
@@ -178,8 +178,7 @@ export function useAiTurn({
             (left, right) =>
               getHexDistance(attacker.position, left) -
                 getHexDistance(attacker.position, right) ||
-              left.r - right.r ||
-              left.q - right.q,
+              comparePositions(left, right),
           )[0]
           setAnnouncement(getAiActionAnnouncement(state, action))
           const started = startSiteAttack(

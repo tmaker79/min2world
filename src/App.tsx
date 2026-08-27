@@ -64,6 +64,7 @@ import {
   getSelectedUnitReachablePositions,
 } from './game/selectors'
 import { getSiteOccupiedPositions } from './game/siteFootprint'
+import { getTileIndex } from './game/spatialIndex'
 import { createTerritoryIndex } from './game/territory'
 import type { GameState, Site, Tile, Unit, UnitType } from './game/types'
 import {
@@ -104,6 +105,20 @@ type SidebarContent =
       preview: boolean
     }
   | { kind: 'empty' }
+
+function getCombatTimings(units: readonly Unit[], attackerId: string) {
+  const reducedMotion = window.matchMedia?.(
+    '(prefers-reduced-motion: reduce)',
+  ).matches
+  const usesArrowVolley = units.some(
+    (unit) => unit.id === attackerId && unit.type === 'archer',
+  )
+  return reducedMotion
+    ? { hit: 20, complete: 70 }
+    : usesArrowVolley
+      ? { hit: 900, complete: 1300 }
+      : { hit: 220, complete: 560 }
+}
 
 function GameApp({ initialState }: { initialState: GameState }) {
   const [state, dispatch] = useReducer(gameReducer, initialState)
@@ -227,12 +242,13 @@ function GameApp({ initialState }: { initialState: GameState }) {
           cityInfoSite.position,
         )
       : undefined
-  const previewTile = state.tiles.find(
-    (tile) => positionKey(tile.position) === previewTileKey,
-  )
-  const inspectedTile = state.tiles.find(
-    (tile) => positionKey(tile.position) === inspectedTileKey,
-  )
+  const tileIndex = getTileIndex(state)
+  const previewTile = previewTileKey
+    ? tileIndex.get(previewTileKey)
+    : undefined
+  const inspectedTile = inspectedTileKey
+    ? tileIndex.get(inspectedTileKey)
+    : undefined
   const territoryByKey = useMemo(
     () => createTerritoryIndex({ sites: state.sites, tiles: state.tiles }),
     [state.sites, state.tiles],
@@ -644,18 +660,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
       return
     }
 
-    const reducedMotion = window.matchMedia?.(
-      '(prefers-reduced-motion: reduce)',
-    ).matches
-    const usesArrowVolley = state.units.some(
-      (unit) =>
-        unit.id === activeCombat.attackerId && unit.type === 'archer',
-    )
-    const timings = reducedMotion
-      ? { hit: 20, complete: 70 }
-      : usesArrowVolley
-        ? { hit: 900, complete: 1300 }
-        : { hit: 220, complete: 560 }
+    const timings = getCombatTimings(state.units, activeCombat.attackerId)
     const timers: number[] = []
 
     timers.push(
@@ -682,18 +687,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     const site = state.sites.find(
       (candidate) => candidate.id === activeSiteAttack.siteId,
     )
-    const reducedMotion = window.matchMedia?.(
-      '(prefers-reduced-motion: reduce)',
-    ).matches
-    const usesArrowVolley = state.units.some(
-      (unit) =>
-        unit.id === activeSiteAttack.attackerId && unit.type === 'archer',
-    )
-    const timings = reducedMotion
-      ? { hit: 20, complete: 70 }
-      : usesArrowVolley
-        ? { hit: 900, complete: 1300 }
-        : { hit: 220, complete: 560 }
+    const timings = getCombatTimings(state.units, activeSiteAttack.attackerId)
     const timers = [
       window.setTimeout(() => {
         setCombatPhase('hit')

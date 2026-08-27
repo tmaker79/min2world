@@ -10,6 +10,8 @@ import { getSiteOccupiedPositions } from '../game/siteFootprint'
 import type { TerritoryIndex, TerritoryOwner } from '../game/territory'
 import type { GameState, Position, Terrain } from '../game/types'
 
+// App.css의 .map-tile--* 배경색과 동기화해야 한다.
+// 단색 지형은 같은 값을, 그라디언트 지형은 어두운 쪽 색을 쓴다.
 const TERRAIN_FILL: Record<Terrain, string> = {
   plain: '#8db56e',
   bridge: '#9a7045',
@@ -17,10 +19,10 @@ const TERRAIN_FILL: Record<Terrain, string> = {
   hill: '#6a7a48',
   mountain: '#4f5358',
   water: '#365172',
-  desert: '#d8aa49',
+  desert: '#e0b454',
   desertHill: '#b88135',
   oasis: '#4d9b91',
-  tundra: '#91a8b7',
+  tundra: '#9eb4c1',
   tundraForest: '#416c66',
   tundraMountain: '#707f8e',
 }

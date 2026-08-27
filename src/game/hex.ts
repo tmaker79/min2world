@@ -34,6 +34,10 @@ export function positionsEqual(left: Position, right: Position): boolean {
   return left.q === right.q && left.r === right.r
 }
 
+export function comparePositions(left: Position, right: Position): number {
+  return left.r - right.r || left.q - right.q
+}
+
 export function getHexDistance(left: Position, right: Position): number {
   const dq = left.q - right.q
   const dr = left.r - right.r

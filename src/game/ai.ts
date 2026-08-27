@@ -35,7 +35,7 @@ import {
   SITE_CONSTRUCTION_COSTS,
 } from './settlement'
 import { createTerritoryIndex } from './territory'
-import { getHexDistance } from './hex'
+import { comparePositions, getHexDistance } from './hex'
 import { getSiteOccupiedPositions } from './siteFootprint'
 import {
   canDevelopSite,
@@ -139,10 +139,6 @@ export function compareAiSiteDevelopmentCandidates(left: Site, right: Site) {
     leftScore.role - rightScore.role ||
     left.id.localeCompare(right.id)
   )
-}
-
-function comparePositions(left: Position, right: Position) {
-  return left.r - right.r || left.q - right.q
 }
 
 function compareFootprints(left: readonly Position[], right: readonly Position[]) {
