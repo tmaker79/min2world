@@ -82,12 +82,15 @@ function isFarEnoughFromSites(
   state: GameState,
   position: Position,
   minimumDistance: number,
+  includeSite: (site: Site) => boolean = () => true,
 ) {
-  return state.sites.every((site) =>
-    getSiteOccupiedPositions(site).every(
-      (occupied) => getHexDistance(position, occupied) >= minimumDistance,
-    ),
-  )
+  return state.sites
+    .filter(includeSite)
+    .every((site) =>
+      getSiteOccupiedPositions(site).every(
+        (occupied) => getHexDistance(position, occupied) >= minimumDistance,
+      ),
+    )
 }
 
 function isMineTerrain(state: GameState, position: Position, terrain: Terrain) {
@@ -198,7 +201,11 @@ export function canConstructAt(
   ) {
     return { ok: false, reason: 'tooCloseToMilitarySite' }
   }
-  if (siteKind !== 'outpost' && !isFarEnoughFromSites(state, position, 2)) {
+  if (
+    siteKind !== 'outpost' &&
+    // Military sites claim no territory, so they don't push production sites away.
+    !isFarEnoughFromSites(state, position, 2, (site) => !isMilitarySiteKind(site.kind))
+  ) {
     return { ok: false, reason: 'tooCloseToSite' }
   }
   if (
@@ -230,13 +237,9 @@ function isFarEnoughFromMilitarySites(
   position: Position,
   minimumDistance: number,
 ) {
-  return state.sites
-    .filter((site) => isMilitarySiteKind(site.kind))
-    .every((site) =>
-      getSiteOccupiedPositions(site).every(
-        (occupied) => getHexDistance(position, occupied) >= minimumDistance,
-      ),
-    )
+  return isFarEnoughFromSites(state, position, minimumDistance, (site) =>
+    isMilitarySiteKind(site.kind),
+  )
 }
 
 export function getSettleablePositions(

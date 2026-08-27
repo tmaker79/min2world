@@ -125,6 +125,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             state.sites,
             action.destination,
             unit.factionId,
+            state.turn,
           )
       const defeatedFactionId = sites.find(
         (site) =>
@@ -249,6 +250,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
               ownerId: captured ? attacker.factionId : candidate.ownerId,
               hp: captured ? Math.ceil(maxHp * 0.5) : result.siteHp,
               maxHp,
+              ...(captured ? { lastDevelopedTurn: state.turn } : {}),
             }
           : candidate,
       )

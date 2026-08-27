@@ -54,7 +54,10 @@ describe('gameReducer on a hex map', () => {
 
     expect(moved.units[0].position).toEqual(neutral.position)
     expect(moved.units[0].movementRemaining).toBe(3)
-    expect(moved.sites.find((site) => site.id === neutral.id)?.ownerId).toBe('player')
+    expect(moved.sites.find((site) => site.id === neutral.id)).toMatchObject({
+      ownerId: 'player',
+      lastDevelopedTurn: state.turn,
+    })
   })
 
   it('lets civilian units occupy a neutral site without capturing it', () => {
@@ -124,6 +127,7 @@ describe('gameReducer on a hex map', () => {
       hp: 50,
       maxHp: 100,
       capitalFor: 'enemy',
+      lastDevelopedTurn: state.turn,
     })
     expect(result.factionOrder).not.toContain('enemy')
     expect(result.units[0]).toMatchObject({

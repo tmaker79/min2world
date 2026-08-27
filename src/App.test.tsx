@@ -1290,7 +1290,7 @@ describe('Milestone 07 UI', () => {
     vi.useRealTimers()
   })
 
-  it('attacks an enemy unit before a fortified site on the same tile', () => {
+  it('besieges the fortified site instead of the garrisoned unit on the same tile', () => {
     vi.useFakeTimers()
     const initial = createInitialGameState('ui-site-unit-priority')
     const capital = initial.sites.find((site) => site.capitalFor === 'enemy')!
@@ -1322,15 +1322,17 @@ describe('Milestone 07 UI', () => {
       .not.toHaveClass('unit-token--striking')
     act(() => vi.advanceTimersByTime(20))
     expect(container.querySelector('[data-testid="arrow-volley"]')).toBeNull()
+    expect(container.querySelector(`[data-site-id="${capital.id}"]`))
+      .toHaveClass('site-marker--hit')
     expect(container.querySelector(`[data-unit-id="${defender.id}"]`))
-      .toHaveClass('unit-token--hit')
+      .not.toHaveClass('unit-token--hit')
     expect(container.querySelector('.damage-popup')).toBeInTheDocument()
     act(() => vi.advanceTimersByTime(50))
 
     expect(container.querySelector(`[data-unit-id="${defender.id}"]`))
-      .not.toHaveAttribute('data-health', '100/100')
+      .toHaveAttribute('data-health', '100/100')
     expect(container.querySelector(`[data-site-id="${capital.id}"]`))
-      .toHaveAttribute('data-health', '120/120')
+      .not.toHaveAttribute('data-health', '120/120')
     vi.useRealTimers()
   })
 
