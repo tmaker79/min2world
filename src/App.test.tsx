@@ -1236,15 +1236,16 @@ describe('Milestone 07 UI', () => {
     )
   })
 
-  it('asks before replacing a game that has progressed', async () => {
-    const user = userEvent.setup()
-    const state = createInitialGameState('progress')
+  it('asks before replacing a game that has progressed', () => {
+    const state = createInitialGameState('progress', {
+      boardSize: BOARD_SIZE_PRESETS.tiny,
+    })
     state.turn = 2
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
     renderApp(state)
 
-    await user.click(screen.getByRole('button', { name: '재시작' }))
-    await user.click(screen.getByRole('button', { name: '새 랜덤 지도로 재시작' }))
+    fireEvent.click(screen.getByRole('button', { name: '재시작' }))
+    fireEvent.click(screen.getByRole('button', { name: '새 랜덤 지도로 재시작' }))
 
     expect(confirm).toHaveBeenCalledOnce()
     expect(screen.getByRole('button', { name: '재시작' })).toHaveAttribute(
