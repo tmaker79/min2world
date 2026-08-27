@@ -475,26 +475,50 @@ function GameApp({ initialState }: { initialState: GameState }) {
       const scrollBounds = mapScrollElement.getBoundingClientRect()
       const tileBounds = capitalTile.getBoundingClientRect()
       const mapBounds = mapContent.getBoundingClientRect()
-      const focusBounds =
-        mapBounds.width <= mapScrollElement.clientWidth &&
-        mapBounds.height <= mapScrollElement.clientHeight
-          ? mapBounds
-          : tileBounds
+      const mapFitsWidth = mapBounds.width <= mapScrollElement.clientWidth
+      const mapFitsHeight = mapBounds.height <= mapScrollElement.clientHeight
+      const horizontalFocusBounds = mapFitsWidth ? mapBounds : tileBounds
+      const verticalFocusBounds = mapFitsHeight ? mapBounds : tileBounds
+
+      const targetScrollLeft =
+        mapScrollElement.scrollLeft +
+          horizontalFocusBounds.left +
+          horizontalFocusBounds.width / 2 -
+          scrollBounds.left -
+          mapScrollElement.clientWidth / 2
+      const targetScrollTop =
+        mapScrollElement.scrollTop +
+          verticalFocusBounds.top +
+          verticalFocusBounds.height / 2 -
+          scrollBounds.top -
+          mapScrollElement.clientHeight / 2
+
+      const minimumScrollLeft =
+        mapScrollElement.scrollLeft + mapBounds.left - scrollBounds.left
+      const maximumScrollLeft =
+        minimumScrollLeft + mapBounds.width - mapScrollElement.clientWidth
+      const minimumScrollTop =
+        mapScrollElement.scrollTop + mapBounds.top - scrollBounds.top
+      const maximumScrollTop =
+        minimumScrollTop + mapBounds.height - mapScrollElement.clientHeight
+
       mapScrollElement.scrollLeft = Math.max(
         0,
-        mapScrollElement.scrollLeft +
-          focusBounds.left +
-          focusBounds.width / 2 -
-          scrollBounds.left -
-          mapScrollElement.clientWidth / 2,
+        mapFitsWidth
+          ? targetScrollLeft
+          : Math.min(
+              maximumScrollLeft,
+              Math.max(minimumScrollLeft, targetScrollLeft),
+            ),
       )
       mapScrollElement.scrollTop = Math.max(
         0,
-        mapScrollElement.scrollTop +
-          focusBounds.top +
-          focusBounds.height / 2 -
-          scrollBounds.top -
-          mapScrollElement.clientHeight / 2,
+        mapFitsHeight
+          ? targetScrollTop
+          : Math.min(
+              maximumScrollTop,
+              Math.max(minimumScrollTop, targetScrollTop),
+            ),
       )
       hasCenteredInitialMapRef.current = true
     })

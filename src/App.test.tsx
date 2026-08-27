@@ -446,6 +446,142 @@ describe('Milestone 07 UI', () => {
     expect(mapScroll.scrollTop).toBe(50)
   })
 
+  it.each([
+    {
+      axis: 'horizontal',
+      mapWidth: 600,
+      mapHeight: 900,
+      expectedLeft: 77,
+      expectedTop: 274,
+    },
+    {
+      axis: 'vertical',
+      mapWidth: 1200,
+      mapHeight: 400,
+      expectedLeft: 466,
+      expectedTop: 61,
+    },
+  ])(
+    'centers the map on the $axis axis when the map already fits that axis',
+    ({ mapWidth, mapHeight, expectedLeft, expectedTop }) => {
+      const frames: FrameRequestCallback[] = []
+      vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+        frames.push(callback)
+        return frames.length
+      })
+      const state = createInitialGameState(
+        `center-capital-single-axis-${mapWidth}-${mapHeight}`,
+      )
+      const capital = state.sites.find(
+        (site) => site.capitalFor === state.humanFactionId,
+      )!
+      const { container } = renderApp(state)
+      const mapScroll = container.querySelector<HTMLElement>('.map-scroll')!
+      const capitalTile = container.querySelector<HTMLElement>(
+        `.map-tile[data-coordinate="${positionKey(capital.position)}"]`,
+      )!
+      const mapContent = container.querySelector<HTMLElement>('.map-zoom-shell')!
+
+      Object.defineProperties(mapScroll, {
+        clientWidth: { configurable: true, value: 800 },
+        clientHeight: { configurable: true, value: 600 },
+        scrollLeft: { configurable: true, writable: true, value: 37 },
+        scrollTop: { configurable: true, writable: true, value: 41 },
+      })
+      vi.spyOn(mapScroll, 'getBoundingClientRect').mockReturnValue({
+        left: 100,
+        top: 50,
+      } as DOMRect)
+      vi.spyOn(capitalTile, 'getBoundingClientRect').mockReturnValue({
+        left: 900,
+        top: 550,
+        width: 58,
+        height: 66,
+      } as DOMRect)
+      vi.spyOn(mapContent, 'getBoundingClientRect').mockReturnValue({
+        left: 240,
+        top: 170,
+        width: mapWidth,
+        height: mapHeight,
+      } as DOMRect)
+
+      act(() => {
+        for (const frame of frames.splice(0)) frame(0)
+      })
+
+      expect(mapScroll.scrollLeft).toBe(expectedLeft)
+      expect(mapScroll.scrollTop).toBe(expectedTop)
+    },
+  )
+
+  it.each([
+    {
+      edge: 'start',
+      tileLeft: 310,
+      tileTop: 210,
+      expectedLeft: 200,
+      expectedTop: 150,
+    },
+    {
+      edge: 'end',
+      tileLeft: 1440,
+      tileTop: 1030,
+      expectedLeft: 600,
+      expectedTop: 450,
+    },
+  ])(
+    'stops initial capital centering at the map frame near the $edge edge',
+    ({ tileLeft, tileTop, expectedLeft, expectedTop }) => {
+      const frames: FrameRequestCallback[] = []
+      vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+        frames.push(callback)
+        return frames.length
+      })
+      const state = createInitialGameState(
+        `center-capital-at-frame-${tileLeft}-${tileTop}`,
+      )
+      const capital = state.sites.find(
+        (site) => site.capitalFor === state.humanFactionId,
+      )!
+      const { container } = renderApp(state)
+      const mapScroll = container.querySelector<HTMLElement>('.map-scroll')!
+      const capitalTile = container.querySelector<HTMLElement>(
+        `.map-tile[data-coordinate="${positionKey(capital.position)}"]`,
+      )!
+      const mapContent = container.querySelector<HTMLElement>('.map-zoom-shell')!
+
+      Object.defineProperties(mapScroll, {
+        clientWidth: { configurable: true, value: 800 },
+        clientHeight: { configurable: true, value: 600 },
+        scrollLeft: { configurable: true, writable: true, value: 0 },
+        scrollTop: { configurable: true, writable: true, value: 0 },
+      })
+      vi.spyOn(mapScroll, 'getBoundingClientRect').mockReturnValue({
+        left: 100,
+        top: 50,
+      } as DOMRect)
+      vi.spyOn(capitalTile, 'getBoundingClientRect').mockReturnValue({
+        left: tileLeft,
+        top: tileTop,
+        width: 58,
+        height: 66,
+      } as DOMRect)
+      vi.spyOn(mapContent, 'getBoundingClientRect').mockReturnValue({
+        left: 300,
+        top: 200,
+        width: 1200,
+        height: 900,
+      } as DOMRect)
+
+      act(() => {
+        for (const frame of frames.splice(0)) frame(0)
+      })
+
+      expect(mapScroll.scrollLeft).toBe(expectedLeft)
+      expect(mapScroll.scrollTop).toBe(expectedTop)
+    },
+  )
+
   it('does not recenter the player capital after ending the turn', () => {
     const frames: FrameRequestCallback[] = []
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
