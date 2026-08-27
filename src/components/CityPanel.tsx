@@ -80,11 +80,11 @@ export function CityPanel({
             <dd>
               {isMilitarySiteKind(site.kind)
                 ? '없음'
-                : `${getSiteIncome(site)} 자원/턴`}
+                : getSiteIncome(site)}
             </dd>
           </div>
           <div>
-            <dt>소유</dt>
+            <dt>소유자</dt>
             <dd>{getFactionLabel(site.ownerId)}</dd>
           </div>
           <div>
@@ -102,7 +102,7 @@ export function CityPanel({
           {TERRAIN_COMBAT_BONUS[tile.terrain] > 0 && (
             <div>
               <dt>방어 보정치</dt>
-              <dd>+{TERRAIN_COMBAT_BONUS[tile.terrain]}</dd>
+              <dd>{TERRAIN_COMBAT_BONUS[tile.terrain]}</dd>
             </div>
           )}
           {gameMode === 'standard' && site.kind === 'city' && (
@@ -117,12 +117,6 @@ export function CityPanel({
               <dd>
                 {settlementCapacity.used} / {settlementCapacity.capacity}
               </dd>
-            </div>
-          )}
-          {isCapacityExemptProductionSite && (
-            <div>
-              <dt>도시 제한</dt>
-              <dd>제외</dd>
             </div>
           )}
           {showProductionSupport && !isCapacityExemptProductionSite && (
@@ -156,44 +150,46 @@ export function CityPanel({
         </dl>
       </section>
 
-      <div className="city-card__menu" role="tablist" aria-label="거점 메뉴">
-        {canProduce && (
-          <button
-            id="site-tab-production"
-            type="button"
-            role="tab"
-            aria-controls="site-panel-production"
-            aria-selected={activeTab === 'production'}
-            onClick={() => onTabChange('production')}
-          >
-            생산
-          </button>
-        )}
-        {gameMode === 'standard' && (
-          <button
-            id="site-tab-development"
-            type="button"
-            role="tab"
-            aria-controls="site-panel-development"
-            aria-selected={activeTab === 'development'}
-            onClick={() => onTabChange('development')}
-          >
-            발전
-          </button>
-        )}
-        {gameMode === 'standard' && site.kind === 'city' && (
-          <button
-            id="site-tab-construction"
-            type="button"
-            role="tab"
-            aria-controls="site-panel-construction"
-            aria-selected={activeTab === 'construction'}
-            onClick={() => onTabChange('construction')}
-          >
-            건설
-          </button>
-        )}
-      </div>
+      {(canProduce || gameMode === 'standard') && (
+        <div className="city-card__menu" role="tablist" aria-label="거점 메뉴">
+          {canProduce && (
+            <button
+              id="site-tab-production"
+              type="button"
+              role="tab"
+              aria-controls="site-panel-production"
+              aria-selected={activeTab === 'production'}
+              onClick={() => onTabChange('production')}
+            >
+              생산
+            </button>
+          )}
+          {gameMode === 'standard' && (
+            <button
+              id="site-tab-development"
+              type="button"
+              role="tab"
+              aria-controls="site-panel-development"
+              aria-selected={activeTab === 'development'}
+              onClick={() => onTabChange('development')}
+            >
+              발전
+            </button>
+          )}
+          {gameMode === 'standard' && site.kind === 'city' && (
+            <button
+              id="site-tab-construction"
+              type="button"
+              role="tab"
+              aria-controls="site-panel-construction"
+              aria-selected={activeTab === 'construction'}
+              onClick={() => onTabChange('construction')}
+            >
+              건설
+            </button>
+          )}
+        </div>
+      )}
 
       {children}
     </div>

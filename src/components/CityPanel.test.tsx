@@ -49,12 +49,12 @@ describe('CityPanel production support', () => {
     expect(screen.queryByRole('tab', { name: '발전' })).not.toBeInTheDocument()
     expect(screen.queryByRole('tab', { name: '건설' })).not.toBeInTheDocument()
     expect(screen.queryByText('건물')).not.toBeInTheDocument()
-    expect(screen.getByText('소유').nextElementSibling).toHaveTextContent(
+    expect(screen.getByText('소유자').nextElementSibling).toHaveTextContent(
       '청색 연맹',
     )
     expect(screen.getByText('지형').nextElementSibling).toHaveTextContent('숲')
     expect(screen.getByText('이동 비용').nextElementSibling).toHaveTextContent('2')
-    expect(screen.getByText('방어 보정치').nextElementSibling).toHaveTextContent('+3')
+    expect(screen.getByText('방어 보정치').nextElementSibling).toHaveTextContent(/^3$/)
   })
 
   it('shows a settlement production usage and capacity', () => {
@@ -79,6 +79,8 @@ describe('CityPanel production support', () => {
     expect(screen.getByText('지원 생산 거점').nextElementSibling).toHaveTextContent(
       '2 / 2',
     )
+    expect(screen.getByText('수입').nextElementSibling).toHaveTextContent(/^6$/)
+    expect(screen.getByLabelText('거점 정보')).not.toHaveTextContent('자원/턴')
   })
 
   it('shows the supporting settlement from a production site', () => {
@@ -149,7 +151,7 @@ describe('CityPanel production support', () => {
     )
   })
 
-  it('shows a map-generated production site as exempt from the city limit', () => {
+  it('hides capacity details and an empty menu for a neutral production site', () => {
     const capturedNeutralFarm: Site = {
       id: 'captured-neutral-farm',
       name: '중립 농장 1',
@@ -162,7 +164,7 @@ describe('CityPanel production support', () => {
 
     render(
       <CityPanel
-        gameMode="standard"
+        gameMode="quick"
         site={capturedNeutralFarm}
         tile={terrainTile}
         canProduce={false}
@@ -178,9 +180,8 @@ describe('CityPanel production support', () => {
       />,
     )
 
-    expect(screen.getByText('도시 제한').nextElementSibling).toHaveTextContent(
-      '제외',
-    )
+    expect(screen.queryByText('도시 제한')).not.toBeInTheDocument()
     expect(screen.queryByText('지원 정착지')).not.toBeInTheDocument()
+    expect(screen.queryByRole('tablist', { name: '거점 메뉴' })).not.toBeInTheDocument()
   })
 })

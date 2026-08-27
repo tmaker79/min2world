@@ -654,7 +654,9 @@ describe('Milestone 07 UI', () => {
     expect(preview).toHaveTextContent('이동 비용')
     expect(preview).toHaveTextContent('2')
     expect(preview).toHaveTextContent('방어 보정치')
-    expect(preview).toHaveTextContent('+3')
+    expect(
+      within(preview).getByText('방어 보정치').nextElementSibling,
+    ).toHaveTextContent(/^3$/)
     expect(screen.queryByLabelText('부대 정보')).not.toBeInTheDocument()
 
     fireEvent.mouseLeave(tile)
@@ -706,7 +708,7 @@ describe('Milestone 07 UI', () => {
     expect(within(info).queryByText('지형', { selector: 'dt' })).not.toBeInTheDocument()
     expect(info).not.toHaveTextContent('좌표')
     expect(info).toHaveTextContent('이동 비용')
-    expect(info).toHaveTextContent('소유')
+    expect(info).toHaveTextContent('소유자')
     expect(info).not.toHaveTextContent('영토')
     expect(info).toHaveTextContent('1')
     expect(info).not.toHaveTextContent('방어 보정치')
@@ -742,7 +744,7 @@ describe('Milestone 07 UI', () => {
     fireEvent.click(tile)
 
     const info = screen.getByLabelText('타일 정보')
-    expect(within(info).queryByText('소유', { selector: 'dt' })).not.toBeInTheDocument()
+    expect(within(info).queryByText('소유자', { selector: 'dt' })).not.toBeInTheDocument()
   })
 
   it('keeps selected unit information while hovering an attack target', () => {

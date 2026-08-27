@@ -127,7 +127,7 @@ export function MapInfoPanel({
           )}
           {territoryOwner && territoryOwner !== 'contested' && (
             <div>
-              <dt>소유</dt>
+              <dt>소유자</dt>
               <dd>{getFactionLabel(territoryOwner)}</dd>
             </div>
           )}
@@ -138,7 +138,7 @@ export function MapInfoPanel({
           {TERRAIN_COMBAT_BONUS[tile.terrain] > 0 && (
             <div>
               <dt>방어 보정치</dt>
-              <dd>+{TERRAIN_COMBAT_BONUS[tile.terrain]}</dd>
+              <dd>{TERRAIN_COMBAT_BONUS[tile.terrain]}</dd>
             </div>
           )}
         </dl>
