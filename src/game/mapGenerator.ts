@@ -11,6 +11,7 @@ import { MinPriorityQueue } from './priorityQueue'
 import {
   getSiteMaxHp,
   isFortifiedSiteKind,
+  TERRAIN_MOVEMENT_COST,
   UNIT_MAX_HP,
   UNIT_STATS,
 } from './rules'
@@ -62,21 +63,6 @@ export const STARTING_UNIT_TYPES: readonly UnitType[] = [
 ]
 const TINY_RIVER_COLUMN = 7
 const TINY_RIVER_CROSSING_ROWS = [3, 7] as const
-
-const TERRAIN_COST: Record<Terrain, number | null> = {
-  plain: 1,
-  bridge: 1,
-  mountain: null,
-  water: null,
-  hill: 2,
-  forest: 2,
-  desert: 2,
-  desertHill: 2,
-  oasis: 1,
-  tundra: 2,
-  tundraForest: 2,
-  tundraMountain: null,
-}
 
 function hashSeed(value: string): number {
   let hash = 0x811c9dc5
@@ -449,7 +435,7 @@ function chooseCapitals(
 function getPassableKeys(tiles: Tile[]): Set<string> {
   return new Set(
     tiles
-      .filter((tile) => TERRAIN_COST[tile.terrain] !== null)
+      .filter((tile) => TERRAIN_MOVEMENT_COST[tile.terrain] !== null)
       .map((tile) => positionKey(tile.position)),
   )
 }
@@ -561,8 +547,8 @@ function getWeightedCosts(
     for (const neighbor of getHexNeighbors(current.position, boardSize)) {
       const neighborKey = positionKey(neighbor)
       const terrain = tileByKey.get(neighborKey)?.terrain
-      if (!terrain || TERRAIN_COST[terrain] === null) continue
-      const stepCost = TERRAIN_COST[terrain] ?? 1
+      if (!terrain || TERRAIN_MOVEMENT_COST[terrain] === null) continue
+      const stepCost = TERRAIN_MOVEMENT_COST[terrain] ?? 1
       const nextCost = current.cost + stepCost
       if (nextCost >= (costs.get(neighborKey) ?? Infinity)) continue
       costs.set(neighborKey, nextCost)
@@ -719,7 +705,7 @@ export function validateGeneratedMap(state: GameState): string[] {
     state.units.some(
       (unit) =>
         !tilesByPosition.has(positionKey(unit.position)) ||
-        TERRAIN_COST[
+        TERRAIN_MOVEMENT_COST[
           tilesByPosition.get(positionKey(unit.position))!.terrain
         ] === null,
     )
@@ -793,7 +779,7 @@ export function validateGeneratedMap(state: GameState): string[] {
   const localCounts = factionIds.map((factionId) =>
     state.tiles.filter(
       (tile) =>
-        TERRAIN_COST[tile.terrain] !== null &&
+        TERRAIN_MOVEMENT_COST[tile.terrain] !== null &&
         getHexDistance(tile.position, capitals[factionId]!) <= 2,
     ).length,
   )

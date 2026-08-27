@@ -8,9 +8,7 @@ type SiteIndex = ReadonlyMap<string, Site>
 
 const tileIndexCache = new WeakMap<Tile[], TileIndex>()
 const unitPositionIndexCache = new WeakMap<Unit[], UnitIndex>()
-const unitIdIndexCache = new WeakMap<Unit[], UnitIndex>()
 const sitePositionIndexCache = new WeakMap<Site[], SiteIndex>()
-const siteIdIndexCache = new WeakMap<Site[], SiteIndex>()
 const zoneOfControlCache = new WeakMap<
   Unit[],
   WeakMap<Site[], Map<FactionId, ReadonlyMap<string, Position>>>
@@ -28,28 +26,12 @@ function getOrCreateIndex<T extends { position: Position }>(
   return index
 }
 
-function getOrCreateIdIndex<T extends { id: string }>(
-  items: T[],
-  cache: WeakMap<T[], ReadonlyMap<string, T>>,
-) {
-  const cached = cache.get(items)
-  if (cached) return cached
-
-  const index = new Map(items.map((item) => [item.id, item]))
-  cache.set(items, index)
-  return index
-}
-
 export function getTileIndex(state: GameState): TileIndex {
   return getOrCreateIndex(state.tiles, tileIndexCache)
 }
 
 export function getUnitPositionIndex(state: GameState): UnitIndex {
   return getOrCreateIndex(state.units, unitPositionIndexCache)
-}
-
-export function getUnitIdIndex(state: GameState): UnitIndex {
-  return getOrCreateIdIndex(state.units, unitIdIndexCache)
 }
 
 export function getSitePositionIndex(state: GameState): SiteIndex {
@@ -64,10 +46,6 @@ export function getSitePositionIndex(state: GameState): SiteIndex {
   }
   sitePositionIndexCache.set(state.sites, index)
   return index
-}
-
-export function getSiteIdIndex(state: GameState): SiteIndex {
-  return getOrCreateIdIndex(state.sites, siteIdIndexCache)
 }
 
 export function getZoneOfControlIndex(

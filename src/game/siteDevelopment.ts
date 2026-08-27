@@ -219,8 +219,6 @@ export function canDevelopSite(
   }
 }
 
-export const canDevelop = canDevelopSite
-
 export function resolveSiteDevelopment(
   state: GameState,
   siteId: string,
