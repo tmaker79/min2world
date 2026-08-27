@@ -1908,7 +1908,10 @@ describe('Milestone 07 UI', () => {
 
     const info = screen.getByLabelText('부대 정보')
     expect(info).toHaveTextContent('유지비')
-    expect(info).toHaveTextContent('0 자원/턴')
+    expect(within(info).getByText('유지비').nextElementSibling).toHaveTextContent(
+      /^0$/,
+    )
+    expect(info).not.toHaveTextContent('자원/턴')
     const disband = screen.getByRole('button', { name: '해산' })
     await user.click(disband)
     expect(container.querySelector(`[data-unit-id="${unit.id}"]`))

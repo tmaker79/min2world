@@ -161,7 +161,7 @@ export function InfoPanel({
           )}
           <div>
             <dt>유지비</dt>
-            <dd>{upkeep} 자원/턴</dd>
+            <dd>{upkeep}</dd>
           </div>
           {stats.ranged > 0 && (
             <div>
