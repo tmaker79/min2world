@@ -9,6 +9,8 @@ import {
   BUILDABLE_SITE_TYPES,
   canConstruct,
   canSettle,
+  createProductionSupportIndex,
+  getProductionSupportAt,
   getSiteConstructionCost,
 } from '../game/settlement'
 import type { SiteActionFailure } from '../game/settlement'
@@ -48,11 +50,13 @@ function failureMessage(reason: SiteActionFailure) {
     case 'tooCloseToMilitarySite':
       return '군사 거점 사이에는 최소 한 칸을 두어야 합니다.'
     case 'notConnected':
-      return '아군 소도시·도시·요새·성채에서 연결 거리 3 이내여야 합니다.'
+      return '아군 Town·City에서 통행 가능한 육지 거리 3 이내여야 합니다.'
     case 'outsideTerritory':
       return '생산 거점은 자기 영토에만 건설할 수 있습니다.'
     case 'enemyTerritory':
       return '적 영토에는 군사 거점을 건설할 수 없습니다.'
+    case 'productionCapacityReached':
+      return '이 정착지의 생산 거점 한도에 도달했습니다.'
     case 'insufficientResources':
       return '건설 비용을 지불할 자원이 부족합니다.'
     case 'insufficientUpkeepReserve':
@@ -91,6 +95,13 @@ export function InfoPanel({
     ? canSettle(state, unit.id)
     : foundingKind
       ? canConstruct(state, unit.id, foundingKind)
+      : undefined
+  const productionSupport =
+    foundingKind && foundingKind !== 'village' && foundingKind !== 'outpost'
+      ? getProductionSupportAt(
+          createProductionSupportIndex(state, unit.factionId),
+          unit.position,
+        )
       : undefined
 
   return (
@@ -210,6 +221,12 @@ export function InfoPanel({
               ? '개척자가 소모됩니다.'
               : `${getSiteConstructionCost(state, unit.factionId, foundingKind)} 자원을 지불하고 건설자는 행동을 종료합니다.`}
           </p>
+          {productionSupport && (
+            <p>
+              지원: {productionSupport.settlement.name} · 생산 거점{' '}
+              {productionSupport.used}/{productionSupport.capacity}
+            </p>
+          )}
           {foundingCheck && !foundingCheck.ok && (
             <p className="civilian-action-card__error" role="alert">
               {failureMessage(foundingCheck.reason)}

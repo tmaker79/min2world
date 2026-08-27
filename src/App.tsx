@@ -35,7 +35,10 @@ import {
 import { gameReducer } from './game/reducer'
 import { getSiteDevelopmentFootprints } from './game/siteDevelopment'
 import {
+  createProductionSupportIndex,
   getConstructiblePositions,
+  getProductionSupportAt,
+  getSettlementProductionCapacity,
   getSettleablePositions,
 } from './game/settlement'
 import {
@@ -203,6 +206,27 @@ function GameApp({ initialState }: { initialState: GameState }) {
     (site) => site.id === availableProductionSiteId,
   )
   const cityInfoSite = state.sites.find((site) => site.id === cityInfoSiteId)
+  const playerProductionSupportIndex = useMemo(
+    () => createProductionSupportIndex(state, state.humanFactionId),
+    [state],
+  )
+  const cityInfoSettlementCapacity =
+    cityInfoSite?.ownerId === state.humanFactionId
+      ? getSettlementProductionCapacity(
+          playerProductionSupportIndex,
+          cityInfoSite.id,
+        )
+      : undefined
+  const cityInfoProductionSupport =
+    cityInfoSite?.ownerId === state.humanFactionId &&
+    (cityInfoSite.kind === 'farm' ||
+      cityInfoSite.kind === 'mine' ||
+      cityInfoSite.kind === 'blacksmith')
+      ? getProductionSupportAt(
+          playerProductionSupportIndex,
+          cityInfoSite.position,
+        )
+      : undefined
   const previewTile = state.tiles.find(
     (tile) => positionKey(tile.position) === previewTileKey,
   )
@@ -1320,6 +1344,14 @@ function GameApp({ initialState }: { initialState: GameState }) {
                   <CityPanel
                     site={sidebarContent.site}
                     activeTab={activeSiteTab}
+                    showProductionSupport={
+                      sidebarContent.site.ownerId === state.humanFactionId &&
+                      (sidebarContent.site.kind === 'farm' ||
+                        sidebarContent.site.kind === 'mine' ||
+                        sidebarContent.site.kind === 'blacksmith')
+                    }
+                    productionSupport={cityInfoProductionSupport}
+                    settlementCapacity={cityInfoSettlementCapacity}
                     canProduce={
                       state.activeFactionId === state.humanFactionId &&
                       sidebarContent.site.ownerId === state.humanFactionId &&

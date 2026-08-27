@@ -5,6 +5,10 @@ import {
   isMilitarySiteKind,
   SITE_TYPE_LABELS,
 } from '../game/rules'
+import type {
+  ProductionSupport,
+  SettlementProductionCapacity,
+} from '../game/settlement'
 import type { Site } from '../game/types'
 import type { ReactNode } from 'react'
 import { SiteIcon } from './SiteIcon'
@@ -15,6 +19,9 @@ type CityPanelProps = {
   site: Site
   activeTab?: CityPanelTab
   canProduce: boolean
+  showProductionSupport?: boolean
+  productionSupport?: ProductionSupport
+  settlementCapacity?: SettlementProductionCapacity
   onTabChange: (tab: CityPanelTab) => void
   onClose: () => void
   children?: ReactNode
@@ -24,6 +31,9 @@ export function CityPanel({
   site,
   activeTab,
   canProduce,
+  showProductionSupport = false,
+  productionSupport,
+  settlementCapacity,
   onTabChange,
   onClose,
   children,
@@ -69,6 +79,30 @@ export function CityPanel({
               <dt>건물</dt>
               <dd>{site.buildings.length} / 7</dd>
             </div>
+          )}
+          {settlementCapacity && (
+            <div>
+              <dt>지원 생산 거점</dt>
+              <dd>
+                {settlementCapacity.used} / {settlementCapacity.capacity}
+              </dd>
+            </div>
+          )}
+          {showProductionSupport && (
+            <>
+              <div>
+                <dt>지원 정착지</dt>
+                <dd>{productionSupport?.settlement.name ?? '없음'}</dd>
+              </div>
+              {productionSupport && (
+                <div>
+                  <dt>지원 현황</dt>
+                  <dd>
+                    {productionSupport.used} / {productionSupport.capacity}
+                  </dd>
+                </div>
+              )}
+            </>
           )}
           {combatStats && maxHp && (
             <>

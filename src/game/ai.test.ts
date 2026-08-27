@@ -807,6 +807,68 @@ describe('hex-map AI', () => {
     })
   })
 
+  it('skips capped production sites while still evaluating Outpost construction', () => {
+    const initial = economyState('ai-production-capacity')
+    const origin = initial.tiles[Math.floor(initial.tiles.length / 2)].position
+    const positions = initial.tiles
+      .filter((tile) => getHexDistance(origin, tile.position) === 2)
+      .map((tile) => tile.position)
+      .reduce<typeof origin[]>((selected, position) => {
+        if (selected.every((other) => getHexDistance(other, position) >= 2)) {
+          selected.push(position)
+        }
+        return selected
+      }, [])
+    const city = enemySite(initial, {
+      id: 'capacity-city',
+      name: 'Capacity City',
+      kind: 'city',
+      position: origin,
+      ownerId: 'enemy',
+      capitalFor: 'enemy',
+      hp: 120,
+      maxHp: 120,
+    })
+    const productionSites: Site[] = positions.slice(0, 4).map((position, index) => ({
+      id: `enemy-production-${index}`,
+      name: `Production ${index}`,
+      kind: (['farm', 'mine', 'blacksmith', 'farm'] as const)[index],
+      position,
+      ownerId: 'enemy',
+      level: 1,
+      buildings: [],
+    }))
+    const builder: Unit = {
+      id: 'enemy-builder',
+      name: 'Builder',
+      factionId: 'enemy',
+      type: 'builder',
+      position: positions[4],
+      hp: 100,
+      maxHp: 100,
+      movementRemaining: 2,
+      hasActed: false,
+    }
+    const state = {
+      ...initial,
+      resources: { ...initial.resources, enemy: 100 },
+      sites: [city, ...productionSites],
+      units: [builder],
+      selectedUnitId: builder.id,
+    }
+
+    expect(getConstructiblePositions(state, 'enemy', 'farm')).toEqual([])
+    expect(getConstructiblePositions(state, 'enemy', 'outpost').length).toBeGreaterThan(0)
+    expect(chooseAiDecision(state)).toEqual({
+      action: {
+        type: 'siteConstructed',
+        unitId: builder.id,
+        siteKind: 'outpost',
+      },
+      reason: 'siteConstruction',
+    })
+  })
+
   it('does not choose a production site on contested territory', () => {
     const initial = economyState('ai-contested-construction')
     const center = initial.tiles[Math.floor(initial.tiles.length / 2)].position

@@ -19,7 +19,7 @@
 | [13](13-ai-refinement.md) | AI 고도화 | 완료 |
 | [14](14-settlement-construction.md) | 거점 건설 (개척자·건설자) | 완료 |
 | [15](15-supply-and-morale.md) | 보급, 사기 | 보류 |
-| [16](16-site-expansion.md) | 거점 확장 (농장과 인접 농지) | 다음 목표 |
+| [16](16-site-expansion.md) | 거점 확장 (농장과 인접 농지) | 진행 중 (기본 생산 거점 한도 완료) |
 | [17](17-road-construction.md) | 도로 건설 (이동 이점과 유지비) | 후속 목표 |
 
 새 목표를 구체화할 때 `NN-kebab-case.md` 형식으로 문서를 추가한다. 기존 마일스톤 문서는 덮어쓰지 않는다.

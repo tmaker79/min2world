@@ -5,7 +5,11 @@ import { gameReducer } from './reducer'
 import {
   canConstructAt,
   canSettleAt,
+  createProductionSupportIndex,
   getOwnedAnchorGraphDistance,
+  getProductionSupportAt,
+  getSettlementProductionCapacity,
+  getSettlementProductionCapacityLimit,
 } from './settlement'
 import type { GameState, Position, Site, Unit } from './types'
 
@@ -452,7 +456,7 @@ describe('settlement and construction rules', () => {
     })
   })
 
-  it('does not cap construction after many previously founded sites', () => {
+  it('does not apply the production capacity limit to Outposts', () => {
     const state = openState('unlimited-construction')
     const origin = state.tiles[Math.floor(state.tiles.length / 2)].position
     const destination = state.tiles.find(
@@ -477,6 +481,233 @@ describe('settlement and construction rules', () => {
         'outpost',
       ),
     ).toEqual({ ok: true })
+  })
+
+  it('assigns production support by graph distance and settlement id', () => {
+    const state = openState('production-support-assignment')
+    const center = state.tiles[Math.floor(state.tiles.length / 2)].position
+    const left: Site = {
+      ...singleCellCity({ q: center.q - 2, r: center.r }),
+      id: 'z-town',
+      name: 'Z Town',
+      kind: 'town',
+      hp: undefined,
+      maxHp: undefined,
+    }
+    const right: Site = {
+      ...singleCellCity({ q: center.q + 2, r: center.r }),
+      id: 'a-city',
+      name: 'A City',
+    }
+    const index = createProductionSupportIndex(
+      { ...state, sites: [left, right] },
+      'player',
+    )
+
+    expect(getProductionSupportAt(index, center)).toMatchObject({
+      settlement: { id: 'a-city' },
+      distance: 2,
+      used: 0,
+      capacity: 4,
+    })
+
+    const distanceThree = state.tiles.find(
+      (tile) => getHexDistance(left.position, tile.position) === 3,
+    )!.position
+    expect(getProductionSupportAt(index, distanceThree)?.distance).toBe(3)
+
+    const isolated = {
+      ...state,
+      sites: [left],
+      tiles: state.tiles.map((tile) => ({
+        ...tile,
+        terrain:
+          positionKey(tile.position) === positionKey(left.position) ||
+          positionKey(tile.position) === positionKey(center)
+            ? ('plain' as const)
+            : ('mountain' as const),
+      })),
+    }
+    expect(
+      getProductionSupportAt(
+        createProductionSupportIndex(isolated, 'player'),
+        center,
+      ),
+    ).toBeUndefined()
+  })
+
+  it('uses Town and City production capacities while excluding other owners', () => {
+    const state = openState('production-capacity')
+    const origin = state.tiles[Math.floor(state.tiles.length / 2)].position
+    const positions = state.tiles
+      .filter((tile) => {
+        const distance = getHexDistance(origin, tile.position)
+        return distance === 2
+      })
+      .map((tile) => tile.position)
+      .reduce<Position[]>((selected, position) => {
+        if (selected.every((other) => getHexDistance(other, position) >= 2)) {
+          selected.push(position)
+        }
+        return selected
+      }, [])
+    const town: Site = {
+      ...singleCellCity(origin),
+      kind: 'town',
+      hp: undefined,
+      maxHp: undefined,
+    }
+    const productionSites: Site[] = [
+      {
+        id: 'player-farm',
+        name: 'Farm',
+        kind: 'farm',
+        position: positions[0],
+        ownerId: 'player',
+        level: 1,
+        buildings: [],
+      },
+      {
+        id: 'player-mine',
+        name: 'Mine',
+        kind: 'mine',
+        position: positions[1],
+        ownerId: 'player',
+        level: 1,
+        buildings: [],
+      },
+      {
+        id: 'neutral-blacksmith',
+        name: 'Neutral Blacksmith',
+        kind: 'blacksmith',
+        position: positions[3],
+        ownerId: 'neutral',
+        level: 1,
+        buildings: [],
+      },
+    ]
+    const capped = { ...state, sites: [town, ...productionSites] }
+    const index = createProductionSupportIndex(capped, 'player')
+
+    expect(getSettlementProductionCapacityLimit({ ...town, kind: 'village' }))
+      .toBe(0)
+    expect(getSettlementProductionCapacity(index, town.id)).toMatchObject({
+      used: 2,
+      capacity: 2,
+    })
+    expect(canConstructAt(capped, 'player', positions[2], 'farm')).toEqual({
+      ok: false,
+      reason: 'productionCapacityReached',
+    })
+
+    const city = { ...town, kind: 'city' as const, hp: 120, maxHp: 120 }
+    const cityState = { ...capped, sites: [city, ...productionSites] }
+    expect(
+      getSettlementProductionCapacity(
+        createProductionSupportIndex(cityState, 'player'),
+        city.id,
+      ),
+    ).toMatchObject({ used: 2, capacity: 4 })
+    expect(canConstructAt(cityState, 'player', positions[2], 'farm')).toEqual({
+      ok: true,
+    })
+  })
+
+  it('recomputes support after ownership and settlement stage changes without removing sites', () => {
+    const state = openState('production-support-recalculation')
+    const origin = state.tiles[Math.floor(state.tiles.length / 2)].position
+    const positions = state.tiles
+      .filter((tile) => getHexDistance(origin, tile.position) === 2)
+      .map((tile) => tile.position)
+      .reduce<Position[]>((selected, position) => {
+        if (selected.every((other) => getHexDistance(other, position) >= 2)) {
+          selected.push(position)
+        }
+        return selected
+      }, [])
+    const town: Site = {
+      ...singleCellCity(origin),
+      kind: 'town',
+      hp: undefined,
+      maxHp: undefined,
+    }
+    const productionSites: Site[] = positions.slice(0, 3).map((position, index) => ({
+      id: `over-capacity-${index}`,
+      name: `Production ${index}`,
+      kind: (['farm', 'mine', 'blacksmith'] as const)[index],
+      position,
+      ownerId: 'player',
+      level: 1,
+      buildings: [],
+    }))
+    const overCapacityState = { ...state, sites: [town, ...productionSites] }
+    const overCapacityIndex = createProductionSupportIndex(
+      overCapacityState,
+      'player',
+    )
+
+    expect(getSettlementProductionCapacity(overCapacityIndex, town.id)).toMatchObject({
+      used: 3,
+      capacity: 2,
+    })
+    expect(
+      productionSites.map((site) =>
+        getProductionSupportAt(overCapacityIndex, site.position)?.settlement.id,
+      ),
+    ).toEqual([town.id, town.id, town.id])
+
+    const developed = {
+      ...overCapacityState,
+      sites: [{ ...town, kind: 'city' as const, hp: 120, maxHp: 120 }, ...productionSites],
+    }
+    expect(
+      getSettlementProductionCapacity(
+        createProductionSupportIndex(developed, 'player'),
+        town.id,
+      ),
+    ).toMatchObject({ used: 3, capacity: 4 })
+
+    const captured = {
+      ...overCapacityState,
+      sites: [{ ...town, ownerId: 'enemy' as const }, ...productionSites],
+    }
+    expect(
+      getProductionSupportAt(
+        createProductionSupportIndex(captured, 'player'),
+        productionSites[0].position,
+      ),
+    ).toBeUndefined()
+    expect(captured.sites).toHaveLength(4)
+  })
+
+  it('does not use Villages or military sites as production support', () => {
+    const state = openState('unsupported-production')
+    const origin = state.tiles[Math.floor(state.tiles.length / 2)].position
+    const destination = state.tiles.find(
+      (tile) => getHexDistance(origin, tile.position) === 2,
+    )!.position
+    const village: Site = {
+      ...singleCellCity(origin),
+      kind: 'village',
+      hp: undefined,
+      maxHp: undefined,
+    }
+
+    for (const kind of ['village', 'keep', 'stronghold'] as const) {
+      const anchor: Site = {
+        ...village,
+        id: `player-${kind}`,
+        kind,
+        ...(kind === 'keep'
+          ? { hp: 75, maxHp: 75 }
+          : kind === 'stronghold'
+            ? { hp: 100, maxHp: 100 }
+            : {}),
+      }
+      expect(
+        canConstructAt({ ...state, sites: [anchor] }, 'player', destination, 'farm'),
+      ).toEqual({ ok: false, reason: 'notConnected' })
+    }
   })
 })
 
@@ -563,5 +794,44 @@ describe('settlement and construction actions', () => {
     expect(
       gameReducer(unselected, { type: 'siteSettled', unitId: settler.id }),
     ).toBe(unselected)
+  })
+
+  it('leaves capped production construction state and resources unchanged', () => {
+    const state = openState('capped-production-action')
+    const origin = state.tiles[Math.floor(state.tiles.length / 2)].position
+    const positions = state.tiles
+      .filter((tile) => getHexDistance(origin, tile.position) === 2)
+      .map((tile) => tile.position)
+      .reduce<Position[]>((selected, position) => {
+        if (selected.every((other) => getHexDistance(other, position) >= 2)) {
+          selected.push(position)
+        }
+        return selected
+      }, [])
+    const city = singleCellCity(origin)
+    const sites: Site[] = positions.slice(0, 4).map((position, index) => ({
+      id: `player-production-${index}`,
+      name: `Production ${index}`,
+      kind: (['farm', 'mine', 'blacksmith', 'farm'] as const)[index],
+      position,
+      ownerId: 'player',
+      level: 1,
+      buildings: [],
+    }))
+    const builder = civilian('builder', positions[4])
+    const capped = {
+      ...state,
+      sites: [city, ...sites],
+      units: [builder],
+      selectedUnitId: builder.id,
+    }
+
+    expect(
+      gameReducer(capped, {
+        type: 'siteConstructed',
+        unitId: builder.id,
+        siteKind: 'farm',
+      }),
+    ).toBe(capped)
   })
 })

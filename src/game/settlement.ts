@@ -64,11 +64,40 @@ const CONSTRUCTION_ANCHORS = new Set([
   'keep',
   'stronghold',
 ])
+const PRODUCTION_SITE_TYPES = new Set(['farm', 'mine', 'blacksmith'])
 const TERRITORY_RESTRICTED_SITE_TYPES = new Set<BuildableSiteType>([
   'farm',
   'mine',
   'blacksmith',
 ])
+
+export const SETTLEMENT_PRODUCTION_CAPACITIES = {
+  village: 0,
+  town: 2,
+  city: 4,
+} as const
+
+type SupportingSettlement = {
+  settlement: Site
+  distance: number
+}
+
+export type ProductionSupportIndex = {
+  factionId: FactionId
+  supportByPosition: ReadonlyMap<string, SupportingSettlement>
+  usageBySettlementId: ReadonlyMap<string, number>
+  settlementsById: ReadonlyMap<string, Site>
+}
+
+export type SettlementProductionCapacity = {
+  settlement: Site
+  used: number
+  capacity: number
+}
+
+export type ProductionSupport = SettlementProductionCapacity & {
+  distance: number
+}
 
 function isBuildableLand(terrain: Terrain) {
   return terrain !== 'bridge' && !IMPASSABLE_TERRAINS.has(terrain)
@@ -76,6 +105,130 @@ function isBuildableLand(terrain: Terrain) {
 
 function isConnectionTerrain(terrain: Terrain) {
   return TERRAIN_MOVEMENT_COST[terrain] !== null
+}
+
+function isProductionSite(site: Site) {
+  return PRODUCTION_SITE_TYPES.has(site.kind)
+}
+
+export function getSettlementProductionCapacityLimit(site: Site): number {
+  if (
+    site.kind === 'village' ||
+    site.kind === 'town' ||
+    site.kind === 'city'
+  ) {
+    return SETTLEMENT_PRODUCTION_CAPACITIES[site.kind]
+  }
+  return 0
+}
+
+export function createProductionSupportIndex(
+  state: GameState,
+  factionId: FactionId,
+): ProductionSupportIndex {
+  const tilesByKey = new Map(
+    state.tiles.map((tile) => [positionKey(tile.position), tile]),
+  )
+  const settlements = state.sites
+    .filter(
+      (site) =>
+        site.ownerId === factionId &&
+        (site.kind === 'town' || site.kind === 'city'),
+    )
+    .sort((left, right) =>
+      left.id < right.id ? -1 : left.id > right.id ? 1 : 0,
+    )
+  const supportByPosition = new Map<string, SupportingSettlement>()
+
+  for (const settlement of settlements) {
+    const frontier = getSiteOccupiedPositions(settlement).map((position) => ({
+      position,
+      distance: 0,
+    }))
+    const visited = new Set(
+      frontier.map(({ position }) => positionKey(position)),
+    )
+    let index = 0
+
+    while (index < frontier.length) {
+      const current = frontier[index]
+      index += 1
+      const key = positionKey(current.position)
+      const existing = supportByPosition.get(key)
+      if (
+        !existing ||
+        current.distance < existing.distance ||
+        (current.distance === existing.distance &&
+          settlement.id < existing.settlement.id)
+      ) {
+        supportByPosition.set(key, {
+          settlement,
+          distance: current.distance,
+        })
+      }
+      if (current.distance >= 3) continue
+
+      for (const neighbor of getHexNeighbors(current.position, state.boardSize)) {
+        const neighborKey = positionKey(neighbor)
+        if (visited.has(neighborKey)) continue
+        const tile = tilesByKey.get(neighborKey)
+        if (!tile || !isConnectionTerrain(tile.terrain)) continue
+        visited.add(neighborKey)
+        frontier.push({
+          position: neighbor,
+          distance: current.distance + 1,
+        })
+      }
+    }
+  }
+
+  const usageBySettlementId = new Map(
+    settlements.map((settlement) => [settlement.id, 0]),
+  )
+  for (const site of state.sites) {
+    if (site.ownerId !== factionId || !isProductionSite(site)) continue
+    const support = supportByPosition.get(positionKey(site.position))
+    if (!support) continue
+    usageBySettlementId.set(
+      support.settlement.id,
+      (usageBySettlementId.get(support.settlement.id) ?? 0) + 1,
+    )
+  }
+
+  return {
+    factionId,
+    supportByPosition,
+    usageBySettlementId,
+    settlementsById: new Map(
+      settlements.map((settlement) => [settlement.id, settlement]),
+    ),
+  }
+}
+
+export function getProductionSupportAt(
+  index: ProductionSupportIndex,
+  position: Position,
+): ProductionSupport | undefined {
+  const support = index.supportByPosition.get(positionKey(position))
+  if (!support) return undefined
+  return {
+    ...support,
+    used: index.usageBySettlementId.get(support.settlement.id) ?? 0,
+    capacity: getSettlementProductionCapacityLimit(support.settlement),
+  }
+}
+
+export function getSettlementProductionCapacity(
+  index: ProductionSupportIndex,
+  settlementId: string,
+): SettlementProductionCapacity | undefined {
+  const settlement = index.settlementsById.get(settlementId)
+  if (!settlement) return undefined
+  return {
+    settlement,
+    used: index.usageBySettlementId.get(settlement.id) ?? 0,
+    capacity: getSettlementProductionCapacityLimit(settlement),
+  }
 }
 
 function isFarEnoughFromSites(
@@ -148,6 +301,7 @@ export type SitePlacementFailure =
   | 'notConnected'
   | 'outsideTerritory'
   | 'enemyTerritory'
+  | 'productionCapacityReached'
 
 export type SitePlacementCheck =
   | { ok: true }
@@ -178,6 +332,7 @@ export function canConstructAt(
   position: Position,
   siteKind: BuildableSiteType,
   territory: TerritoryIndex = createTerritoryIndex(state),
+  productionSupportIndex?: ProductionSupportIndex,
 ): SitePlacementCheck {
   const tile = state.tiles.find(
     (candidate) => positionKey(candidate.position) === positionKey(position),
@@ -208,10 +363,14 @@ export function canConstructAt(
   ) {
     return { ok: false, reason: 'tooCloseToSite' }
   }
-  if (
-    siteKind !== 'outpost' &&
-    getOwnedAnchorGraphDistance(state, factionId, position) === undefined
-  ) {
+  const productionSupport = siteKind !== 'outpost'
+    ? getProductionSupportAt(
+        productionSupportIndex ??
+          createProductionSupportIndex(state, factionId),
+        position,
+      )
+    : undefined
+  if (siteKind !== 'outpost' && !productionSupport) {
     return { ok: false, reason: 'notConnected' }
   }
   if (
@@ -228,6 +387,12 @@ export function canConstructAt(
     territoryOwner !== factionId
   ) {
     return { ok: false, reason: 'enemyTerritory' }
+  }
+  if (
+    productionSupport &&
+    productionSupport.used >= productionSupport.capacity
+  ) {
+    return { ok: false, reason: 'productionCapacityReached' }
   }
   return { ok: true }
 }
@@ -257,6 +422,9 @@ export function getConstructiblePositions(
   siteKind: BuildableSiteType,
   territory: TerritoryIndex = createTerritoryIndex(state),
 ) {
+  const productionSupportIndex = siteKind === 'outpost'
+    ? undefined
+    : createProductionSupportIndex(state, factionId)
   return state.tiles
     .filter(
       (tile) =>
@@ -266,6 +434,7 @@ export function getConstructiblePositions(
           tile.position,
           siteKind,
           territory,
+          productionSupportIndex,
         ).ok,
     )
     .map((tile) => tile.position)
