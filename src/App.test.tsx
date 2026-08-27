@@ -1816,11 +1816,11 @@ describe('Milestone 07 UI', () => {
     const initialView = renderApp(initial)
     const status = initialView.container.querySelector<HTMLElement>('.status-bar')!
     const economyToggle = within(status).getByRole('button', {
-      name: `순수입 ${signedNetIncome}/턴`,
+      name: `순수입 ${signedNetIncome}`,
     })
 
     expect(status).toHaveTextContent('자원 20')
-    expect(status).toHaveTextContent(`순수입 ${signedNetIncome}/턴`)
+    expect(status).toHaveTextContent(`순수입 ${signedNetIncome}`)
     expect(status).not.toHaveTextContent(`수입 ${income}`)
     expect(status).not.toHaveTextContent('유지비')
     expect(status).not.toHaveTextContent('예약')
@@ -1832,7 +1832,7 @@ describe('Milestone 07 UI', () => {
     expect(economyToggle).toHaveAttribute('aria-expanded', 'true')
     expect(economyDetails).toHaveTextContent(`수입+${income}`)
     expect(economyDetails).toHaveTextContent(`유지비${upkeep}`)
-    expect(economyDetails).toHaveTextContent(`순수입${signedNetIncome}/턴`)
+    expect(economyDetails).toHaveTextContent(`순수입${signedNetIncome}`)
     expect(economyDetails).not.toHaveTextContent('예약 유지비')
 
     await user.click(economyToggle)
@@ -1860,7 +1860,7 @@ describe('Milestone 07 UI', () => {
       '.status-bar',
     )!
     const deficitToggle = within(deficitStatus).getByRole('button', {
-      name: `순수입 ${deficitNetIncome}/턴`,
+      name: `순수입 ${deficitNetIncome}`,
     })
 
     expect(deficitToggle).not.toHaveClass('status-bar__deficit')
@@ -1869,7 +1869,7 @@ describe('Milestone 07 UI', () => {
     await user.click(deficitToggle)
 
     const deficitDetails = screen.getByRole('region', { name: '경제 상세' })
-    expect(deficitDetails).toHaveTextContent(`순수입${deficitNetIncome}/턴`)
+    expect(deficitDetails).toHaveTextContent(`순수입${deficitNetIncome}`)
     expect(deficitReserve).toBe(0)
     expect(deficitDetails).not.toHaveTextContent('예약 유지비')
     deficitView.unmount()

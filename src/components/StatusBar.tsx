@@ -93,7 +93,7 @@ export function StatusBar({
             onClick={() => setEconomyExpanded((expanded) => !expanded)}
           >
             <span>
-              순수입 <strong>{formatSigned(netIncome)}/턴</strong>
+              순수입 <strong>{formatSigned(netIncome)}</strong>
             </span>
             <svg
               className="status-bar__economy-chevron"
@@ -122,7 +122,7 @@ export function StatusBar({
                 </div>
                 <div className={netIncome < 0 ? 'status-bar__deficit' : undefined}>
                   <dt>순수입</dt>
-                  <dd>{formatSigned(netIncome)}/턴</dd>
+                  <dd>{formatSigned(netIncome)}</dd>
                 </div>
                 {upkeepReserve > 0 && (
                   <div className="status-bar__deficit">
