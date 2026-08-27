@@ -421,6 +421,15 @@
   color: #f0d076;
 }
 
+.attack-bar {
+  background: linear-gradient(90deg, rgba(92, 39, 35, 0.98), rgba(52, 31, 30, 0.98));
+  border-color: rgba(239, 116, 102, 0.62);
+}
+
+.attack-bar .deployment-bar__copy strong {
+  color: #ffaaa1;
+}
+
 .deployment-bar button {
   min-height: 28px;
   margin-left: auto;
@@ -441,6 +450,10 @@
 
 .movement-bar button:hover {
   border-color: rgba(240, 208, 118, 0.84);
+}
+
+.attack-bar button:hover {
+  border-color: rgba(239, 116, 102, 0.88);
 }
 
 .deployment-bar kbd {
@@ -1498,19 +1511,6 @@
 
 .reachable-area-mark__boundary line {
   vector-effect: non-scaling-stroke;
-}
-
-.map-tile--zoc::before {
-  position: absolute;
-  z-index: 2;
-  inset: 0;
-  background: repeating-linear-gradient(
-    135deg,
-    rgba(143, 38, 34, 0.2) 0 4px,
-    transparent 4px 9px
-  );
-  content: '';
-  pointer-events: none;
 }
 
 .territory-mark {

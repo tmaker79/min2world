@@ -17,6 +17,7 @@ import { GameMap } from './components/GameMap'
 import type {
   CombatAnimation,
   CombatAnimationPhase,
+  MapTileActivationSource,
 } from './components/GameMap'
 import { InfoPanel } from './components/InfoPanel'
 import type { FoundingKind } from './components/InfoPanel'
@@ -62,7 +63,6 @@ import {
   getSelectedUnit,
   getSelectedUnitAttackableSites,
   getSelectedUnitAttackableUnits,
-  getSelectedUnitEnemyZoneOfControlPositions,
   getSelectedUnitReachablePositions,
 } from './game/selectors'
 import { getSiteOccupiedPositions } from './game/siteFootprint'
@@ -165,6 +165,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     message: string
   }>()
   const [activeMoveUnitId, setActiveMoveUnitId] = useState<string>()
+  const [activeAttackUnitId, setActiveAttackUnitId] = useState<string>()
   const [foundingSelection, setFoundingSelection] = useState<{
     unitId: string
     kind: FoundingKind
@@ -430,13 +431,17 @@ function GameApp({ initialState }: { initialState: GameState }) {
       ),
     [attackableSites],
   )
-  const zoneOfControlKeys = useMemo(
-    () =>
-      new Set(
-        getSelectedUnitEnemyZoneOfControlPositions(state).map(positionKey),
-      ),
-    [state],
-  )
+  const canEnterAttackMode =
+    Boolean(selectedUnit) &&
+    state.phase === 'playing' &&
+    state.activeFactionId === state.humanFactionId &&
+    !activeCombat &&
+    !activeSiteAttack &&
+    !activeProductionUnitType &&
+    attackableUnits.length + attackableSites.length > 0
+  const isAttackMode =
+    canEnterAttackMode && activeAttackUnitId === selectedUnit?.id
+
   const foundingCandidateKeys = useMemo(() => {
     if (!selectedUnit) return new Set<string>()
     if (selectedUnit.type === 'settler') {
@@ -543,6 +548,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
       setCombatPhase('attack')
       setSiteAttackAnnouncement(undefined)
       setActiveMoveUnitId(undefined)
+      setActiveAttackUnitId(undefined)
       setProductionUnitType(undefined)
       setActiveSiteTab(undefined)
       setDevelopmentFootprintIndex(0)
@@ -576,6 +582,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
       const captured = result.siteHp === 0
       setCombatPhase('attack')
       setActiveMoveUnitId(undefined)
+      setActiveAttackUnitId(undefined)
       setProductionUnitType(undefined)
       setActiveSiteTab(undefined)
       setDevelopmentFootprintIndex(0)
@@ -775,6 +782,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
       if (
         event.key === 'Escape' &&
         (isMoveMode ||
+          isAttackMode ||
           activeProductionUnitType ||
           foundingKind ||
           activeSiteTab === 'development' ||
@@ -782,6 +790,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
       ) {
         event.preventDefault()
         setActiveMoveUnitId(undefined)
+        setActiveAttackUnitId(undefined)
         setProductionUnitType(undefined)
         setProductionFeedback(undefined)
         setFoundingKind(undefined)
@@ -811,6 +820,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
         isEditing ||
         isInteractive ||
         isMoveMode ||
+        isAttackMode ||
         state.activeFactionId !== state.humanFactionId
       ) {
         return
@@ -839,6 +849,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     activeSiteTab,
     foundingKind,
     isMoveMode,
+    isAttackMode,
     mobileInfoExpanded,
     openSidebarInfo,
     setFoundingKind,
@@ -848,9 +859,14 @@ function GameApp({ initialState }: { initialState: GameState }) {
     closeCompactMinimap,
   ])
 
-  const handleTileClick = useCallback((tile: Tile) => {
+  const handleTileClick = useCallback((
+    tile: Tile,
+    activationSource: MapTileActivationSource,
+  ) => {
     const unit = getUnitAt(state, tile.position)
     const site = getSiteAt(state, tile.position)
+    const isDirectPointerAction =
+      activationSource === 'touch' || activationSource === 'pen'
 
     if (activeCombat || activeSiteAttack) {
       return
@@ -899,21 +915,6 @@ function GameApp({ initialState }: { initialState: GameState }) {
       return
     }
 
-    if (isMoveMode && selectedUnit) {
-      if (!reachableKeys.has(positionKey(tile.position))) {
-        return
-      }
-
-      dispatch({
-        type: 'unitMoved',
-        unitId: selectedUnit.id,
-        destination: tile.position,
-      })
-      setActiveMoveUnitId(undefined)
-      setInspectedTileKey(undefined)
-      return
-    }
-
     if (selectedUnit && unit && attackableIds.has(unit.id)) {
       setInspectedTileKey(undefined)
       startCombat(selectedUnit.id, unit.id)
@@ -926,8 +927,35 @@ function GameApp({ initialState }: { initialState: GameState }) {
       return
     }
 
+    if (isAttackMode) {
+      return
+    }
+
+    if (selectedUnit && (isMoveMode || isDirectPointerAction)) {
+      if (reachableKeys.has(positionKey(tile.position))) {
+        dispatch({
+          type: 'unitMoved',
+          unitId: selectedUnit.id,
+          destination: tile.position,
+        })
+        setActiveMoveUnitId(undefined)
+        setInspectedTileKey(undefined)
+        return
+      }
+
+      if (isMoveMode) {
+        return
+      }
+    }
+
     if (unit?.factionId === state.humanFactionId) {
-      openSidebarInfo()
+      setActiveAttackUnitId(undefined)
+      if (isDirectPointerAction) {
+        setMobileInfoExpanded(false)
+        closeSidebarOverlayMinimap()
+      } else {
+        openSidebarInfo()
+      }
       setActiveMoveUnitId(undefined)
       setInspectedTileKey(undefined)
       if (selectedUnit?.id === unit.id && site) {
@@ -994,10 +1022,12 @@ function GameApp({ initialState }: { initialState: GameState }) {
     activeProductionUnitType,
     attackableIds,
     attackableSiteIds,
+    closeSidebarOverlayMinimap,
     deployableKeys,
     productionSite,
     reachableKeys,
     isMoveMode,
+    isAttackMode,
     openSidebarInfo,
     selectedUnit,
     startCombat,
@@ -1231,6 +1261,29 @@ function GameApp({ initialState }: { initialState: GameState }) {
                 </button>
               </section>
             )}
+            {isAttackMode && selectedUnit && (
+              <section
+                className="deployment-bar attack-bar"
+                aria-label="부대 공격"
+              >
+                <div className="deployment-bar__copy">
+                  <strong>{selectedUnit.name} 공격</strong>
+                  <span className="deployment-bar__message" role="status">
+                    붉은 대상을 선택하세요.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  aria-label="부대 공격 취소"
+                  onClick={() => {
+                    setActiveAttackUnitId(undefined)
+                    openSidebarInfo()
+                  }}
+                >
+                  취소 <kbd>Esc</kbd>
+                </button>
+              </section>
+            )}
           </div>
 
           <div className="board-workspace">
@@ -1253,7 +1306,6 @@ function GameApp({ initialState }: { initialState: GameState }) {
                   selectedDevelopmentFootprintKeys={
                     selectedDevelopmentFootprintKeys
                   }
-                  zoneOfControlKeys={zoneOfControlKeys}
                   selectedSiteId={cityInfoSite?.id}
                   inspectedTileKey={inspectedTileKey}
                   combatAnimation={
@@ -1502,6 +1554,8 @@ function GameApp({ initialState }: { initialState: GameState }) {
                     unit={sidebarContent.unit}
                     canMove={canEnterMoveMode}
                     moveMode={isMoveMode}
+                    canAttack={canEnterAttackMode}
+                    attackMode={isAttackMode}
                     canDisband={
                       state.phase === 'playing' &&
                       state.activeFactionId === state.humanFactionId &&
@@ -1510,7 +1564,15 @@ function GameApp({ initialState }: { initialState: GameState }) {
                       !activeSiteAttack
                     }
                     onMoveModeChange={(active) => {
+                      setActiveAttackUnitId(undefined)
                       setActiveMoveUnitId(
+                        active ? sidebarContent.unit.id : undefined,
+                      )
+                      if (active) setMobileInfoExpanded(false)
+                    }}
+                    onAttackModeChange={(active) => {
+                      setActiveMoveUnitId(undefined)
+                      setActiveAttackUnitId(
                         active ? sidebarContent.unit.id : undefined,
                       )
                       if (active) setMobileInfoExpanded(false)
@@ -1524,6 +1586,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
                         return
                       }
                       setActiveMoveUnitId(undefined)
+                      setActiveAttackUnitId(undefined)
                       dispatch({
                         type: 'unitDisbanded',
                         unitId: sidebarContent.unit.id,
@@ -1533,6 +1596,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
                     onFoundingKindSelected={(kind) => {
                       setFoundingKind(kind)
                       setActiveMoveUnitId(undefined)
+                      setActiveAttackUnitId(undefined)
                     }}
                     onFoundingCancel={() => setFoundingKind(undefined)}
                     onFoundingConfirm={() => {
@@ -1550,6 +1614,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
                       }
                       setFoundingKind(undefined)
                       setActiveMoveUnitId(undefined)
+                      setActiveAttackUnitId(undefined)
                     }}
                     onClose={() => {
                       setActiveMoveUnitId(undefined)

@@ -28,6 +28,9 @@ type InfoPanelProps = {
   canMove: boolean
   moveMode: boolean
   onMoveModeChange: (active: boolean) => void
+  canAttack: boolean
+  attackMode: boolean
+  onAttackModeChange: (active: boolean) => void
   canDisband: boolean
   onDisband: () => void
   foundingKind?: FoundingKind
@@ -80,6 +83,9 @@ export function InfoPanel({
   canMove,
   moveMode,
   onMoveModeChange,
+  canAttack,
+  attackMode,
+  onAttackModeChange,
   canDisband,
   onDisband,
   foundingKind,
@@ -175,6 +181,15 @@ export function InfoPanel({
           onClick={() => onMoveModeChange(!moveMode)}
         >
           이동
+        </button>
+        <button
+          type="button"
+          aria-pressed={attackMode}
+          disabled={!canAttack}
+          title={canAttack ? '공격할 대상을 선택합니다.' : '공격 가능한 대상이 없습니다.'}
+          onClick={() => onAttackModeChange(!attackMode)}
+        >
+          공격
         </button>
         {state.gameMode === 'standard' && unit.type === 'settler' && (
           <button

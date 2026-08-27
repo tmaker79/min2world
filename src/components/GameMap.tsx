@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import { memo, useMemo } from 'react'
+import { memo, useMemo, useRef } from 'react'
 import farmLevel2Icon from '../assets/sites/farm-level-2.png'
 import farmLevel3Icon from '../assets/sites/farm-level-3.png'
 import farmLevel1Icon from '../assets/sites/farm.png'
@@ -159,6 +159,12 @@ const SITE_ASSET_PREVIEW_DETAILS: Record<
 
 export type CombatAnimationPhase = 'attack' | 'hit'
 
+export type MapTileActivationSource =
+  | 'mouse'
+  | 'touch'
+  | 'pen'
+  | 'keyboard'
+
 export type CombatAnimation = {
   attackerId: string
   defenderId: string
@@ -193,7 +199,6 @@ type GameMapProps = {
   developmentFootprintKeys?: Set<string>
   foundingCandidateKeys?: Set<string>
   selectedDevelopmentFootprintKeys?: Set<string>
-  zoneOfControlKeys: Set<string>
   selectedSiteId?: string
   inspectedTileKey?: string
   combatAnimation?: CombatAnimation
@@ -201,7 +206,7 @@ type GameMapProps = {
   showSiteAssetPreview?: boolean
   disabled: boolean
   suppressClickRef?: { current: boolean }
-  onTileClick: (tile: Tile) => void
+  onTileClick: (tile: Tile, source: MapTileActivationSource) => void
   onTileContextMenu?: (tile: Tile) => void
   onPreviewTileChange?: (tileKey?: string) => void
 }
@@ -224,10 +229,9 @@ type TileButtonProps = {
   developmentFootprint: boolean
   foundingCandidate: boolean
   selectedDevelopmentFootprint: boolean
-  inZoneOfControl: boolean
   disabled: boolean
   style: CSSProperties
-  onClick: (tile: Tile) => void
+  onClick: (tile: Tile, source: MapTileActivationSource) => void
   onContextMenu?: (tile: Tile) => void
   suppressClickRef?: { current: boolean }
   onPreviewTileChange?: (tileKey?: string) => void
@@ -238,7 +242,6 @@ function getTileLabel(
   unit?: Unit,
   site?: Site,
   attackable = false,
-  inZoneOfControl = false,
   deployable = false,
   developmentFootprint = false,
   selectedDevelopmentFootprint = false,
@@ -256,7 +259,6 @@ function getTileLabel(
         ? `${getFactionLabel(territoryOwner)} 영토`
         : '미편입 지역',
   )
-  if (inZoneOfControl) parts.push('적 통제 구역')
   if (deployable) parts.push('생산 배치 가능')
   if (foundingCandidate) parts.push('정착·건설 가능')
   if (developmentFootprint) {
@@ -332,7 +334,6 @@ const TileButton = memo(function TileButton({
   developmentFootprint,
   foundingCandidate,
   selectedDevelopmentFootprint,
-  inZoneOfControl,
   disabled,
   style,
   onClick,
@@ -340,6 +341,7 @@ const TileButton = memo(function TileButton({
   suppressClickRef,
   onPreviewTileChange,
 }: TileButtonProps) {
+  const pointerSourceRef = useRef<MapTileActivationSource>('mouse')
   const classNames = [
     'map-tile',
     `map-tile--${tile.terrain}`,
@@ -347,7 +349,6 @@ const TileButton = memo(function TileButton({
     siteSelected ? 'map-tile--site-selected' : '',
     inspected ? 'map-tile--inspected' : '',
     reachable ? 'map-tile--reachable' : '',
-    inZoneOfControl ? 'map-tile--zoc' : '',
     attackable ? 'map-tile--attackable' : '',
     attackableSite ? 'map-tile--attackable-site' : '',
     deployable ? 'map-tile--deployable' : '',
@@ -371,7 +372,6 @@ const TileButton = memo(function TileButton({
         unit,
         site,
         attackable || attackableSite,
-        inZoneOfControl,
         deployable,
         developmentFootprint,
         selectedDevelopmentFootprint,
@@ -392,16 +392,23 @@ const TileButton = memo(function TileButton({
       data-development-footprint-selected={
         selectedDevelopmentFootprint ? 'true' : undefined
       }
-      data-zone-of-control={inZoneOfControl ? 'true' : undefined}
       data-site-selected={siteSelected ? 'true' : undefined}
       data-territory-owner={territoryOwner ?? 'unclaimed'}
       aria-disabled={disabled || undefined}
-      onClick={() => {
+      onPointerDown={(event) => {
+        pointerSourceRef.current =
+          event.pointerType === 'touch' || event.pointerType === 'pen'
+            ? event.pointerType
+            : 'mouse'
+      }}
+      onClick={(event) => {
+        const source = event.detail === 0 ? 'keyboard' : pointerSourceRef.current
+        pointerSourceRef.current = 'mouse'
         if (disabled || suppressClickRef?.current) {
           return
         }
         onPreviewTileChange?.(undefined)
-        onClick(tile)
+        onClick(tile, source)
       }}
       onContextMenu={(event) => {
         event.preventDefault()
@@ -649,7 +656,6 @@ function GameMapComponent({
   developmentFootprintKeys = new Set(),
   foundingCandidateKeys = new Set(),
   selectedDevelopmentFootprintKeys = new Set(),
-  zoneOfControlKeys,
   selectedSiteId,
   inspectedTileKey,
   combatAnimation,
@@ -821,7 +827,6 @@ function GameMapComponent({
       deployableKeys,
       developmentFootprintKeys,
       selectedDevelopmentFootprintKeys,
-      zoneOfControlKeys,
     ]) {
       for (const key of keys) {
         const entry = layout.byKey.get(key)
@@ -849,7 +854,6 @@ function GameMapComponent({
     cullTop,
     cullRight,
     cullBottom,
-    zoneOfControlKeys,
   ])
   const hitEffects =
     combatAnimation?.phase === 'hit'
@@ -936,7 +940,6 @@ function GameMapComponent({
           )
           const selectedDevelopmentFootprint =
             selectedDevelopmentFootprintKeys.has(tileKey)
-          const inZoneOfControl = zoneOfControlKeys.has(tileKey)
           const territoryOwner = territoryByKey.get(tileKey)
           const territoryBoundaryMask = territoryOwner
             ? getTerritoryBoundaryMask(
@@ -966,7 +969,6 @@ function GameMapComponent({
               developmentFootprint={developmentFootprint}
               foundingCandidate={foundingCandidate}
               selectedDevelopmentFootprint={selectedDevelopmentFootprint}
-              inZoneOfControl={inZoneOfControl}
               disabled={disabled}
               style={style}
               onClick={onTileClick}

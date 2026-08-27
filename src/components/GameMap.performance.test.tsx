@@ -73,7 +73,6 @@ describe('GameMap large-map rendering', () => {
         attackableSiteKeys={new Set()}
         deployableKeys={new Set()}
         foundingCandidateKeys={foundingCandidateKeys}
-        zoneOfControlKeys={new Set()}
         showSiteAssetPreview
         disabled={false}
         onTileClick={() => undefined}

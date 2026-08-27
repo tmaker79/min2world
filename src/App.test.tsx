@@ -54,6 +54,29 @@ function mockViewport(width: number, height = 800) {
   })
 }
 
+function tapTile(
+  tile: HTMLElement,
+  pointerType: 'touch' | 'pen' = 'touch',
+) {
+  fireEvent.pointerDown(tile, {
+    pointerId: 1,
+    pointerType,
+    isPrimary: true,
+    button: 0,
+    clientX: 100,
+    clientY: 100,
+  })
+  fireEvent.pointerUp(tile, {
+    pointerId: 1,
+    pointerType,
+    isPrimary: true,
+    button: 0,
+    clientX: 100,
+    clientY: 100,
+  })
+  fireEvent.click(tile, { detail: 1 })
+}
+
 describe('Milestone 07 UI', () => {
   beforeEach(() => {
     localStorage.clear()
@@ -756,6 +779,7 @@ describe('Milestone 07 UI', () => {
       'false',
     )
     expect(within(unitMenu).getByRole('button', { name: '이동' })).toBeEnabled()
+    expect(within(unitMenu).getByRole('button', { name: '공격' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /요새화/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /방어/ })).not.toBeInTheDocument()
     expect(
@@ -835,6 +859,236 @@ describe('Milestone 07 UI', () => {
       originKey,
     )
     expect(container.querySelectorAll('[data-reachable="true"]').length).toBeGreaterThan(0)
+  })
+
+  it.each(['touch', 'pen'] as const)(
+    'moves directly on a reachable-cell %s tap and keeps unit information collapsed',
+    (pointerType) => {
+      mockViewport(700)
+      const state = createInitialGameState(`ui-move-${pointerType}-tap`)
+      const player = state.units.find((unit) => unit.factionId === 'player')!
+      const { container } = renderApp(state)
+      const playerTile = container.querySelector<HTMLButtonElement>(
+        `.map-tile[data-coordinate="${positionKey(player.position)}"]`,
+      )!
+
+      tapTile(playerTile, pointerType)
+
+      const infoToggle = container.querySelector<HTMLButtonElement>(
+        '.mobile-info-sheet__toggle',
+      )!
+      expect(playerTile).toHaveAttribute('aria-pressed', 'true')
+      expect(infoToggle).toHaveAttribute('aria-expanded', 'false')
+
+      const destination = container.querySelector<HTMLButtonElement>(
+        '[data-reachable="true"]',
+      )!
+      const destinationKey = destination.dataset.coordinate
+      tapTile(destination, pointerType)
+
+      expect(container.querySelector(`[data-unit-id="${player.id}"]`)).toHaveAttribute(
+        'data-coordinate',
+        destinationKey,
+      )
+    },
+  )
+
+  it('does not move directly when a reachable cell is keyboard-activated', async () => {
+    const user = userEvent.setup()
+    const state = createInitialGameState('ui-move-keyboard-command')
+    const player = state.units.find((unit) => unit.factionId === 'player')!
+    const { container } = renderApp(state)
+    await user.click(container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(player.position)}"]`,
+    )!)
+    const destination = container.querySelector<HTMLButtonElement>(
+      '[data-reachable="true"]',
+    )!
+    const originKey = positionKey(player.position)
+
+    fireEvent.click(destination, { detail: 0 })
+
+    expect(container.querySelector(`[data-unit-id="${player.id}"]`)).toHaveAttribute(
+      'data-coordinate',
+      originKey,
+    )
+  })
+
+  it('does not treat a touch drag ending on a reachable cell as a move tap', () => {
+    mockViewport(700)
+    const state = createInitialGameState('ui-move-touch-drag')
+    const player = state.units.find((unit) => unit.factionId === 'player')!
+    const { container } = renderApp(state)
+    const playerTile = container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(player.position)}"]`,
+    )!
+    tapTile(playerTile)
+    const destination = container.querySelector<HTMLButtonElement>(
+      '[data-reachable="true"]',
+    )!
+    const originKey = positionKey(player.position)
+
+    fireEvent.pointerDown(destination, {
+      pointerId: 2,
+      pointerType: 'touch',
+      isPrimary: true,
+      button: 0,
+      clientX: 100,
+      clientY: 100,
+    })
+    fireEvent.pointerMove(destination, {
+      pointerId: 2,
+      pointerType: 'touch',
+      isPrimary: true,
+      buttons: 1,
+      clientX: 120,
+      clientY: 120,
+    })
+    fireEvent.pointerUp(destination, {
+      pointerId: 2,
+      pointerType: 'touch',
+      isPrimary: true,
+      button: 0,
+      clientX: 120,
+      clientY: 120,
+    })
+    fireEvent.click(destination, { detail: 1 })
+
+    expect(container.querySelector(`[data-unit-id="${player.id}"]`)).toHaveAttribute(
+      'data-coordinate',
+      originKey,
+    )
+  })
+
+  it('attacks an enemy unit by touch while move mode is active', () => {
+    vi.useFakeTimers()
+    const initial = createInitialGameState('ui-touch-attack-in-move-mode')
+    const attacker: Unit = {
+      ...initial.units.find((unit) => unit.factionId === 'player')!,
+      id: 'touch-attacker',
+      type: 'infantry',
+      position: { q: 0, r: 0 },
+      hasActed: false,
+      movementRemaining: 2,
+    }
+    const defender: Unit = {
+      ...initial.units.find((unit) => unit.factionId === 'enemy')!,
+      id: 'touch-defender',
+      position: { q: 1, r: 0 },
+    }
+    const state = {
+      ...initial,
+      selectedUnitId: attacker.id,
+      units: [attacker, defender],
+      tiles: initial.tiles.map((tile) => ({ ...tile, terrain: 'plain' as const })),
+    }
+    const { container } = renderApp(state)
+    fireEvent.click(
+      within(screen.getByRole('toolbar', { name: '유닛 메뉴' })).getByRole(
+        'button',
+        { name: '이동' },
+      ),
+    )
+    const target = container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(defender.position)}"]`,
+    )!
+
+    expect(target).toHaveAttribute('data-attackable', 'true')
+    tapTile(target)
+
+    expect(container.querySelector(`[data-unit-id="${attacker.id}"]`))
+      .toHaveClass('unit-token--striking')
+    vi.clearAllTimers()
+    vi.useRealTimers()
+  })
+
+  it('enters attack mode from the unit menu and attacks the selected target', () => {
+    vi.useFakeTimers()
+    const initial = createInitialGameState('ui-attack-command')
+    const attacker: Unit = {
+      ...initial.units.find((unit) => unit.factionId === 'player')!,
+      id: 'command-attacker',
+      type: 'infantry',
+      position: { q: 0, r: 0 },
+      hasActed: false,
+      movementRemaining: 2,
+    }
+    const defender: Unit = {
+      ...initial.units.find((unit) => unit.factionId === 'enemy')!,
+      id: 'command-defender',
+      position: { q: 1, r: 0 },
+    }
+    const state = {
+      ...initial,
+      selectedUnitId: attacker.id,
+      units: [attacker, defender],
+      tiles: initial.tiles.map((tile) => ({ ...tile, terrain: 'plain' as const })),
+    }
+    const { container } = renderApp(state)
+    const attackButton = within(
+      screen.getByRole('toolbar', { name: '유닛 메뉴' }),
+    ).getByRole('button', { name: '공격' })
+
+    expect(attackButton).toBeEnabled()
+    fireEvent.click(attackButton)
+    expect(attackButton).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByLabelText('부대 공격')).toHaveTextContent(
+      '붉은 대상을 선택하세요.',
+    )
+    expect(
+      container.querySelector('.mobile-info-sheet__toggle'),
+    ).toHaveAttribute('aria-expanded', 'false')
+    expect(container.querySelector('[data-zone-of-control]')).toBeNull()
+    expect(container.querySelector('.map-tile--zoc')).toBeNull()
+
+    fireEvent.click(container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(defender.position)}"]`,
+    )!)
+
+    expect(screen.queryByLabelText('부대 공격')).not.toBeInTheDocument()
+    expect(container.querySelector(`[data-unit-id="${attacker.id}"]`))
+      .toHaveClass('unit-token--striking')
+    vi.clearAllTimers()
+    vi.useRealTimers()
+  })
+
+  it('attacks an enemy site by touch tap', () => {
+    vi.useFakeTimers()
+    const initial = createInitialGameState('ui-touch-site-attack')
+    const capital = initial.sites.find((site) => site.capitalFor === 'enemy')!
+    const attacker: Unit = {
+      id: 'touch-site-attacker',
+      name: 'touch site attacker',
+      factionId: 'player',
+      type: 'archer',
+      position: getHexNeighbors(capital.position)[0],
+      hp: 100,
+      maxHp: 100,
+      movementRemaining: 2,
+      hasActed: false,
+    }
+    const state = {
+      ...initial,
+      selectedUnitId: attacker.id,
+      units: [attacker],
+      tiles: initial.tiles.map((tile) =>
+        positionKey(tile.position) === positionKey(capital.position)
+          ? { ...tile, terrain: 'plain' as const }
+          : tile,
+      ),
+    }
+    const { container } = renderApp(state)
+    const target = container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(capital.position)}"]`,
+    )!
+
+    expect(target).toHaveAttribute('data-attackable-site', 'true')
+    tapTile(target)
+
+    expect(container.querySelector('[data-testid="arrow-volley"]'))
+      .toBeInTheDocument()
+    vi.clearAllTimers()
+    vi.useRealTimers()
   })
 
   it('moves onto a reachable cell after entering move mode', async () => {

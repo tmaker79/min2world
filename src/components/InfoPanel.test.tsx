@@ -61,6 +61,9 @@ describe('InfoPanel territory feedback', () => {
         canMove={false}
         moveMode={false}
         onMoveModeChange={() => undefined}
+        canAttack={false}
+        attackMode={false}
+        onAttackModeChange={() => undefined}
         canDisband={false}
         onDisband={() => undefined}
         foundingKind="farm"
@@ -138,6 +141,9 @@ describe('InfoPanel territory feedback', () => {
         canMove={false}
         moveMode={false}
         onMoveModeChange={() => undefined}
+        canAttack={false}
+        attackMode={false}
+        onAttackModeChange={() => undefined}
         canDisband={false}
         onDisband={() => undefined}
         foundingKind="farm"
