@@ -91,13 +91,12 @@ export function zoomScrollOffset(
 
 export function getMapCameraGutter(
   viewportSize: number,
-  edgeTileCenter: number,
-  zoom: number,
   minimumGutter: number,
+  maximumGutter: number,
 ): number {
-  return Math.max(
-    minimumGutter,
-    viewportSize / 2 - edgeTileCenter * zoom,
+  return Math.min(
+    maximumGutter,
+    Math.max(minimumGutter, viewportSize * 0.08),
   )
 }
 
@@ -119,28 +118,26 @@ type CameraAxis = 'x' | 'y'
 function cameraContentOffset(
   scrollElement: HTMLElement,
   mapContent: HTMLElement,
-  zoom: number,
   axis: CameraAxis,
 ): number | undefined {
-  const edgeTileCenter = Number(
-    axis === 'x'
-      ? mapContent.dataset.cameraEdgeCenterX
-      : mapContent.dataset.cameraEdgeCenterY,
-  )
   const minimumGutter = Number(
     axis === 'x'
       ? mapContent.dataset.cameraMinimumGutterX
       : mapContent.dataset.cameraMinimumGutterY,
   )
-  if (!Number.isFinite(edgeTileCenter) || !Number.isFinite(minimumGutter)) {
+  const maximumGutter = Number(
+    axis === 'x'
+      ? mapContent.dataset.cameraMaximumGutterX
+      : mapContent.dataset.cameraMaximumGutterY,
+  )
+  if (!Number.isFinite(minimumGutter) || !Number.isFinite(maximumGutter)) {
     return undefined
   }
 
   return getMapCameraGutter(
     axis === 'x' ? scrollElement.clientWidth : scrollElement.clientHeight,
-    edgeTileCenter,
-    zoom,
     minimumGutter,
+    maximumGutter,
   )
 }
 
@@ -245,10 +242,10 @@ export function useMapZoom(
       const mapContent =
         scrollElement.querySelector<HTMLElement>('.map-zoom-shell')
       const nextContentLeft = mapContent
-        ? cameraContentOffset(scrollElement, mapContent, newZoom, 'x')
+        ? cameraContentOffset(scrollElement, mapContent, 'x')
         : undefined
       const nextContentTop = mapContent
-        ? cameraContentOffset(scrollElement, mapContent, newZoom, 'y')
+        ? cameraContentOffset(scrollElement, mapContent, 'y')
         : undefined
 
       commitZoom(newZoom, {
@@ -315,10 +312,10 @@ export function useMapZoom(
         contentHeight,
       )
       const nextContentLeft =
-        cameraContentOffset(scrollElement, mapContent, newZoom, 'x') ??
+        cameraContentOffset(scrollElement, mapContent, 'x') ??
         mapContent.offsetLeft
       const nextContentTop =
-        cameraContentOffset(scrollElement, mapContent, newZoom, 'y') ??
+        cameraContentOffset(scrollElement, mapContent, 'y') ??
         mapContent.offsetTop
       commitZoom(newZoom, {
         left: Math.max(
@@ -360,13 +357,13 @@ export function useMapZoom(
       const mapContent =
         scrollElement.querySelector<HTMLElement>('.map-zoom-shell')
       const contentLeft = mapContent
-        ? cameraContentOffset(scrollElement, mapContent, startZoom, 'x') !==
+        ? cameraContentOffset(scrollElement, mapContent, 'x') !==
           undefined
           ? mapContent.offsetLeft
           : undefined
         : undefined
       const contentTop = mapContent
-        ? cameraContentOffset(scrollElement, mapContent, startZoom, 'y') !==
+        ? cameraContentOffset(scrollElement, mapContent, 'y') !==
           undefined
           ? mapContent.offsetTop
           : undefined
@@ -431,10 +428,10 @@ export function useMapZoom(
       const mapContent =
         scrollElement.querySelector<HTMLElement>('.map-zoom-shell')
       const nextContentLeft = mapContent
-        ? cameraContentOffset(scrollElement, mapContent, nextZoom, 'x') ?? 0
+        ? cameraContentOffset(scrollElement, mapContent, 'x') ?? 0
         : 0
       const nextContentTop = mapContent
-        ? cameraContentOffset(scrollElement, mapContent, nextZoom, 'y') ?? 0
+        ? cameraContentOffset(scrollElement, mapContent, 'y') ?? 0
         : 0
       commitZoom(nextZoom, {
         left: nextContentLeft + pinchStart.contentX * nextZoom - localX,

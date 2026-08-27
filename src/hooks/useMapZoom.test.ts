@@ -117,10 +117,10 @@ describe('map zoom helpers', () => {
     expect(zoomScrollOffset(250, 50, 2, 1)).toBe(100)
   })
 
-  it('gives edge tiles enough camera gutter to reach the viewport center', () => {
-    expect(getMapCameraGutter(800, 38, 1, 12)).toBe(362)
-    expect(getMapCameraGutter(800, 38, 20, 12)).toBe(12)
-    expect(getMapCameraGutter(0, 38, 1, 12)).toBe(12)
+  it('clamps the proportional camera gutter between 48px and 72px', () => {
+    expect(getMapCameraGutter(320, 48, 72)).toBe(48)
+    expect(getMapCameraGutter(800, 48, 72)).toBe(64)
+    expect(getMapCameraGutter(1200, 48, 72)).toBe(72)
   })
 
   it('keeps the map point anchored when the camera gutter changes', () => {
@@ -175,10 +175,10 @@ describe('useMapZoom', () => {
     const element = createScrollElement()
     const mapContent = document.createElement('div')
     mapContent.className = 'map-zoom-shell'
-    mapContent.dataset.cameraEdgeCenterX = '38'
-    mapContent.dataset.cameraEdgeCenterY = '42'
-    mapContent.dataset.cameraMinimumGutterX = '12'
-    mapContent.dataset.cameraMinimumGutterY = '8'
+    mapContent.dataset.cameraMinimumGutterX = '48'
+    mapContent.dataset.cameraMinimumGutterY = '48'
+    mapContent.dataset.cameraMaximumGutterX = '72'
+    mapContent.dataset.cameraMaximumGutterY = '72'
     Object.defineProperties(mapContent, {
       offsetLeft: { configurable: true, value: 162 },
       offsetTop: { configurable: true, value: 108 },
@@ -207,7 +207,7 @@ describe('useMapZoom', () => {
         1,
         nextZoom,
         162,
-        getMapCameraGutter(400, 38, nextZoom, 12),
+        getMapCameraGutter(400, 48, 72),
       ),
     )
     expect(element.scrollTop).toBeCloseTo(
@@ -217,7 +217,7 @@ describe('useMapZoom', () => {
         1,
         nextZoom,
         108,
-        getMapCameraGutter(300, 42, nextZoom, 8),
+        getMapCameraGutter(300, 48, 72),
       ),
     )
   })

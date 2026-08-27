@@ -57,10 +57,8 @@ const VIEWPORT_OVERSCAN_PX = Math.max(HEX_WIDTH, HEX_HEIGHT) * 2
 const VIEWPORT_QUANTUM_PX = 64
 /** Matches `.game-map` content-box padding (8*2) + border (1*2). */
 const MAP_FRAME_PX = 18
-const MAP_CAMERA_MINIMUM_GUTTER_X = 12
-const MAP_CAMERA_MINIMUM_GUTTER_Y = 8
-const MAP_CAMERA_EDGE_CENTER_X = (HEX_WIDTH + MAP_FRAME_PX) / 2
-const MAP_CAMERA_EDGE_CENTER_Y = (HEX_HEIGHT + MAP_FRAME_PX) / 2
+const MAP_CAMERA_MINIMUM_GUTTER = 48
+const MAP_CAMERA_MAXIMUM_GUTTER = 72
 const HEX_BOUNDARY_EDGES = [
   [58, 16.5, 58, 49.5],
   [29, 0, 58, 16.5],
@@ -666,15 +664,13 @@ function GameMapComponent({
   const viewport = useMapViewport(scrollElement)
   const cameraGutterX = getMapCameraGutter(
     scrollElement?.clientWidth ?? 0,
-    MAP_CAMERA_EDGE_CENTER_X,
-    zoom,
-    MAP_CAMERA_MINIMUM_GUTTER_X,
+    MAP_CAMERA_MINIMUM_GUTTER,
+    MAP_CAMERA_MAXIMUM_GUTTER,
   )
   const cameraGutterY = getMapCameraGutter(
     scrollElement?.clientHeight ?? 0,
-    MAP_CAMERA_EDGE_CENTER_Y,
-    zoom,
-    MAP_CAMERA_MINIMUM_GUTTER_Y,
+    MAP_CAMERA_MINIMUM_GUTTER,
+    MAP_CAMERA_MAXIMUM_GUTTER,
   )
 
   const layout = useMemo(() => {
@@ -896,10 +892,10 @@ function GameMapComponent({
     >
     <div
       className="map-zoom-shell"
-      data-camera-edge-center-x={MAP_CAMERA_EDGE_CENTER_X}
-      data-camera-edge-center-y={MAP_CAMERA_EDGE_CENTER_Y}
-      data-camera-minimum-gutter-x={MAP_CAMERA_MINIMUM_GUTTER_X}
-      data-camera-minimum-gutter-y={MAP_CAMERA_MINIMUM_GUTTER_Y}
+      data-camera-minimum-gutter-x={MAP_CAMERA_MINIMUM_GUTTER}
+      data-camera-minimum-gutter-y={MAP_CAMERA_MINIMUM_GUTTER}
+      data-camera-maximum-gutter-x={MAP_CAMERA_MAXIMUM_GUTTER}
+      data-camera-maximum-gutter-y={MAP_CAMERA_MAXIMUM_GUTTER}
       style={{
         width: (logicalWidth + MAP_FRAME_PX) * zoom,
         height: (logicalHeight + MAP_FRAME_PX) * zoom,
