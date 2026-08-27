@@ -1245,21 +1245,18 @@
 
 .map-info-card__icon {
   display: grid;
-  width: 38px;
-  height: 38px;
-  flex: 0 0 38px;
+  width: 52px;
+  height: 58px;
+  flex: 0 0 52px;
   place-items: center;
-  color: #6ed7ff;
-  background: rgba(110, 215, 255, 0.1);
-  border: 1px solid rgba(110, 215, 255, 0.35);
-  border-radius: 50%;
-  font-size: 1rem;
+  overflow: hidden;
 }
 
-.map-info-card[data-info-mode='preview'] .map-info-card__icon {
-  color: var(--gold);
-  background: rgba(228, 185, 95, 0.1);
-  border-color: rgba(228, 185, 95, 0.35);
+.map-info-card__terrain {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
 }
 
 .city-card dt,

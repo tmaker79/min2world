@@ -1633,6 +1633,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
                 {sidebarContent.kind === 'mapInfo' && (
                   <MapInfoPanel
                     tile={sidebarContent.tile}
+                    mapSeed={state.mapSeed}
                     unit={sidebarContent.unit}
                     site={sidebarContent.site}
                     territoryOwner={territoryByKey.get(

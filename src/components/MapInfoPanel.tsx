@@ -10,12 +10,14 @@ import {
 } from '../game/rules'
 import type { Site, Tile, Unit } from '../game/types'
 import type { TerritoryOwner } from '../game/territory'
+import { TerrainIcon } from './TerrainIcon'
 
 type MapInfoPanelProps = {
   tile: Tile
   unit?: Unit
   site?: Site
   territoryOwner?: TerritoryOwner
+  mapSeed: string
   preview?: boolean
   onClose?: () => void
 }
@@ -30,6 +32,7 @@ export function MapInfoPanel({
   unit,
   site,
   territoryOwner,
+  mapSeed,
   preview = false,
   onClose,
 }: MapInfoPanelProps) {
@@ -51,7 +54,13 @@ export function MapInfoPanel({
       >
         <div className="city-card__summary">
           <span className="map-info-card__icon" aria-hidden="true">
-            {unit ? '◆' : site ? '▣' : '◇'}
+            <TerrainIcon
+              terrain={tile.terrain}
+              position={tile.position}
+              seed={mapSeed}
+              variantIndex={tile.terrainVariant}
+              className="map-info-card__terrain"
+            />
           </span>
           <div>
             <strong>{title}</strong>

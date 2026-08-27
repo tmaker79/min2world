@@ -689,7 +689,20 @@ describe('Milestone 07 UI', () => {
     fireEvent.click(tile)
 
     const info = screen.getByLabelText('타일 정보')
+    const mapTerrainImage = tile.querySelector<HTMLImageElement>(
+      '[data-terrain-icon]',
+    )!
+    const infoTerrainImage = info.querySelector<HTMLImageElement>(
+      '[data-terrain-icon]',
+    )!
     expect(info).toHaveTextContent('평지')
+    expect(infoTerrainImage.getAttribute('src')).toBe(
+      mapTerrainImage.getAttribute('src'),
+    )
+    expect(infoTerrainImage).toHaveAttribute(
+      'data-terrain-variant',
+      mapTerrainImage.dataset.terrainVariant,
+    )
     expect(info).toHaveTextContent('좌표')
     expect(info).toHaveTextContent('이동 비용')
     expect(info).toHaveTextContent('영토')
