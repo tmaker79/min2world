@@ -5,6 +5,7 @@ import {
   isMilitarySiteKind,
   SITE_TYPE_LABELS,
 } from '../game/rules'
+import { getFactionLabel } from '../game/factions'
 import type {
   ProductionSupport,
   SettlementProductionCapacity,
@@ -74,7 +75,7 @@ export function CityPanel({
           </div>
           <div>
             <dt>소유</dt>
-            <dd>{site.ownerId === 'neutral' ? '중립' : site.ownerId}</dd>
+            <dd>{getFactionLabel(site.ownerId)}</dd>
           </div>
           {gameMode === 'standard' && site.kind === 'city' && (
             <div>

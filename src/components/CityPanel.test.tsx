@@ -22,6 +22,7 @@ describe('CityPanel production support', () => {
       ...town,
       id: 'city',
       kind: 'city',
+      ownerId: 'f1',
       footprint: [{ q: 0, r: 0 }],
       hp: 120,
       maxHp: 120,
@@ -41,6 +42,9 @@ describe('CityPanel production support', () => {
     expect(screen.queryByRole('tab', { name: '발전' })).not.toBeInTheDocument()
     expect(screen.queryByRole('tab', { name: '건설' })).not.toBeInTheDocument()
     expect(screen.queryByText('건물')).not.toBeInTheDocument()
+    expect(screen.getByText('소유').nextElementSibling).toHaveTextContent(
+      '청색 연맹',
+    )
   })
 
   it('shows a settlement production usage and capacity', () => {
