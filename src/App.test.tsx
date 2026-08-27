@@ -747,6 +747,24 @@ describe('Milestone 07 UI', () => {
     expect(within(info).queryByText('소유자', { selector: 'dt' })).not.toBeInTheDocument()
   })
 
+  it('shows the unit icon instead of the terrain image for inspected enemy units', () => {
+    const state = createInitialGameState('ui-enemy-unit-info-icon')
+    const enemy = state.units.find((unit) => unit.factionId === 'enemy')!
+    const { container } = renderApp(state)
+    const tile = container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(enemy.position)}"]`,
+    )!
+
+    fireEvent.click(tile)
+
+    const info = screen.getByLabelText('타일 정보')
+    expect(info.querySelector(`[data-unit-icon="${enemy.type}"]`)).toBeInTheDocument()
+    expect(info.querySelector('[data-terrain-icon]')).not.toBeInTheDocument()
+    expect(within(info).queryByText('이동', { selector: 'dt' })).not.toBeInTheDocument()
+    expect(within(info).queryByText('상태', { selector: 'dt' })).not.toBeInTheDocument()
+    expect(info).toHaveTextContent('지형')
+  })
+
   it('keeps selected unit information while hovering an attack target', () => {
     const initial = createInitialGameState('ui-attack-target-preview')
     const attacker: Unit = {
@@ -1046,6 +1064,9 @@ describe('Milestone 07 UI', () => {
     ).getByRole('button', { name: '공격' })
 
     expect(attackButton).toBeEnabled()
+    expect(
+      container.querySelectorAll('[data-reachable="true"]').length,
+    ).toBeGreaterThan(0)
     fireEvent.click(attackButton)
     expect(attackButton).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByLabelText('부대 공격')).toHaveTextContent(
@@ -1056,6 +1077,15 @@ describe('Milestone 07 UI', () => {
     ).toHaveAttribute('aria-expanded', 'false')
     expect(container.querySelector('[data-zone-of-control]')).toBeNull()
     expect(container.querySelector('.map-tile--zoc')).toBeNull()
+    expect(container.querySelectorAll('[data-reachable="true"]')).toHaveLength(0)
+    expect(container.querySelectorAll('.reachable-area-mark')).toHaveLength(0)
+    expect(
+      container.querySelector(
+        `.map-tile[data-coordinate="${positionKey(defender.position)}"]`,
+      ),
+    ).toHaveAttribute('data-attackable', 'true')
+    expect(container.querySelector(`[data-unit-id="${defender.id}"]`)?.parentElement)
+      .toHaveClass('map-overlay-cell--attackable')
 
     fireEvent.click(container.querySelector<HTMLButtonElement>(
       `.map-tile[data-coordinate="${positionKey(defender.position)}"]`,
@@ -1099,6 +1129,8 @@ describe('Milestone 07 UI', () => {
     )!
 
     expect(target).toHaveAttribute('data-attackable-site', 'true')
+    expect(container.querySelector(`[data-site-id="${capital.id}"]`)?.parentElement)
+      .toHaveClass('map-overlay-cell--attackable')
     tapTile(target)
 
     expect(container.querySelector('[data-testid="arrow-volley"]'))

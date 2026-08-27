@@ -471,11 +471,13 @@ const TileButton = memo(function TileButton({
 function SiteMarker({
   site,
   selected,
+  attackable,
   siteAttackAnimation,
   style,
 }: {
   site: Site
   selected: boolean
+  attackable: boolean
   siteAttackAnimation?: SiteAttackAnimation
   style: CSSProperties
 }) {
@@ -490,7 +492,10 @@ function SiteMarker({
   const healthLabel =
     hp !== undefined && maxHp ? `, 체력 ${hp}/${maxHp}` : ''
   return (
-    <span className="map-overlay-cell" style={style}>
+    <span
+      className={`map-overlay-cell${attackable ? ' map-overlay-cell--attackable' : ''}`}
+      style={style}
+    >
       <span
         className={`site-marker site-marker--${site.kind} site-marker--${site.ownerId}${
           selected ? ' site-marker--selected' : ''
@@ -558,12 +563,14 @@ function SiteAssetPreviewMarker({
 function UnitMarker({
   unit,
   selected,
+  attackable,
   combatAnimation,
   siteAttackAnimation,
   style,
 }: {
   unit: Unit
   selected: boolean
+  attackable: boolean
   combatAnimation?: CombatAnimation
   siteAttackAnimation?: SiteAttackAnimation
   style: CSSProperties
@@ -609,7 +616,10 @@ function UnitMarker({
   const deltaLength = Math.hypot(deltaX, deltaY) || 1
 
   return (
-    <span className="map-overlay-cell" style={style}>
+    <span
+      className={`map-overlay-cell${attackable ? ' map-overlay-cell--attackable' : ''}`}
+      style={style}
+    >
       <span
         className={`unit-token unit-token--${unitRole} unit-token--${unit.factionId} ${
           selected ? 'unit-token--selected' : ''
@@ -986,6 +996,7 @@ function GameMapComponent({
             key={site.id}
             site={site}
             selected={site.id === selectedSiteId}
+            attackable={attackableSiteKeys.has(positionKey(site.position))}
             siteAttackAnimation={siteAttackAnimation}
             style={getSiteOverlayStyle(site, minimumX, minimumY)}
           />
@@ -1007,6 +1018,7 @@ function GameMapComponent({
             key={unit.id}
             unit={unit}
             selected={unit.id === state.selectedUnitId}
+            attackable={attackableKeys.has(positionKey(unit.position))}
             combatAnimation={combatAnimation}
             siteAttackAnimation={siteAttackAnimation}
             style={getOverlayStyle(unit.position, minimumX, minimumY)}

@@ -94,6 +94,7 @@ type AppProps = {
 const COMPACT_MAP_OVERLAY_QUERY =
   '(max-width: 700px), (max-width: 980px) and (max-height: 500px)'
 const SIDEBAR_OVERLAY_QUERY = '(max-width: 980px)'
+const EMPTY_TILE_KEYS = new Set<string>()
 
 type SidebarContent =
   | { kind: 'deployment'; unitType: UnitType }
@@ -1299,7 +1300,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
                   territoryByKey={territoryByKey}
                   scrollElement={mapScrollElement}
                   zoom={mapZoom}
-                  reachableKeys={reachableKeys}
+                  reachableKeys={isAttackMode ? EMPTY_TILE_KEYS : reachableKeys}
                   attackableKeys={attackableKeys}
                   attackableSiteKeys={attackableSiteKeys}
                   deployableKeys={deployableKeys}

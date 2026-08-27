@@ -11,6 +11,7 @@ import {
 import type { Site, Tile, Unit } from '../game/types'
 import type { TerritoryOwner } from '../game/territory'
 import { TerrainIcon } from './TerrainIcon'
+import { UnitIcon } from './UnitIcon'
 
 type MapInfoPanelProps = {
   tile: Tile
@@ -53,14 +54,25 @@ export function MapInfoPanel({
         data-info-mode={preview ? 'preview' : 'tile'}
       >
         <div className="city-card__summary">
-          <span className="map-info-card__icon" aria-hidden="true">
-            <TerrainIcon
-              terrain={tile.terrain}
-              position={tile.position}
-              seed={mapSeed}
-              variantIndex={tile.terrainVariant}
-              className="map-info-card__terrain"
-            />
+          <span
+            className={
+              unit
+                ? `city-card__icon unit-card__icon unit-card__icon--${unit.factionId}`
+                : 'map-info-card__icon'
+            }
+            aria-hidden="true"
+          >
+            {unit ? (
+              <UnitIcon type={unit.type} />
+            ) : (
+              <TerrainIcon
+                terrain={tile.terrain}
+                position={tile.position}
+                seed={mapSeed}
+                variantIndex={tile.terrainVariant}
+                className="map-info-card__terrain"
+              />
+            )}
           </span>
           <div>
             <strong>{title}</strong>
@@ -80,22 +92,12 @@ export function MapInfoPanel({
 
         <dl>
           {unit && (
-            <>
-              <div>
-                <dt>체력</dt>
-                <dd>
-                  {unit.hp} / {unit.maxHp}
-                </dd>
-              </div>
-              <div>
-                <dt>이동</dt>
-                <dd>{unit.movementRemaining}</dd>
-              </div>
-              <div>
-                <dt>상태</dt>
-                <dd>{unit.hasActed ? '행동 완료' : '행동 가능'}</dd>
-              </div>
-            </>
+            <div>
+              <dt>체력</dt>
+              <dd>
+                {unit.hp} / {unit.maxHp}
+              </dd>
+            </div>
           )}
           {site && (
             <>
