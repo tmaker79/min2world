@@ -44,7 +44,7 @@ function withPaidActiveFaction(state: GameState): GameState {
 describe('city administration', () => {
   it('initializes every site without buildings or a construction queue', () => {
     const state = createInitialGameState('building-initial')
-    expect(state.schemaVersion).toBe(14)
+    expect(state.schemaVersion).toBe(15)
     expect(state.sites.every((site) => site.buildings.length === 0)).toBe(true)
     expect(
       state.sites.every((site) => site.constructionQueue === undefined),
@@ -53,7 +53,7 @@ describe('city administration', () => {
 
   it('starts construction only in an active owned City and charges immediately', () => {
     const initial = createInitialGameState('building-start')
-    initial.resources[initial.activeFactionId] = 0
+    initial.resources[initial.activeFactionId] = 20
     const city = ownedCity(initial)
     const farm = initial.sites.find((site) => site.kind === 'farm')!
 
@@ -67,9 +67,7 @@ describe('city administration', () => {
       buildingId: 'granary',
     })
 
-    expect(started.resources[initial.activeFactionId]).toBe(
-      initial.resources[initial.activeFactionId],
-    )
+    expect(started.resources[initial.activeFactionId]).toBe(5)
     expect(started.sites.find((site) => site.id === city.id)).toMatchObject({
       buildings: [],
       constructionQueue: {

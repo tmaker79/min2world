@@ -14,7 +14,9 @@ export type Terrain =
 
 export type MapType = 'balanced' | 'plains' | 'mountainous' | 'forested'
 
-export const GAME_SCHEMA_VERSION = 14
+export const GAME_SCHEMA_VERSION = 15
+export type Difficulty = 'easy' | 'normal'
+export const DEFAULT_DIFFICULTY: Difficulty = 'normal'
 export const MAP_GENERATION_VERSION = 25
 export const SUPPORTED_MAP_GENERATION_VERSIONS: readonly number[] = [
   5,
@@ -148,6 +150,7 @@ export type GameState = {
   boardSize: BoardSize
   factionCount: FactionCount
   humanFactionId: FactionId
+  difficulty: Difficulty
   factionOrder: FactionId[]
   turn: number
   phase: GamePhase
@@ -191,4 +194,5 @@ export type GameAction =
       factionCount?: FactionCount
       humanFactionId?: FactionId
       mapType?: MapType
+      difficulty?: Difficulty
     }

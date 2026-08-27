@@ -42,6 +42,7 @@ import type { StorageResult } from './storageResult'
 import type {
   BoardSize,
   BuildingId,
+  Difficulty,
   FactionCount,
   FactionId,
   GameState,
@@ -86,6 +87,11 @@ const TERRAINS = new Set<Terrain>(
 const UNIT_TYPES = new Set<UnitType>(UNIT_TYPE_LIST)
 const SITE_TYPES = new Set<SiteType>(Object.keys(SITE_STATS) as SiteType[])
 const MAP_TYPES = new Set<MapType>(['balanced', 'plains', 'mountainous', 'forested'])
+const DIFFICULTIES = new Set<Difficulty>(['easy', 'normal'])
+
+function isDifficulty(value: unknown): value is Difficulty {
+  return typeof value === 'string' && DIFFICULTIES.has(value as Difficulty)
+}
 const BUILDINGS = new Set<BuildingId>(BUILDING_IDS)
 
 function parsePosition(value: unknown, boardSize = DEFAULT_BOARD_SIZE): Position | undefined {
@@ -328,11 +334,13 @@ function parseGameState(value: unknown): StorageResult<GameState> {
   const factionCount = value.factionCount
   const factionOrder = value.factionOrder
   const mapType = value.mapType ?? 'balanced'
+  const difficulty = value.difficulty ?? 'easy'
   if (
     value.schemaVersion !== GAME_SCHEMA_VERSION ||
     !isNonEmptyString(value.mapSeed, 64) ||
     typeof mapType !== 'string' ||
     !MAP_TYPES.has(mapType as MapType) ||
+    !isDifficulty(difficulty) ||
     typeof value.mapGenerationVersion !== 'number' ||
     !SUPPORTED_MAP_GENERATION_VERSIONS.includes(value.mapGenerationVersion) ||
     !isIntegerInRange(value.turn, 1) ||
@@ -409,6 +417,7 @@ function parseGameState(value: unknown): StorageResult<GameState> {
     boardSize,
     factionCount,
     humanFactionId: value.humanFactionId as FactionId,
+    difficulty,
     factionOrder: factionOrder as FactionId[],
     turn: value.turn,
     phase: 'playing',

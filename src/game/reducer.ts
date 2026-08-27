@@ -68,7 +68,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       action.boardSize === undefined &&
       action.factionCount === undefined &&
       action.humanFactionId === undefined &&
-      action.mapType === undefined
+      action.mapType === undefined &&
+      action.difficulty === undefined
     ) {
       return createInitialGameState(action.seed)
     }
@@ -77,6 +78,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       factionCount: action.factionCount ?? state.factionCount,
       humanFactionId: action.humanFactionId ?? state.humanFactionId,
       mapType: action.mapType ?? state.mapType,
+      difficulty: action.difficulty ?? state.difficulty,
     })
   }
 

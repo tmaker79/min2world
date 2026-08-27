@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { BOARD_SIZE_PRESETS } from '../game/hex'
 import { createRandomMapSeed } from '../game/mapGenerator'
-import type { BoardSize, FactionCount, FactionId, MapType } from '../game/types'
+import { DEFAULT_DIFFICULTY } from '../game/types'
+import type { BoardSize, Difficulty, FactionCount, FactionId, MapType } from '../game/types'
 
 type StartScreenProps = {
   onStart: (options: {
@@ -10,6 +11,7 @@ type StartScreenProps = {
     factionCount: FactionCount
     humanFactionId: FactionId
     mapType: MapType
+    difficulty: Difficulty
   }) => void
 }
 
@@ -34,10 +36,28 @@ const FACTION_OPTIONS: Array<{ id: FactionId; label: string }> = [
   { id: 'f2', label: '적색 제국' },
 ]
 
+const DIFFICULTY_OPTIONS: Array<{
+  id: Difficulty
+  label: string
+  description: string
+}> = [
+  {
+    id: 'easy',
+    label: '쉬움',
+    description: '플레이어 비용 면제',
+  },
+  {
+    id: 'normal',
+    label: '보통',
+    description: '정식 경제 규칙',
+  },
+]
+
 export function StartScreen({ onStart }: StartScreenProps) {
   const [sizeId, setSizeId] = useState<SizeOptionId>('tiny')
   const [humanFactionId, setHumanFactionId] = useState<FactionId>('f1')
   const [mapType, setMapType] = useState<MapType>('balanced')
+  const [difficulty, setDifficulty] = useState<Difficulty>(DEFAULT_DIFFICULTY)
   const mapTypeDescription = MAP_TYPE_OPTIONS.find(
     (option) => option.id === mapType,
   )?.description
@@ -97,6 +117,31 @@ export function StartScreen({ onStart }: StartScreenProps) {
           </select>
         </fieldset>
 
+        <fieldset>
+          <legend>난이도 선택</legend>
+          <select
+            className="start-screen__select"
+            aria-label="난이도 선택"
+            aria-describedby="difficulty-description"
+            value={difficulty}
+            onChange={(event) =>
+              setDifficulty(event.target.value as Difficulty)
+            }
+          >
+            {DIFFICULTY_OPTIONS.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <p id="difficulty-description" className="start-screen__helper">
+            {
+              DIFFICULTY_OPTIONS.find((option) => option.id === difficulty)
+                ?.description
+            }
+          </p>
+        </fieldset>
+
         <div className="start-screen__actions">
           <button
             type="button"
@@ -108,6 +153,7 @@ export function StartScreen({ onStart }: StartScreenProps) {
                 factionCount: ACTIVE_FACTION_COUNT,
                 humanFactionId,
                 mapType,
+                difficulty,
               })
             }}
           >

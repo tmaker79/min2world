@@ -25,6 +25,7 @@ function createLargeRenderState(columns: number, rows: number): GameState {
     boardSize: { columns, rows },
     factionCount: 2,
     humanFactionId: 'f1',
+    difficulty: 'normal',
     factionOrder: ['f1', 'f2'],
     turn: 1,
     phase: 'playing',

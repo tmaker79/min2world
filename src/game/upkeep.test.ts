@@ -92,8 +92,11 @@ describe('unit upkeep', () => {
     ).toBe(2)
   })
 
-  it('waives current and projected upkeep only for the human faction', () => {
-    const state = createInitialGameState('human-free-upkeep')
+  it('waives current and projected upkeep only for the human faction on easy', () => {
+    const state = {
+      ...createInitialGameState('human-free-upkeep'),
+      difficulty: 'easy' as const,
+    }
     const factionId = state.humanFactionId
 
     expect(getFactionUpkeep(state, factionId)).toBe(0)

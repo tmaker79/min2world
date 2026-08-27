@@ -261,7 +261,7 @@ describe('gameReducer on a hex map', () => {
 
   it('produces only at an owned production site and charges resources', () => {
     const initial = createInitialGameState('reducer-produce')
-    initial.resources.player = 0
+    initial.resources.player = 20
     const site = initial.sites.find((candidate) => candidate.capitalFor === 'player')!
     const destination = getDeployablePositions(initial, site)[0]
     const produced = gameReducer(initial, {
@@ -269,7 +269,7 @@ describe('gameReducer on a hex map', () => {
     })
 
     expect(produced.units).toHaveLength(initial.units.length + 1)
-    expect(produced.resources.player).toBe(initial.resources.player)
+    expect(produced.resources.player).toBe(10)
     expect(produced.selectedUnitId).toBeUndefined()
     expect(produced.sites.find((candidate) => candidate.id === site.id)?.lastProducedTurn).toBe(1)
     expect(gameReducer(produced, {
@@ -492,5 +492,17 @@ describe('gameReducer on a hex map', () => {
 
     expect(restarted.mapSeed).toBe('new-forest')
     expect(restarted.mapType).toBe('forested')
+  })
+
+  it('preserves difficulty when restarting', () => {
+    const state = createInitialGameState('old-easy', { difficulty: 'easy' })
+    const restarted = gameReducer(state, {
+      type: 'gameRestarted',
+      seed: 'new-easy',
+      difficulty: state.difficulty,
+    })
+
+    expect(restarted.difficulty).toBe('easy')
+    expect(restarted.mapSeed).toBe('new-easy')
   })
 })

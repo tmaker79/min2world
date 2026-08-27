@@ -1053,6 +1053,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
             factionCount: state.factionCount,
             humanFactionId: state.humanFactionId,
             mapType: state.mapType,
+            difficulty: state.difficulty,
           },
     )
     return true
@@ -1580,13 +1581,14 @@ function App({ initialState }: AppProps = {}) {
   if (!gameState) {
     return (
       <StartScreen
-        onStart={({ seed, boardSize, factionCount, humanFactionId, mapType }) => {
+        onStart={({ seed, boardSize, factionCount, humanFactionId, mapType, difficulty }) => {
           setGameState(
             createInitialGameState(seed, {
               boardSize,
               factionCount,
               humanFactionId,
               mapType,
+              difficulty,
             }),
           )
         }}

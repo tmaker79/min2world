@@ -23,6 +23,10 @@ describe('StartScreen', () => {
     )
     await user.selectOptions(mapTypeSelect, 'forested')
     expect(screen.getByText('숲이 많아 방어적인 전장이 형성됩니다.')).toBeInTheDocument()
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: '난이도 선택' }),
+      'normal',
+    )
     await user.click(screen.getByRole('button', { name: '게임 시작' }))
 
     expect(onStart).toHaveBeenCalledWith(
@@ -30,8 +34,18 @@ describe('StartScreen', () => {
         boardSize: { columns: 41, rows: 29 },
         mapType: 'forested',
         factionCount: 2,
+        difficulty: 'normal',
         seed: expect.any(String),
       }),
+    )
+  })
+
+  it('defaults to normal difficulty', () => {
+    const onStart = vi.fn()
+    render(<StartScreen onStart={onStart} />)
+
+    expect(screen.getByRole('combobox', { name: '난이도 선택' })).toHaveValue(
+      'normal',
     )
   })
 })

@@ -210,11 +210,28 @@ describe('saved games', () => {
 
     expect(loaded.ok).toBe(true)
     if (loaded.ok) {
-      expect(loaded.value.schemaVersion).toBe(14)
-      expect(loaded.value.gameState.schemaVersion).toBe(14)
+      expect(loaded.value.schemaVersion).toBe(15)
+      expect(loaded.value.gameState.schemaVersion).toBe(15)
       expect(
         loaded.value.gameState.sites.every((site) => site.foundedBy === undefined),
       ).toBe(true)
+    }
+  })
+
+  it('migrates schema 14 saves to easy difficulty', () => {
+    const storage = new MemoryStorage()
+    const current = createInitialGameState('schema-14-difficulty')
+    const { difficulty: _difficulty, ...withoutDifficulty } = current
+    void _difficulty
+    const legacy = { ...withoutDifficulty, schemaVersion: 14 }
+    storeEnvelope(storage, legacy, 14)
+
+    const loaded = loadGame(storage)
+
+    expect(loaded.ok).toBe(true)
+    if (loaded.ok) {
+      expect(loaded.value.schemaVersion).toBe(15)
+      expect(loaded.value.gameState.difficulty).toBe('easy')
     }
   })
 

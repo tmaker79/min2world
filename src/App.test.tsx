@@ -9,6 +9,7 @@ import {
   positionKey,
 } from './game/hex'
 import { createInitialGameState } from './game/initialState'
+import type { MapGenerationOptions } from './game/mapGenerator'
 import { getFactionIncome, TERRAIN_LABELS } from './game/rules'
 import { getSiteDevelopmentFootprints } from './game/siteDevelopment'
 import {
@@ -21,6 +22,13 @@ import {
   getFactionUpkeep,
   getFactionUpkeepReserve,
 } from './game/upkeep'
+
+function createEasyPlayerState(
+  seed: string,
+  options?: MapGenerationOptions,
+) {
+  return createInitialGameState(seed, { ...options, difficulty: 'easy' })
+}
 
 function renderApp(state: GameState = createInitialGameState('ui-seed')) {
   return render(<App initialState={state} />)
@@ -930,7 +938,7 @@ describe('Milestone 07 UI', () => {
 
   it('starts and cancels free player City construction without a slot limit', async () => {
     const user = userEvent.setup()
-    const state = createInitialGameState('ui-construction')
+    const state = createEasyPlayerState('ui-construction')
     const city = state.sites.find(
       (site) =>
         site.ownerId === state.humanFactionId && site.kind === 'city',
@@ -1074,7 +1082,7 @@ describe('Milestone 07 UI', () => {
 
   it('allows free player development and separately explains maximum development', async () => {
     const user = userEvent.setup()
-    const state = createInitialGameState('ui-development-blocked')
+    const state = createEasyPlayerState('ui-development-blocked')
     const site = state.sites.find(
       (candidate) => candidate.ownerId === state.humanFactionId,
     )!
@@ -1191,7 +1199,7 @@ describe('Milestone 07 UI', () => {
 
   it('shows City unit types and waives player production costs', async () => {
     const user = userEvent.setup()
-    const state = createInitialGameState('ui-production-unlocks')
+    const state = createEasyPlayerState('ui-production-unlocks')
     const city = state.sites.find(
       (site) =>
         site.ownerId === state.humanFactionId && site.kind === 'city',
@@ -1372,7 +1380,7 @@ describe('Milestone 07 UI', () => {
 
   it('shows a compact net income summary with an accessible economy popover', async () => {
     const user = userEvent.setup()
-    const initial = createInitialGameState('ui-upkeep-status')
+    const initial = createEasyPlayerState('ui-upkeep-status')
     const factionId = initial.humanFactionId
     const income = getFactionIncome(initial, factionId)
     const upkeep = getFactionUpkeep(initial, factionId)
@@ -1442,7 +1450,7 @@ describe('Milestone 07 UI', () => {
 
   it('confirms player disbanding, clears selection, and gives no refund', async () => {
     const user = userEvent.setup()
-    const initial = createInitialGameState('ui-unit-disband')
+    const initial = createEasyPlayerState('ui-unit-disband')
     const unit = initial.units.find(
       (candidate) => candidate.factionId === initial.humanFactionId,
     )!
@@ -1490,7 +1498,7 @@ describe('Milestone 07 UI', () => {
 
   it('waives projected upkeep and production costs for the player', async () => {
     const user = userEvent.setup()
-    const initial = createInitialGameState('ui-production-reserve')
+    const initial = createEasyPlayerState('ui-production-reserve')
     const city = initial.sites.find(
       (site) =>
         site.ownerId === initial.humanFactionId && site.kind === 'city',
@@ -1542,7 +1550,7 @@ describe('Milestone 07 UI', () => {
 
   it('waives upkeep reservation on player development and construction', async () => {
     const user = userEvent.setup()
-    const initial = createInitialGameState('ui-investment-reserve')
+    const initial = createEasyPlayerState('ui-investment-reserve')
     const city = initial.sites.find(
       (site) =>
         site.ownerId === initial.humanFactionId && site.kind === 'city',
@@ -1667,7 +1675,7 @@ describe('Milestone 07 UI', () => {
   })
 
   it('constructs for free while keeping the builder after its action ends', () => {
-    const state = createInitialGameState('ui-builder-construction', {
+    const state = createEasyPlayerState('ui-builder-construction', {
       boardSize: BOARD_SIZE_PRESETS.tiny,
     })
     const factionId = state.humanFactionId

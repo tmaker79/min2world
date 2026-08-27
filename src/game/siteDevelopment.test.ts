@@ -59,7 +59,11 @@ describe('site development', () => {
 
   it('waives development costs for the human faction', () => {
     const paid = developmentState('outpost')
-    const state = { ...paid, humanFactionId: paid.activeFactionId }
+    const state = {
+      ...paid,
+      humanFactionId: paid.activeFactionId,
+      difficulty: 'easy' as const,
+    }
 
     expect(getSiteDevelopmentCost(state.sites[0], state)).toBe(0)
     expect(canDevelopSite(state, 'site-1')).toMatchObject({ ok: true, cost: 0 })

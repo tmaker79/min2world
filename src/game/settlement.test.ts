@@ -747,7 +747,7 @@ describe('settlement and construction actions', () => {
 
   it('charges construction cost while preserving and exhausting the builder', () => {
     const state = openState('builder-action')
-    state.resources.player = 0
+    state.resources.player = 10
     const origin = state.tiles[Math.floor(state.tiles.length / 2)].position
     const destination = state.tiles.find(
       (tile) => getHexDistance(origin, tile.position) === 2,
@@ -765,9 +765,7 @@ describe('settlement and construction actions', () => {
       siteKind: 'outpost',
     })
 
-    expect(result.resources.player).toBe(
-      selected.resources.player,
-    )
+    expect(result.resources.player).toBe(0)
     expect(result.units).toContainEqual(
       expect.objectContaining({
         id: builder.id,

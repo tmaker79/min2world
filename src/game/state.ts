@@ -12,6 +12,7 @@ export function cloneGameState(
     boardSize: { ...state.boardSize },
     factionCount: state.factionCount,
     humanFactionId: state.humanFactionId,
+    difficulty: state.difficulty,
     factionOrder: [...state.factionOrder],
     turn: state.turn,
     phase: state.phase,

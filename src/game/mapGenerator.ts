@@ -23,12 +23,14 @@ import {
   isValidTownFootprint,
 } from './siteFootprint'
 import {
+  DEFAULT_DIFFICULTY,
   FOREST_TERRAIN_VARIANT_COUNT,
   GAME_SCHEMA_VERSION,
   MAP_GENERATION_VERSION,
 } from './types'
 import type {
   BoardSize,
+  Difficulty,
   FactionCount,
   FactionId,
   GameState,
@@ -963,6 +965,7 @@ export type MapGenerationOptions = {
   factionCount?: FactionCount
   humanFactionId?: FactionId
   mapType?: MapType
+  difficulty?: Difficulty
 }
 
 function toLegacyTwoFactionState(state: GameState): GameState {
@@ -997,6 +1000,7 @@ function buildCandidate(
   factionCount: FactionCount,
   humanFactionId: FactionId,
   mapType: MapType,
+  difficulty: Difficulty,
   fallback = false,
 ): GameState | undefined {
   const random = createRandom(
@@ -1125,6 +1129,7 @@ function buildCandidate(
     boardSize: { ...boardSize },
     factionCount,
     humanFactionId,
+    difficulty,
     factionOrder: getFactionIds(factionCount),
     turn: 1,
     phase: 'playing',
@@ -1166,6 +1171,7 @@ export function generateGameState(
     boardSize.rows === BOARD_SIZE_PRESETS.tiny.rows
   const factionCount: FactionCount = isTinyBoard ? 2 : requestedFactionCount
   const humanFactionId = options.humanFactionId ?? 'f1'
+  const difficulty = options.difficulty ?? DEFAULT_DIFFICULTY
   if (!getFactionIds(factionCount).includes(humanFactionId)) {
     throw new Error('Human faction must be active.')
   }
@@ -1178,6 +1184,7 @@ export function generateGameState(
       factionCount,
       humanFactionId,
       mapType,
+      difficulty,
     )
     if (state) return useLegacyIds ? toLegacyTwoFactionState(state) : state
   }
@@ -1189,6 +1196,7 @@ export function generateGameState(
     factionCount,
     humanFactionId,
     mapType,
+    difficulty,
     true,
   )
   if (!fallback) throw new Error('Unable to generate a valid map.')
