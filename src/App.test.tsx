@@ -761,7 +761,7 @@ describe('Milestone 07 UI', () => {
     expect(screen.queryByLabelText('지도 정보 미리보기')).not.toBeInTheDocument()
   })
 
-  it('selects a unit with keyboard Enter and exposes reachable hexes', async () => {
+  it('ends the turn with keyboard Enter instead of selecting a focused map tile', async () => {
     const user = userEvent.setup()
     const state = createInitialGameState('ui-keyboard')
     const player = state.units.find((unit) => unit.factionId === 'player')!
@@ -769,43 +769,29 @@ describe('Milestone 07 UI', () => {
     const tile = container.querySelector<HTMLButtonElement>(
       `[data-coordinate="${positionKey(player.position)}"]`,
     )!
+    const endTurnButton = screen.getByRole('button', { name: '턴 종료' })
 
     tile.focus()
     await user.keyboard('{Enter}')
 
-    expect(tile).toHaveAttribute('aria-pressed', 'true')
-    expect(container.querySelectorAll('[data-reachable="true"]').length).toBeGreaterThan(0)
-    expect(container.querySelectorAll('.reachable-area-mark').length).toBeGreaterThan(0)
-    expect(
-      container.querySelectorAll('[data-reachable-boundary="true"]').length,
-    ).toBeGreaterThan(0)
-    expect(screen.getByLabelText('지도 사이드바')).toContainElement(
-      screen.getByLabelText('부대 정보'),
-    )
-    const unitInfo = screen.getByLabelText('부대 정보')
-    const unitMenu = screen.getByRole('toolbar', { name: '유닛 메뉴' })
-    expect(
-      unitInfo.compareDocumentPosition(unitMenu) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
-    expect(within(unitMenu).getByRole('button', { name: '이동' })).toHaveAttribute(
-      'aria-pressed',
-      'false',
-    )
-    expect(within(unitMenu).getByRole('button', { name: '이동' })).toBeEnabled()
-    expect(within(unitMenu).getByRole('button', { name: '공격' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /요새화/ })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /방어/ })).not.toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: '부대 정보 닫기' }),
-    ).toBeInTheDocument()
-    expect(screen.queryByText('미구현')).not.toBeInTheDocument()
-    expect(container.querySelector('.map-stage')).not.toContainElement(
-      unitInfo,
-    )
-
-    await user.click(screen.getByRole('button', { name: '부대 정보 닫기' }))
-    expect(screen.queryByLabelText('부대 정보')).not.toBeInTheDocument()
     expect(tile).toHaveAttribute('aria-pressed', 'false')
+    expect(container.querySelectorAll('[data-reachable="true"]')).toHaveLength(0)
+    expect(endTurnButton).toBeDisabled()
+  })
+
+  it('ends the turn when Enter is pressed outside a map tile', () => {
+    renderApp()
+    const endTurnButton = screen.getByRole('button', { name: '턴 종료' })
+    const event = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      bubbles: true,
+      cancelable: true,
+    })
+
+    fireEvent(window, event)
+
+    expect(event.defaultPrevented).toBe(true)
+    expect(endTurnButton).toBeDisabled()
   })
 
   it('collapses overlay information without clearing its selection', async () => {

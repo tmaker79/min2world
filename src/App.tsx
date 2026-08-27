@@ -775,8 +775,9 @@ function GameApp({ initialState }: { initialState: GameState }) {
         target instanceof HTMLTextAreaElement ||
         target instanceof HTMLSelectElement ||
         (target instanceof HTMLElement && target.isContentEditable)
-      const isInteractive =
-        target instanceof HTMLButtonElement ||
+      const isNonMapInteractive =
+        (target instanceof HTMLButtonElement &&
+          !target.classList.contains('map-tile')) ||
         target instanceof HTMLAnchorElement
 
       if (
@@ -818,7 +819,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
         event.altKey ||
         event.metaKey ||
         isEditing ||
-        isInteractive ||
+        isNonMapInteractive ||
         isMoveMode ||
         isAttackMode ||
         state.activeFactionId !== state.humanFactionId
@@ -828,6 +829,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
 
       event.preventDefault()
       setActiveMoveUnitId(undefined)
+      setActiveAttackUnitId(undefined)
       setProductionUnitType(undefined)
       setFoundingKind(undefined)
       setActiveSiteTab(undefined)
