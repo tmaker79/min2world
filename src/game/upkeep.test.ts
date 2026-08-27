@@ -35,7 +35,7 @@ describe('unit upkeep', () => {
     const factionId = state.activeFactionId
 
     expect(getFactionUpkeep(state, factionId)).toBe(6)
-    expect(getFactionNetIncome(state, factionId)).toBe(1)
+    expect(getFactionNetIncome(state, factionId)).toBe(3)
     expect(getFactionUpkeepReserve(state, factionId)).toBe(0)
 
     const deficit = {
@@ -83,13 +83,13 @@ describe('unit upkeep', () => {
 
     expect(
       getProjectedUpkeepReserve(state, factionId, { upkeepDelta: 5 }),
-    ).toBe(4)
+    ).toBe(2)
     expect(
       getProjectedUpkeepReserve(state, factionId, {
         upkeepDelta: 5,
         incomeDelta: 2,
       }),
-    ).toBe(2)
+    ).toBe(0)
   })
 
   it('waives current and projected upkeep only for the human faction on easy', () => {

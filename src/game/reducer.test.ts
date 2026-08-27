@@ -343,7 +343,7 @@ describe('gameReducer on a hex map', () => {
       (candidate) =>
         candidate.ownerId === factionId && candidate.kind === 'city',
     )!
-    const cavalry = Array.from({ length: 4 }, (_, index) => ({
+    const cavalry = Array.from({ length: 5 }, (_, index) => ({
       ...initial.units.find((unit) => unit.factionId === factionId)!,
       id: `upkeep-cavalry-${index}`,
       type: 'cavalry' as const,

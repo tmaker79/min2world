@@ -841,7 +841,7 @@ describe('Milestone 07 UI', () => {
     await user.click(destination)
 
     expect(container.querySelectorAll('.unit-token')).toHaveLength(11)
-    expect(container.querySelector('.status-bar')).toHaveTextContent('5')
+    expect(container.querySelector('.status-bar')).toHaveTextContent('10')
     expect(screen.queryByLabelText('부대 배치')).not.toBeInTheDocument()
     expect(container.querySelector('.production-card')).toBeNull()
     expect(screen.getByLabelText('선택 정보')).toHaveTextContent(
@@ -1392,7 +1392,7 @@ describe('Milestone 07 UI', () => {
       name: `순수입 ${signedNetIncome}/턴`,
     })
 
-    expect(status).toHaveTextContent('자원 15')
+    expect(status).toHaveTextContent('자원 20')
     expect(status).toHaveTextContent(`순수입 ${signedNetIncome}/턴`)
     expect(status).not.toHaveTextContent(`수입 ${income}`)
     expect(status).not.toHaveTextContent('유지비')
@@ -1475,7 +1475,7 @@ describe('Milestone 07 UI', () => {
     expect(container.querySelector(`[data-unit-id="${unit.id}"]`))
       .not.toBeInTheDocument()
     expect(screen.queryByLabelText('부대 정보')).not.toBeInTheDocument()
-    expect(screen.getByLabelText('현재 게임 상태')).toHaveTextContent('자원 15')
+    expect(screen.getByLabelText('현재 게임 상태')).toHaveTextContent('자원 20')
   })
 
   it('disables disbanding outside the player active turn', () => {

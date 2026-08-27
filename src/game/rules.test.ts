@@ -405,8 +405,8 @@ describe('sites', () => {
       keep: { income: 0, canProduce: false },
       stronghold: { income: 0, canProduce: false },
       village: { income: 3, canProduce: false },
-      town: { income: 5, canProduce: false },
-      city: { income: 7, canProduce: true },
+      town: { income: 6, canProduce: false },
+      city: { income: 9, canProduce: true },
       farm: { income: 2, canProduce: false },
       mine: { income: 3, canProduce: false },
       blacksmith: { income: 2, canProduce: false },
@@ -416,7 +416,7 @@ describe('sites', () => {
     const playerCapital = state.sites.find((site) => site.capitalFor === 'player')!
     const farm = state.sites.find((site) => site.kind === 'farm')!
     const village = { ...farm, kind: 'village' as const, level: undefined }
-    expect(getFactionIncome(state, 'player')).toBe(7)
+    expect(getFactionIncome(state, 'player')).toBe(9)
     expect(getDeployablePositions(state, playerCapital).length).toBeGreaterThan(0)
     expect(getDeployablePositions(state, village)).toEqual([])
     expect(getDeployablePositions(state, farm)).toEqual([])

@@ -313,7 +313,7 @@ describe('city administration', () => {
     )
     const factionId = initial.activeFactionId
     const city = ownedCity(initial)
-    const units = Array.from({ length: 4 }, (_, index) => ({
+    const units = Array.from({ length: 5 }, (_, index) => ({
       ...initial.units.find((unit) => unit.factionId === factionId)!,
       id: `construction-cavalry-${index}`,
       type: 'cavalry' as const,
@@ -354,7 +354,7 @@ describe('city administration', () => {
     )
     const factionId = initial.activeFactionId
     const city = ownedCity(initial)
-    const units = Array.from({ length: 4 }, (_, index) => ({
+    const units = Array.from({ length: 5 }, (_, index) => ({
       ...initial.units.find((unit) => unit.factionId === factionId)!,
       id: `construction-reserve-cavalry-${index}`,
       type: 'cavalry' as const,

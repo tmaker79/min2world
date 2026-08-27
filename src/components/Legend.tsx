@@ -43,13 +43,13 @@ export function Legend({ embedded = false }: LegendProps) {
           <span className="legend-site legend-site--stronghold">
             <SiteIcon kind="stronghold" />
           </span>
-          성 <small>수입 5 · 생산</small>
+          성 <small>수입 9 · 생산</small>
         </li>
         <li>
           <span className="legend-site legend-site--village">
             <SiteIcon kind="village" />
           </span>
-          마을 <small>수입 4</small>
+          마을 <small>수입 3</small>
         </li>
         <li>
           <span className="legend-site legend-site--farm">
