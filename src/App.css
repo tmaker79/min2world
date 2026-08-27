@@ -1397,8 +1397,21 @@
   inset: 0;
   background: var(--hex-border, transparent);
   content: '';
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 58 66'%3E%3Cpath fill='white' fill-rule='evenodd' d='M29 0 58 16.5V49.5L29 66 0 49.5V16.5ZM29 1.5 56.7 17.25V48.75L29 64.5 1.3 48.75V17.25Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 58 66'%3E%3Cpath fill='white' fill-rule='evenodd' d='M29 0 58 16.5V49.5L29 66 0 49.5V16.5ZM29 1.5 56.7 17.25V48.75L29 64.5 1.3 48.75V17.25Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  /* 육각 링을 evenodd 클립으로 그린다. 같은 모양을 SVG mask로 만들면 타일마다
+     오프스크린 마스크 버퍼가 생겨, 고DPR 기기에서 팬 프레임의 3분의 2를 썼다.
+     좌표는 58x66 타일 기준이고 바깥 육각형과 1.5px 안쪽 육각형을 잇는다. */
+  -webkit-clip-path: polygon(
+    evenodd,
+    29px 0, 58px 16.5px, 58px 49.5px, 29px 66px, 0 49.5px, 0 16.5px, 29px 0,
+    29px 1.5px, 56.7px 17.25px, 56.7px 48.75px, 29px 64.5px, 1.3px 48.75px,
+    1.3px 17.25px, 29px 1.5px
+  );
+  clip-path: polygon(
+    evenodd,
+    29px 0, 58px 16.5px, 58px 49.5px, 29px 66px, 0 49.5px, 0 16.5px, 29px 0,
+    29px 1.5px, 56.7px 17.25px, 56.7px 48.75px, 29px 64.5px, 1.3px 48.75px,
+    1.3px 17.25px, 29px 1.5px
+  );
   pointer-events: none;
 }
 
