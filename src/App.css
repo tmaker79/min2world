@@ -352,7 +352,7 @@
   z-index: 8;
   display: flex;
   align-items: center;
-  min-height: 38px;
+  min-height: 44px;
   margin: 0 0 8px;
   overflow: visible;
   background: linear-gradient(90deg, rgba(29, 44, 52, 0.97), rgba(22, 33, 40, 0.97));
@@ -363,12 +363,12 @@
 
 .status-bar-slot {
   position: relative;
-  min-height: 38px;
+  min-height: 44px;
   margin: 0 0 8px;
 }
 
 .board-panel .status-bar-slot > .status-bar {
-  min-height: 38px;
+  min-height: 44px;
   margin: 0;
 }
 
@@ -483,13 +483,34 @@
 
 .status-bar__summary strong {
   color: var(--text);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: inherit;
   font-size: 1rem;
+  font-variant-numeric: tabular-nums;
   font-weight: 700;
 }
 
 .status-bar__dot {
+  margin-inline: 6px;
   color: rgba(169, 194, 204, 0.55);
+}
+
+.status-bar__turn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-bar__turn-image {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  object-fit: cover;
+  border-radius: 50%;
+  filter: brightness(1.24) saturate(1.16) contrast(1.08);
+  box-shadow:
+    0 0 0 1px rgba(240, 208, 118, 0.34),
+    0 0 6px rgba(240, 208, 118, 0.14),
+    0 2px 5px rgba(0, 0, 0, 0.52);
 }
 
 .status-bar__summary .status-bar__deficit,
@@ -503,17 +524,50 @@
 
 .status-bar__economy-toggle {
   display: flex;
-  min-height: 28px;
+  min-height: 36px;
   margin: -3px -6px;
   padding: 3px 6px;
   align-items: center;
-  gap: 3px;
+  gap: 0;
   color: var(--muted);
   background: transparent;
   border: 0;
   border-radius: 4px;
   cursor: pointer;
   font: inherit;
+}
+
+.status-bar__resource-image {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  object-fit: cover;
+  border-radius: 50%;
+  filter: brightness(1.28) saturate(1.18) contrast(1.08);
+  box-shadow:
+    0 0 0 1px rgba(240, 208, 118, 0.42),
+    0 0 7px rgba(240, 208, 118, 0.17),
+    0 2px 5px rgba(0, 0, 0, 0.52);
+  margin-right: 8px;
+}
+
+.status-bar__resource-value {
+  min-width: 1.2ch;
+  text-align: right;
+}
+
+.status-bar__net-income {
+  align-self: flex-start;
+  margin: 2px 0 0 1px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.status-bar__net-income--positive {
+  color: #8bd3a3;
 }
 
 .status-bar__economy-toggle:hover,
@@ -529,6 +583,7 @@
 .status-bar__economy-chevron {
   width: 14px;
   height: 14px;
+  margin-left: 8px;
   fill: none;
   stroke: currentColor;
   stroke-linecap: round;
@@ -596,25 +651,11 @@
   color: #ef9187;
 }
 
-.faction-name--player {
-  color: #79c7ed;
-  font-weight: 700;
-}
-
-.faction-name--enemy {
-  color: #ef9187;
-  font-weight: 700;
-}
-
-.faction-name--f1 { color: #79c7ed; font-weight: 700; }
-.faction-name--f2 { color: #ef9187; font-weight: 700; }
-.faction-name--f3 { color: #f1ca68; font-weight: 700; }
-.faction-name--f4 { color: #cda5ef; font-weight: 700; }
-
 .end-turn-button {
   display: flex;
+  align-self: stretch;
   min-width: 132px;
-  min-height: 38px;
+  min-height: 0;
   margin-left: auto;
   padding: 0 14px;
   align-items: center;
@@ -3551,7 +3592,7 @@
   .end-turn-button {
     width: auto;
     min-width: 104px;
-    min-height: 44px;
+    min-height: 0;
     margin-left: 0;
     padding-inline: 10px;
     font-size: 0.78rem;

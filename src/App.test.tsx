@@ -1488,11 +1488,17 @@ describe('Milestone 07 UI', () => {
     expect(within(panel).getByText('곡창 건설 중')).toBeVisible()
     expect(within(panel).getByText('남은 1턴')).toBeVisible()
     expect(screen.getByLabelText('거점 정보')).toHaveTextContent('건물0 / 7')
-    expect(screen.getByLabelText('현재 게임 상태')).toHaveTextContent('자원 0')
+    expect(
+      screen.getByLabelText('현재 게임 상태')
+        .querySelector('.status-bar__resource-value'),
+    ).toHaveTextContent(/^0$/)
 
     await user.click(within(panel).getByRole('button', { name: '건설 취소' }))
     expect(within(panel).queryByText('곡창 건설 중')).not.toBeInTheDocument()
-    expect(screen.getByLabelText('현재 게임 상태')).toHaveTextContent('자원 0')
+    expect(
+      screen.getByLabelText('현재 게임 상태')
+        .querySelector('.status-bar__resource-value'),
+    ).toHaveTextContent(/^0$/)
   })
 
   it('selects a unit on a stronghold first, then the stronghold on the next click', async () => {
@@ -1915,11 +1921,24 @@ describe('Milestone 07 UI', () => {
     const initialView = renderApp(initial)
     const status = initialView.container.querySelector<HTMLElement>('.status-bar')!
     const economyToggle = within(status).getByRole('button', {
-      name: `순수입 ${signedNetIncome}`,
+      name: `자원 20, 턴 순수입 ${signedNetIncome}`,
     })
 
-    expect(status).toHaveTextContent('자원 20')
-    expect(status).toHaveTextContent(`순수입 ${signedNetIncome}`)
+    expect(economyToggle.querySelector('.status-bar__resource-image')).toHaveAttribute(
+      'src',
+      expect.stringContaining('resource-medallion'),
+    )
+    expect(economyToggle.querySelector('.status-bar__resource-value')).toHaveTextContent(/^20$/)
+    expect(economyToggle.querySelector('.status-bar__net-income')).toHaveTextContent(
+      signedNetIncome,
+    )
+    expect(economyToggle.querySelector('.status-bar__net-income')?.tagName).toBe('SUP')
+    expect(status.querySelector('.status-bar__turn-image')).toHaveAttribute(
+      'src',
+      expect.stringContaining('turn-medallion'),
+    )
+    expect(status).not.toHaveTextContent('자원')
+    expect(status).not.toHaveTextContent('순수입')
     expect(status).not.toHaveTextContent(`수입 ${income}`)
     expect(status).not.toHaveTextContent('유지비')
     expect(status).not.toHaveTextContent('예약')
@@ -1959,7 +1978,7 @@ describe('Milestone 07 UI', () => {
       '.status-bar',
     )!
     const deficitToggle = within(deficitStatus).getByRole('button', {
-      name: `순수입 ${deficitNetIncome}`,
+      name: `자원 20, 턴 순수입 ${deficitNetIncome}`,
     })
 
     expect(deficitToggle).not.toHaveClass('status-bar__deficit')
@@ -2004,7 +2023,10 @@ describe('Milestone 07 UI', () => {
     expect(container.querySelector(`[data-unit-id="${unit.id}"]`))
       .not.toBeInTheDocument()
     expect(screen.queryByLabelText('부대 정보')).not.toBeInTheDocument()
-    expect(screen.getByLabelText('현재 게임 상태')).toHaveTextContent('자원 20')
+    expect(
+      screen.getByLabelText('현재 게임 상태')
+        .querySelector('.status-bar__resource-value'),
+    ).toHaveTextContent(/^20$/)
   })
 
   it('disables disbanding outside the player active turn', () => {

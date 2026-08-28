@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { getFactionLabel } from '../game/factions'
+import resourceMedallionImage from '../assets/ui/resource-medallion.png'
+import turnMedallionImage from '../assets/ui/turn-medallion.png'
 import type { FactionId } from '../game/types'
 
 type StatusBarProps = {
@@ -34,7 +35,6 @@ export function StatusBar({
   const [economyExpanded, setEconomyExpanded] = useState(false)
   const economyRef = useRef<HTMLDivElement>(null)
   const economyDetailsId = useId()
-  const factionLabel = getFactionLabel(activeFactionId)
 
   useEffect(() => {
     if (!economyExpanded) return
@@ -61,23 +61,14 @@ export function StatusBar({
   return (
     <section className="status-bar" aria-label="현재 게임 상태">
       <div className="status-bar__summary">
-        <span>
-          턴 <strong>{turn}</strong>
-        </span>
-        <span className="status-bar__dot" aria-hidden="true">
-          ·
-        </span>
-        <span
-          className={`faction-name faction-name--${activeFactionId}`}
-          aria-live="polite"
-        >
-          {factionLabel}
-        </span>
-        <span className="status-bar__dot" aria-hidden="true">
-          ·
-        </span>
-        <span>
-          자원 <strong>{resource}</strong>
+        <span className="status-bar__turn" aria-label={`턴 ${turn}`}>
+          <img
+            className="status-bar__turn-image"
+            src={turnMedallionImage}
+            alt=""
+            aria-hidden="true"
+          />
+          <strong aria-hidden="true">{turn}</strong>
         </span>
         <span className="status-bar__dot" aria-hidden="true">
           ·
@@ -85,16 +76,33 @@ export function StatusBar({
         <div className="status-bar__economy" ref={economyRef}>
           <button
             type="button"
-            className={`status-bar__economy-toggle${
-              netIncome < 0 ? ' status-bar__deficit' : ''
-            }`}
+            className="status-bar__economy-toggle"
+            aria-label={`자원 ${resource}, 턴 순수입 ${formatSigned(netIncome)}`}
             aria-expanded={economyExpanded}
             aria-controls={economyDetailsId}
             onClick={() => setEconomyExpanded((expanded) => !expanded)}
           >
-            <span>
-              순수입 <strong>{formatSigned(netIncome)}</strong>
-            </span>
+            <img
+              className="status-bar__resource-image"
+              src={resourceMedallionImage}
+              alt=""
+              aria-hidden="true"
+            />
+            <strong className="status-bar__resource-value" aria-hidden="true">
+              {resource}
+            </strong>
+            <sup
+              className={`status-bar__net-income${
+                netIncome > 0
+                  ? ' status-bar__net-income--positive'
+                  : netIncome < 0
+                    ? ' status-bar__deficit'
+                    : ''
+              }`}
+              aria-hidden="true"
+            >
+              {formatSigned(netIncome)}
+            </sup>
             <svg
               className="status-bar__economy-chevron"
               viewBox="0 0 24 24"
