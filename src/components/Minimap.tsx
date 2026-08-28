@@ -63,6 +63,7 @@ type MinimapProps = {
   state: GameState
   territoryByKey: TerritoryIndex
   scrollElement: HTMLElement | null
+  selectedSiteId?: string
   zoom?: number
 }
 
@@ -174,6 +175,7 @@ function MinimapComponent({
   state,
   territoryByKey,
   scrollElement,
+  selectedSiteId,
   zoom = 1,
 }: MinimapProps) {
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -221,12 +223,13 @@ function MinimapComponent({
         return {
           id: `${site.id}:${positionKey(position)}`,
           ownerId: site.ownerId,
+          selected: site.id === selectedSiteId,
           x: (pixel.x - layout.minimumX + HEX_WIDTH / 2) * layout.scale,
           y: (pixel.y - layout.minimumY + HEX_HEIGHT / 2) * layout.scale,
         }
       }),
     )
-  }, [layout, state.sites])
+  }, [layout, selectedSiteId, state.sites])
 
   const unitMarkers = useMemo(() => {
     return state.units.map((unit) => {
@@ -240,6 +243,9 @@ function MinimapComponent({
       }
     })
   }, [layout, state.selectedUnitId, state.units])
+
+  const selectedSiteMarkers = siteMarkers.filter((site) => site.selected)
+  const selectedUnitMarker = unitMarkers.find((unit) => unit.selected)
 
   useEffect(() => {
     if (!scrollElement) {
@@ -361,6 +367,51 @@ function MinimapComponent({
             viewBox={`0 0 ${layout.width} ${layout.height}`}
             aria-hidden="true"
           >
+            {selectedSiteMarkers.map((site) => (
+              <g
+                key={`selection:${site.id}`}
+                className="minimap__selection minimap__selection--site"
+                data-marker-id={site.id}
+              >
+                <rect
+                  className="minimap__selection-outline"
+                  x={site.x - 4.3}
+                  y={site.y - 4.3}
+                  width={8.6}
+                  height={8.6}
+                  rx={1.6}
+                />
+                <rect
+                  className="minimap__selection-inner"
+                  x={site.x - 4.3}
+                  y={site.y - 4.3}
+                  width={8.6}
+                  height={8.6}
+                  rx={1.6}
+                />
+              </g>
+            ))}
+
+            {selectedUnitMarker && (
+              <g
+                className="minimap__selection minimap__selection--unit"
+                data-marker-id={selectedUnitMarker.id}
+              >
+                <circle
+                  className="minimap__selection-outline"
+                  cx={selectedUnitMarker.x}
+                  cy={selectedUnitMarker.y}
+                  r={4.5}
+                />
+                <circle
+                  className="minimap__selection-inner"
+                  cx={selectedUnitMarker.x}
+                  cy={selectedUnitMarker.y}
+                  r={4.5}
+                />
+              </g>
+            )}
+
             {siteMarkers.map((site) => (
               <rect
                 key={site.id}
@@ -376,12 +427,10 @@ function MinimapComponent({
             {unitMarkers.map((unit) => (
               <circle
                 key={unit.id}
-                className={`minimap__unit minimap__unit--${unit.factionId}${
-                  unit.selected ? ' minimap__unit--selected' : ''
-                }`}
+                className={`minimap__unit minimap__unit--${unit.factionId}`}
                 cx={unit.x}
                 cy={unit.y}
-                r={unit.selected ? 2.6 : 2.1}
+                r={2.1}
               />
             ))}
 

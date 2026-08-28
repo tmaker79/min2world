@@ -1410,6 +1410,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
                     state={state}
                     territoryByKey={territoryByKey}
                     scrollElement={mapScrollElement}
+                    selectedSiteId={cityInfoSite?.id}
                     zoom={mapZoom}
                   />
                 </div>

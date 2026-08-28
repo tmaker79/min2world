@@ -1314,9 +1314,19 @@
   fill: #ef7466;
 }
 
-.minimap__unit--selected {
-  stroke: #ffe58a;
-  stroke-width: 1;
+.minimap__selection {
+  fill: none;
+  pointer-events: none;
+}
+
+.minimap__selection-outline {
+  stroke: rgba(5, 9, 12, 0.96);
+  stroke-width: 3.2;
+}
+
+.minimap__selection-inner {
+  stroke: #fff3a6;
+  stroke-width: 1.4;
 }
 
 .minimap__viewport {

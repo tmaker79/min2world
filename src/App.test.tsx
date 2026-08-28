@@ -12,6 +12,7 @@ import { createInitialGameState } from './game/initialState'
 import type { MapGenerationOptions } from './game/mapGenerator'
 import { getFactionIncome, TERRAIN_LABELS } from './game/rules'
 import { getSiteDevelopmentFootprints } from './game/siteDevelopment'
+import { getSiteOccupiedPositions } from './game/siteFootprint'
 import {
   getConstructiblePositions,
   getSettleablePositions,
@@ -247,6 +248,54 @@ describe('Milestone 07 UI', () => {
     expect(toggle.querySelector('.map-minimap-dock__pin')).not.toBeInTheDocument()
     expect(toggle.querySelector('.map-minimap-dock__icon circle')).toBeNull()
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('shows distinct high-contrast minimap rings for selected units and sites', () => {
+    const state = createInitialGameState('minimap-selection-rings')
+    const playerUnit = state.units.find(
+      (unit) => unit.factionId === state.humanFactionId,
+    )!
+    const site = state.sites.find(
+      (candidate) =>
+        !state.units.some(
+          (unit) =>
+            positionKey(unit.position) === positionKey(candidate.position),
+        ),
+    )!
+    const { container } = renderApp(state)
+    const minimap = screen.getByTestId('minimap')
+
+    fireEvent.click(
+      container.querySelector<HTMLButtonElement>(
+        `.map-tile[data-coordinate="${positionKey(playerUnit.position)}"]`,
+      )!,
+    )
+
+    const unitRing = minimap.querySelector('.minimap__selection--unit')
+    expect(unitRing).toHaveAttribute('data-marker-id', playerUnit.id)
+    expect(unitRing?.querySelectorAll('circle')).toHaveLength(2)
+    expect(minimap.querySelector('.minimap__selection--site')).toBeNull()
+    expect(minimap.querySelector('.minimap__unit--player')).toBeInTheDocument()
+
+    fireEvent.click(
+      container.querySelector<HTMLButtonElement>(
+        `.map-tile[data-coordinate="${positionKey(site.position)}"]`,
+      )!,
+    )
+
+    const siteRings = minimap.querySelectorAll('.minimap__selection--site')
+    expect(minimap.querySelector('.minimap__selection--unit')).toBeNull()
+    expect(siteRings).toHaveLength(getSiteOccupiedPositions(site).length)
+    expect(
+      [...siteRings].every(
+        (ring) =>
+          ring.getAttribute('data-marker-id')?.startsWith(`${site.id}:`) &&
+          ring.querySelectorAll('rect').length === 2,
+      ),
+    ).toBe(true)
+    expect(
+      minimap.querySelector(`.minimap__site--${site.ownerId}`),
+    ).toBeInTheDocument()
   })
 
   it('starts with the minimap collapsed on compact screens', () => {
