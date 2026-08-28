@@ -55,8 +55,8 @@ const VIEWPORT_OVERSCAN_PX = Math.max(HEX_WIDTH, HEX_HEIGHT) * 2
 // 컬링 경계를 이 단위로 바깥쪽 반올림해, 1px 스크롤마다 컬링이 다시 돌지 않게 한다.
 // 오버스캔보다 작아야 반올림 오차가 화면 밖에서 흡수된다.
 const VIEWPORT_QUANTUM_PX = 64
-/** Matches `.game-map` content-box padding (8*2) + border (1*2). */
-const MAP_FRAME_PX = 18
+/** Matches `.game-map` content-box padding (8*2). */
+const MAP_FRAME_PX = 16
 const MAP_CAMERA_MINIMUM_GUTTER = 48
 const MAP_CAMERA_MAXIMUM_GUTTER = 72
 const HEX_BOUNDARY_EDGES = [
