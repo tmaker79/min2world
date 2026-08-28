@@ -54,7 +54,7 @@ export function HelpPanel({ gameMode }: HelpPanelProps) {
 
   return (
     <section className="help-card" aria-labelledby={headingId}>
-      <h2 id={headingId}>게임 도움말</h2>
+      <h2 id={headingId}>도움말</h2>
       <div className="help-card__tabs" role="tablist" aria-label="도움말 항목">
         {HELP_TABS.map((tab, index) => (
           <button

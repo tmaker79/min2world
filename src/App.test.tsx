@@ -120,7 +120,7 @@ describe('Milestone 07 UI', () => {
     fireEvent.click(screen.getByRole('button', { name: '자세히 보기' }))
 
     expect(screen.queryByRole('dialog', { name: '첫 턴 안내' })).not.toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: '게임 도움말' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: '도움말' })).toBeVisible()
     expect(screen.getByRole('tab', { name: '조작' })).toHaveAttribute(
       'aria-selected',
       'true',
@@ -1806,10 +1806,10 @@ describe('Milestone 07 UI', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '저장' }))
     expect(screen.getByRole('heading', { name: '저장 관리' })).toBeVisible()
-    expect(screen.queryByRole('heading', { name: '게임 도움말' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '도움말' })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: '도움말' }))
-    expect(screen.getByRole('heading', { name: '게임 도움말' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: '도움말' })).toBeVisible()
     expect(screen.getByRole('tab', { name: '조작' })).toHaveAttribute(
       'aria-selected',
       'true',
@@ -1817,7 +1817,7 @@ describe('Milestone 07 UI', () => {
     expect(screen.queryByRole('heading', { name: '지도 범례' })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('tab', { name: '범례' }))
-    expect(screen.getByRole('heading', { name: '지도 범례' })).toBeVisible()
+    expect(screen.queryByText('지도 범례')).not.toBeInTheDocument()
     expect(screen.getByText('아군 영토')).toBeVisible()
     expect(screen.getByText('적 영토')).toBeVisible()
     expect(screen.getByText('분쟁 지역')).toBeVisible()
@@ -1844,7 +1844,7 @@ describe('Milestone 07 UI', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '도움말' }))
     const helpCard = screen
-      .getByRole('heading', { name: '게임 도움말' })
+      .getByRole('heading', { name: '도움말' })
       .closest('section')!
     const help = within(helpCard)
 
@@ -1882,7 +1882,7 @@ describe('Milestone 07 UI', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '도움말' }))
     const helpCard = screen
-      .getByRole('heading', { name: '게임 도움말' })
+      .getByRole('heading', { name: '도움말' })
       .closest('section')!
     const help = within(helpCard)
 

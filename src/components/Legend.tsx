@@ -58,17 +58,20 @@ type LegendProps = {
 }
 
 export function Legend({ embedded = false, gameMode }: LegendProps) {
-  const Heading = embedded ? 'h3' : 'h2'
   const siteItems =
     gameMode === 'quick' ? QUICK_SITE_ITEMS : STANDARD_SITE_ITEMS
 
   return (
     <section
       className={`legend-card${embedded ? ' legend-card--embedded' : ''}`}
-      aria-labelledby="legend-heading"
+      aria-labelledby={embedded ? undefined : 'legend-heading'}
     >
-      {!embedded && <p className="eyebrow">MAP LEGEND</p>}
-      <Heading id="legend-heading">지도 범례</Heading>
+      {!embedded && (
+        <>
+          <p className="eyebrow">MAP LEGEND</p>
+          <h2 id="legend-heading">지도 범례</h2>
+        </>
+      )}
       <ul>
         {TERRAIN_ITEMS.map(([terrain, label, detail]) => (
           <li key={terrain}>

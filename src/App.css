@@ -339,6 +339,7 @@
 .help-card .legend-card--embedded ul {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 0;
   gap: 10px 20px;
 }
 
@@ -353,13 +354,8 @@
 
 .help-card .legend-card--embedded {
   margin-top: 0;
-  padding-top: 0;
+  padding-top: 16px;
   border-top: 0;
-}
-
-.help-card .legend-card--embedded h3 {
-  margin: 0 0 10px;
-  font-size: 0.92rem;
 }
 
 .chrome-menu__panel .eyebrow {

@@ -23,7 +23,8 @@ describe('HelpPanel', () => {
     fireEvent.keyDown(rulesTab, { key: 'ArrowRight' })
     expect(legendTab).toHaveFocus()
     expect(legendTab).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('heading', { name: '지도 범례' })).toBeVisible()
+    expect(screen.queryByText('지도 범례')).not.toBeInTheDocument()
+    expect(screen.getByText('아군 영토')).toBeVisible()
 
     fireEvent.keyDown(legendTab, { key: 'ArrowRight' })
     expect(controlsTab).toHaveFocus()
