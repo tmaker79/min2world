@@ -20,9 +20,9 @@ import type {
   CombatAnimationPhase,
   MapTileActivationSource,
 } from './components/GameMap'
+import { HelpPanel } from './components/HelpPanel'
 import { InfoPanel } from './components/InfoPanel'
 import type { FoundingKind } from './components/InfoPanel'
-import { Legend } from './components/Legend'
 import { MapInfoPanel } from './components/MapInfoPanel'
 import { Minimap } from './components/Minimap'
 import { ProductionPanel } from './components/ProductionPanel'
@@ -1152,25 +1152,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
             onDelete={handleDeleteSave}
           />
         }
-        helpPanel={
-          <section className="help-card" aria-labelledby="help-heading">
-            <h2 id="help-heading">작전 지침</h2>
-            {state.gameMode === 'quick' ? (
-              <ol>
-                <li>푸른 군사 유닛을 이동해 적 부대와 수도를 공격합니다.</li>
-                <li>아군 도시에서 군사 유닛을 생산하고 중립 거점을 점령해 수입을 늘립니다.</li>
-                <li>모든 행동 후 턴을 종료합니다. 상대 수도를 점령하면 승리합니다.</li>
-              </ol>
-            ) : (
-              <ol>
-                <li>푸른 유닛을 선택해 금색 칸으로 이동하거나 붉은 적을 공격합니다.</li>
-                <li>아군 성을 선택해 생산하고, 상단 메뉴에서 재시작·저장을 엽니다.</li>
-                <li>모든 행동 후 턴을 종료합니다. 상세 규칙은 README를 참고하세요.</li>
-              </ol>
-            )}
-            <Legend embedded />
-          </section>
-        }
+        helpPanel={<HelpPanel gameMode={state.gameMode} />}
       />
 
       <main className="game-layout">

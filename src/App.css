@@ -281,15 +281,65 @@
 }
 
 .chrome-menu__panel--help {
-  width: min(640px, calc(100vw - 32px));
+  width: min(520px, calc(100vw - 32px));
   max-height: min(75vh, 720px);
   overflow: auto;
+}
+
+.help-card__tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin-top: 14px;
+  border-bottom: 1px solid rgba(169, 194, 204, 0.18);
+}
+
+.help-card__tabs button {
+  position: relative;
+  min-height: 38px;
+  padding: 8px 12px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.help-card__tabs button::after {
+  position: absolute;
+  right: 18%;
+  bottom: -1px;
+  left: 18%;
+  height: 2px;
+  background: transparent;
+  content: '';
+}
+
+.help-card__tabs button:hover,
+.help-card__tabs button[aria-selected='true'] {
+  color: #f0d076;
+}
+
+.help-card__tabs button[aria-selected='true']::after {
+  background: #e4b95f;
+  box-shadow: 0 0 8px rgba(228, 185, 95, 0.32);
+}
+
+.help-card__tabs button:focus-visible {
+  z-index: 1;
+  outline: 2px solid #f0d076;
+  outline-offset: -2px;
+}
+
+.help-card__panel {
+  margin-top: 14px;
+  outline: none;
 }
 
 .help-card .legend-card--embedded ul {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px 16px;
+  gap: 10px 20px;
 }
 
 .chrome-menu__panel > .legend-card,
@@ -302,9 +352,9 @@
 }
 
 .help-card .legend-card--embedded {
-  margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px solid rgba(169, 194, 204, 0.18);
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
 }
 
 .help-card .legend-card--embedded h3 {
@@ -3162,10 +3212,14 @@
 
 .legend-card li {
   display: grid;
-  grid-template-columns: 22px 1fr auto;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
   gap: 9px;
   align-items: center;
   font-size: 0.78rem;
+}
+
+.legend-card li > :first-child {
+  justify-self: center;
 }
 
 .legend-card small {
@@ -3173,8 +3227,8 @@
 }
 
 .legend-swatch {
-  width: 21px;
-  height: 16px;
+  width: 30px;
+  height: 24px;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 2px;
 }
@@ -3213,6 +3267,7 @@
 .legend-swatch--hill,
 .legend-swatch--mountain,
 .legend-swatch--water,
+.legend-swatch--bridge,
 .legend-swatch--desert,
 .legend-swatch--desertHill,
 .legend-swatch--oasis,
@@ -3221,7 +3276,11 @@
 .legend-swatch--tundraMountain,
 .legend-swatch--plain {
   display: grid;
+  width: 30px;
+  height: 34px;
   overflow: hidden;
+  border: 0;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
   place-items: center;
 }
 
@@ -3293,28 +3352,17 @@
   border: 3px dashed #f3f4f5;
 }
 
-.legend-swatch--zoc {
-  background:
-    repeating-linear-gradient(
-      135deg,
-      rgba(143, 38, 34, 0.55) 0 3px,
-      transparent 3px 6px
-    ),
-    #71865f;
-  border: 1px solid rgba(239, 116, 102, 0.75);
-}
-
 .legend-site {
   display: grid;
-  width: 21px;
-  height: 18px;
+  width: 36px;
+  height: 34px;
   place-items: center;
 }
 
 .legend-flag {
   display: block;
-  width: 14px;
-  height: 10px;
+  width: 22px;
+  height: 16px;
   clip-path: polygon(0 0, 100% 45%, 0 100%);
 }
 
@@ -3326,28 +3374,58 @@
   background: #d45b52;
 }
 
-.legend-site--stronghold,
-.legend-site--village,
-.legend-site--farm,
-.legend-site--mine {
+.legend-site {
   overflow: hidden;
   border-radius: 2px 2px 7px 7px;
 }
 
 .legend-site [data-site-icon] {
-  width: 18px;
-  height: 16px;
+  width: 34px;
+  height: 32px;
   object-fit: contain;
 }
 
-.help-card ol {
+.help-card__guide {
   display: grid;
-  margin: 17px 0 0;
-  padding-left: 20px;
-  gap: 8px;
+  grid-template-columns: 1fr;
+  margin: 0;
+  gap: 10px;
+}
+
+.help-card__section {
+  padding: 12px 13px;
+  background: rgba(8, 15, 19, 0.35);
+  border: 1px solid rgba(169, 194, 204, 0.14);
+  border-radius: 5px;
+}
+
+.help-card__section h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.82rem;
+}
+
+.help-card__section ul {
+  display: grid;
+  margin: 8px 0 0;
+  padding-left: 17px;
+  gap: 6px;
   color: var(--muted);
   font-size: 0.77rem;
   line-height: 1.5;
+}
+
+.help-card__section kbd {
+  display: inline-block;
+  min-width: 36px;
+  margin-right: 4px;
+  padding: 1px 5px;
+  color: #efd17e;
+  background: rgba(6, 12, 16, 0.6);
+  border: 1px solid rgba(228, 185, 95, 0.32);
+  border-radius: 3px;
+  font-size: 0.68rem;
+  text-align: center;
 }
 
 .result-overlay {
@@ -3714,6 +3792,10 @@
   }
 
   .help-card .legend-card--embedded ul {
+    grid-template-columns: 1fr;
+  }
+
+  .help-card__guide {
     grid-template-columns: 1fr;
   }
 }

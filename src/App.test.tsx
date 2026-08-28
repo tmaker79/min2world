@@ -1770,15 +1770,101 @@ describe('Milestone 07 UI', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '저장' }))
     expect(screen.getByRole('heading', { name: '저장 관리' })).toBeVisible()
-    expect(screen.queryByRole('heading', { name: '작전 지침' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '게임 도움말' })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: '도움말' }))
-    expect(screen.getByRole('heading', { name: '작전 지침' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: '게임 도움말' })).toBeVisible()
+    expect(screen.getByRole('tab', { name: '조작' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(screen.queryByRole('heading', { name: '지도 범례' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: '범례' }))
     expect(screen.getByRole('heading', { name: '지도 범례' })).toBeVisible()
     expect(screen.getByText('아군 영토')).toBeVisible()
     expect(screen.getByText('적 영토')).toBeVisible()
     expect(screen.getByText('분쟁 지역')).toBeVisible()
     expect(screen.queryByRole('heading', { name: '저장 관리' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '도움말' }))
+    fireEvent.click(screen.getByRole('button', { name: '도움말' }))
+    expect(screen.getByRole('tab', { name: '조작' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(screen.queryByRole('heading', { name: '지도 범례' })).not.toBeInTheDocument()
+  }, 20_000)
+
+  it('shows concise quick-mode controls, economy, victory, and shortcuts', () => {
+    renderApp(
+      createInitialGameState('quick-help', {
+        boardSize: BOARD_SIZE_PRESETS.tiny,
+        factionCount: 2,
+        humanFactionId: 'f1',
+        gameMode: 'quick',
+      }),
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: '도움말' }))
+    const helpCard = screen
+      .getByRole('heading', { name: '게임 도움말' })
+      .closest('section')!
+    const help = within(helpCard)
+
+    expect(help.getByRole('heading', { name: '기본 조작' })).toBeVisible()
+    expect(help.getByRole('heading', { name: '단축키' })).toBeVisible()
+    expect(help.queryByRole('heading', { name: '생산·경제' })).not.toBeInTheDocument()
+    expect(help.getByText('Enter')).toBeVisible()
+    expect(help.getByText('Esc')).toBeVisible()
+
+    fireEvent.click(help.getByRole('tab', { name: '규칙' }))
+
+    expect(help.getByRole('heading', { name: '생산·경제' })).toBeVisible()
+    expect(help.getByRole('heading', { name: '승리 조건' })).toBeVisible()
+    expect(
+      help.getByText('도시에서 군사 유닛을 생산하고 청록색 칸에 배치하세요.'),
+    ).toBeVisible()
+    expect(
+      help.getByText(/중립 농장·광산·대장간으로 이동해 점령하면/),
+    ).toBeVisible()
+    expect(help.queryByText(/군사·민간/)).not.toBeInTheDocument()
+    expect(help.queryByText(/거점 발전/)).not.toBeInTheDocument()
+    expect(help.getByText('상대 수도를 점령하면 승리합니다.')).toBeVisible()
+    expect(help.getByText('내 수도를 빼앗기면 패배합니다.')).toBeVisible()
+    expect(help.queryByRole('heading', { name: '기본 조작' })).not.toBeInTheDocument()
+    expect(help.queryByRole('heading', { name: '지도 범례' })).not.toBeInTheDocument()
+  })
+
+  it('uses faction-neutral wording and standard-mode expansion guidance', () => {
+    renderApp(
+      createInitialGameState('standard-help-red', {
+        humanFactionId: 'f2',
+        gameMode: 'standard',
+      }),
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: '도움말' }))
+    const helpCard = screen
+      .getByRole('heading', { name: '게임 도움말' })
+      .closest('section')!
+    const help = within(helpCard)
+
+    expect(
+      help.getByText('아군 유닛을 선택한 뒤 이동 또는 공격 명령을 선택하세요.'),
+    ).toBeVisible()
+    expect(help.queryByText(/푸른 유닛/)).not.toBeInTheDocument()
+    expect(help.getByText(/금색 칸은 이동 가능 범위이며 우클릭으로 이동합니다/))
+      .toBeVisible()
+
+    fireEvent.click(help.getByRole('tab', { name: '규칙' }))
+
+    expect(help.getByText(/도시에서 군사·민간 유닛을 생산하고/)).toBeVisible()
+    expect(help.getByText(/개척자는 마을을 정착하고 건설자는 거점을 건설합니다/))
+      .toBeVisible()
+    expect(help.getByText(/거점 발전과 도시 건설로/)).toBeVisible()
+    expect(help.getByText(/수입·유지비·순수입/)).toBeVisible()
+    expect(help.queryByText(/README/)).not.toBeInTheDocument()
   })
 
   it('shows fortified health and resolves a city siege with damage feedback', () => {
