@@ -1266,7 +1266,7 @@ describe('Milestone 07 UI', () => {
     ).toBeDisabled()
   })
 
-  it('starts a new random map without exposing seed controls', () => {
+  it('starts a new random map directly without exposing a restart submenu or seed controls', () => {
     renderApp(
       createInitialGameState('ui-random-restart', {
         boardSize: BOARD_SIZE_PRESETS.tiny,
@@ -1276,12 +1276,11 @@ describe('Milestone 07 UI', () => {
     fireEvent.click(screen.getByRole('button', { name: '재시작' }))
     expect(screen.queryByText('MAP SEED')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('현재 seed')).not.toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: '새 랜덤 지도로 재시작' }))
-
-    expect(screen.getByRole('button', { name: '재시작' })).toHaveAttribute(
+    expect(
+      screen.queryByRole('button', { name: '새 랜덤 지도로 재시작' }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '재시작' })).not.toHaveAttribute(
       'aria-expanded',
-      'false',
     )
   })
 
@@ -1290,17 +1289,25 @@ describe('Milestone 07 UI', () => {
       boardSize: BOARD_SIZE_PRESETS.tiny,
     })
     state.turn = 2
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
     renderApp(state)
 
     fireEvent.click(screen.getByRole('button', { name: '재시작' }))
-    fireEvent.click(screen.getByRole('button', { name: '새 랜덤 지도로 재시작' }))
 
-    expect(confirm).toHaveBeenCalledOnce()
-    expect(screen.getByRole('button', { name: '재시작' })).toHaveAttribute(
-      'aria-expanded',
-      'true',
-    )
+    expect(
+      screen.getByRole('alertdialog', { name: '새 지도로 재시작할까요?' }),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText('턴 2')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '취소' }))
+
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('턴 2')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '재시작' }))
+    fireEvent.click(screen.getByRole('button', { name: '새 지도로 재시작' }))
+
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('턴 1')).toBeInTheDocument()
   })
 
   it('opens city information before offering production from an owned stronghold', async () => {

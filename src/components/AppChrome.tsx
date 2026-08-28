@@ -1,12 +1,11 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
-import { RestartMenu } from './RestartMenu'
 
-export type ChromeMenuId = 'restart' | 'save' | 'help'
+export type ChromeMenuId = 'save' | 'help'
 
 type AppChromeProps = {
   openMenu: ChromeMenuId | null
   onOpenMenuChange: (menu: ChromeMenuId | null) => void
-  onRandomRestart: () => boolean
+  onRandomRestart: () => void
   savePanel: ReactNode
   helpPanel: ReactNode
 }
@@ -57,12 +56,27 @@ export function AppChrome({
       </div>
 
       <div className="app-chrome__meta" ref={metaRef}>
-        <RestartMenu
-          open={openMenu === 'restart'}
-          onToggle={() => toggleMenu('restart')}
-          onClose={() => onOpenMenuChange(null)}
-          onRandomRestart={onRandomRestart}
-        />
+        <div className="chrome-menu">
+          <button
+            type="button"
+            className="app-chrome__button"
+            aria-label="재시작"
+            title="재시작"
+            onClick={() => {
+              onOpenMenuChange(null)
+              onRandomRestart()
+            }}
+          >
+            <svg
+              className="app-chrome__icon app-chrome__icon--restart"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path d="M3 3v5h5" />
+              <path d="M3.7 15a9 9 0 1 0 .9-8.6L3 8" />
+            </svg>
+          </button>
+        </div>
 
         <div className="chrome-menu">
           <button

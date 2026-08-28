@@ -10,6 +10,7 @@ import { AppChrome } from './components/AppChrome'
 import type { ChromeMenuId } from './components/AppChrome'
 import { CityPanel } from './components/CityPanel'
 import type { CityPanelTab } from './components/CityPanel'
+import { ConfirmDialog } from './components/ConfirmDialog'
 import { ConstructionPanel } from './components/ConstructionPanel'
 import { DevelopmentPanel } from './components/DevelopmentPanel'
 import { GameResultPanel } from './components/GameResultPanel'
@@ -180,6 +181,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
     () => !window.matchMedia(COMPACT_MAP_OVERLAY_QUERY).matches,
   )
   const [openChromeMenu, setOpenChromeMenu] = useState<ChromeMenuId | null>(null)
+  const [restartConfirmationOpen, setRestartConfirmationOpen] = useState(false)
   const [mapScrollElement, setMapScrollElement] = useState<HTMLDivElement | null>(
     null,
   )
@@ -1087,14 +1089,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
         (!site.capitalFor && site.ownerId !== 'neutral'),
     )
 
-  const restartGame = (seed: string, confirmProgress: boolean) => {
-    if (
-      confirmProgress &&
-      hasProgress &&
-      !window.confirm('현재 진행을 중단하고 새 랜덤 지도로 재시작할까요?')
-    ) {
-      return false
-    }
+  const restartGame = (seed: string) => {
     setActiveCombat(undefined)
     setActiveSiteAttack(undefined)
     setCombatPhase('attack')
@@ -1124,11 +1119,18 @@ function GameApp({ initialState }: { initialState: GameState }) {
             gameMode: state.gameMode,
           },
     )
-    return true
   }
 
-  const restartRandomGame = (confirmProgress: boolean) => {
-    return restartGame(createRandomMapSeed(), confirmProgress)
+  const restartRandomGame = () => {
+    restartGame(createRandomMapSeed())
+  }
+
+  const requestRandomRestart = () => {
+    if (hasProgress) {
+      setRestartConfirmationOpen(true)
+      return
+    }
+    restartRandomGame()
   }
 
   return (
@@ -1136,7 +1138,7 @@ function GameApp({ initialState }: { initialState: GameState }) {
       <AppChrome
         openMenu={openChromeMenu}
         onOpenMenuChange={setOpenChromeMenu}
-        onRandomRestart={() => restartRandomGame(true)}
+        onRandomRestart={requestRandomRestart}
         savePanel={
           <SavePanel
             slot={saveSlot}
@@ -1152,7 +1154,6 @@ function GameApp({ initialState }: { initialState: GameState }) {
         }
         helpPanel={
           <section className="help-card" aria-labelledby="help-heading">
-            <p className="eyebrow">HOW TO PLAY</p>
             <h2 id="help-heading">작전 지침</h2>
             {state.gameMode === 'quick' ? (
               <ol>
@@ -1673,9 +1674,9 @@ function GameApp({ initialState }: { initialState: GameState }) {
               phase={state.phase}
               turn={state.turn}
               onRestart={() => {
-                restartGame(state.mapSeed, false)
+                restartGame(state.mapSeed)
               }}
-              onRandomRestart={() => restartRandomGame(false)}
+              onRandomRestart={restartRandomGame}
             />
           )}
         </section>
@@ -1689,6 +1690,18 @@ function GameApp({ initialState }: { initialState: GameState }) {
         <span className="sr-only" role="status" aria-live="polite">
           {siteAttackAnnouncement}
         </span>
+      )}
+      {restartConfirmationOpen && (
+        <ConfirmDialog
+          title="새 지도로 재시작할까요?"
+          description="현재 진행 내용은 사라지며, 새로운 랜덤 지도로 게임을 다시 시작합니다."
+          confirmLabel="새 지도로 재시작"
+          onCancel={() => setRestartConfirmationOpen(false)}
+          onConfirm={() => {
+            setRestartConfirmationOpen(false)
+            restartRandomGame()
+          }}
+        />
       )}
     </div>
   )

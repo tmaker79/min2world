@@ -40,7 +40,6 @@ export function SavePanel({
 
   return (
     <section className="save-card" aria-labelledby="save-heading">
-      <p className="eyebrow">LOCAL SAVE</p>
       <h2 id="save-heading">저장 관리</h2>
 
       <div className="save-card__summary">
