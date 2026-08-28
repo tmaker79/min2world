@@ -13,6 +13,7 @@ import type { CityPanelTab } from './components/CityPanel'
 import { ConfirmDialog } from './components/ConfirmDialog'
 import { ConstructionPanel } from './components/ConstructionPanel'
 import { DevelopmentPanel } from './components/DevelopmentPanel'
+import { FirstTurnGuide } from './components/FirstTurnGuide'
 import { GameResultPanel } from './components/GameResultPanel'
 import { GameMap } from './components/GameMap'
 import type {
@@ -86,6 +87,10 @@ import {
   saveGame,
 } from './storage/saveGame'
 import type { SavedGame, StorageResult } from './storage/saveGame'
+import {
+  hasSeenFirstTurnGuide,
+  markFirstTurnGuideSeen,
+} from './storage/firstTurnGuide'
 import './App.css'
 
 type AppProps = {
@@ -124,7 +129,13 @@ function getCombatTimings(units: readonly Unit[], attackerId: string) {
       : { hit: 220, complete: 560 }
 }
 
-function GameApp({ initialState }: { initialState: GameState }) {
+function GameApp({
+  initialState,
+  showFirstTurnGuide,
+}: {
+  initialState: GameState
+  showFirstTurnGuide: boolean
+}) {
   const [state, dispatch] = useReducer(gameReducer, initialState)
   const [activeCombat, setActiveCombat] = useState<
     Omit<CombatAnimation, 'phase'>
@@ -182,6 +193,13 @@ function GameApp({ initialState }: { initialState: GameState }) {
   )
   const [openChromeMenu, setOpenChromeMenu] = useState<ChromeMenuId | null>(null)
   const [restartConfirmationOpen, setRestartConfirmationOpen] = useState(false)
+  const [firstTurnGuideOpen, setFirstTurnGuideOpen] = useState(
+    () =>
+      showFirstTurnGuide &&
+      initialState.turn === 1 &&
+      initialState.phase === 'playing' &&
+      !hasSeenFirstTurnGuide(initialState.gameMode),
+  )
   const [mapScrollElement, setMapScrollElement] = useState<HTMLDivElement | null>(
     null,
   )
@@ -1133,6 +1151,17 @@ function GameApp({ initialState }: { initialState: GameState }) {
     restartRandomGame()
   }
 
+  const dismissFirstTurnGuide = () => {
+    markFirstTurnGuideSeen(state.gameMode)
+    setFirstTurnGuideOpen(false)
+  }
+
+  const openHelpFromFirstTurnGuide = () => {
+    markFirstTurnGuideSeen(state.gameMode)
+    setFirstTurnGuideOpen(false)
+    setOpenChromeMenu('help')
+  }
+
   return (
     <div className="app-shell">
       <AppChrome
@@ -1685,6 +1714,13 @@ function GameApp({ initialState }: { initialState: GameState }) {
           }}
         />
       )}
+      {firstTurnGuideOpen && (
+        <FirstTurnGuide
+          gameMode={state.gameMode}
+          onDismiss={dismissFirstTurnGuide}
+          onOpenHelp={openHelpFromFirstTurnGuide}
+        />
+      )}
     </div>
   )
 }
@@ -1724,7 +1760,12 @@ function App({ initialState }: AppProps = {}) {
     )
   }
 
-  return <GameApp initialState={gameState} />
+  return (
+    <GameApp
+      initialState={gameState}
+      showFirstTurnGuide={initialState === undefined}
+    />
+  )
 }
 
 export default App

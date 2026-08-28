@@ -370,7 +370,8 @@
   font-size: 1rem;
 }
 
-.confirm-dialog__backdrop {
+.confirm-dialog__backdrop,
+.first-turn-guide__backdrop {
   position: fixed;
   z-index: 100;
   display: grid;
@@ -379,6 +380,132 @@
   place-items: center;
   background: rgba(5, 10, 14, 0.8);
   backdrop-filter: blur(5px);
+}
+
+.first-turn-guide {
+  position: relative;
+  width: min(440px, 100%);
+  padding: 30px 32px;
+  overflow: hidden;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(228, 185, 95, 0.18), transparent 14rem),
+    linear-gradient(160deg, #1b2930, #131e24);
+  border: 1px solid rgba(228, 185, 95, 0.5);
+  border-radius: 8px;
+  box-shadow:
+    0 28px 80px rgba(0, 0, 0, 0.62),
+    inset 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.first-turn-guide::before {
+  position: absolute;
+  top: 0;
+  right: 18%;
+  left: 18%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #f0d076, transparent);
+  content: '';
+}
+
+.first-turn-guide h2 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.35rem, 5vw, 1.65rem);
+  font-weight: 600;
+  text-align: center;
+}
+
+.first-turn-guide__description {
+  margin: 9px 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.first-turn-guide__steps {
+  display: grid;
+  margin: 23px 0 0;
+  padding: 0;
+  gap: 9px;
+  list-style: none;
+}
+
+.first-turn-guide__steps li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  padding: 11px 12px;
+  gap: 11px;
+  align-items: start;
+  background: rgba(8, 15, 19, 0.38);
+  border: 1px solid rgba(169, 194, 204, 0.14);
+  border-radius: 5px;
+}
+
+.first-turn-guide__steps li > span {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  color: #f0d076;
+  background: rgba(228, 185, 95, 0.08);
+  border: 1px solid rgba(228, 185, 95, 0.38);
+  border-radius: 50%;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  place-items: center;
+}
+
+.first-turn-guide__steps strong {
+  display: block;
+  color: var(--ink);
+  font-size: 0.8rem;
+}
+
+.first-turn-guide__steps p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+.first-turn-guide__actions {
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  gap: 9px;
+  margin-top: 22px;
+}
+
+.first-turn-guide__button {
+  min-height: 43px;
+  padding: 10px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.first-turn-guide__button--details {
+  color: var(--muted);
+  background: rgba(8, 15, 19, 0.58);
+  border: 1px solid rgba(140, 165, 176, 0.28);
+}
+
+.first-turn-guide__button--start {
+  color: #172029;
+  background: linear-gradient(135deg, #f0d076, #c99b43);
+  border: 1px solid transparent;
+  box-shadow: 0 8px 20px rgba(117, 82, 24, 0.2);
+}
+
+.first-turn-guide__button:hover {
+  filter: brightness(1.08);
+}
+
+.first-turn-guide__button:focus-visible {
+  outline: 2px solid #f0d076;
+  outline-offset: 3px;
 }
 
 .confirm-dialog {

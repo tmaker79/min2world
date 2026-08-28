@@ -23,6 +23,7 @@ import {
   getFactionUpkeep,
   getFactionUpkeepReserve,
 } from './game/upkeep'
+import { FIRST_TURN_GUIDE_STORAGE_KEYS } from './storage/firstTurnGuide'
 
 function createEasyPlayerState(
   seed: string,
@@ -87,15 +88,43 @@ describe('Milestone 07 UI', () => {
 
   it('starts a quick match immediately when requested by the runtime mode', () => {
     window.history.replaceState({}, '', '/?mode=quick')
-    render(<App />)
+    const firstVisit = render(<App />)
 
     expect(screen.getByTestId('game-map')).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: '첫 턴 안내' })).toBeVisible()
+    expect(screen.getByText('병력 생산·승리')).toBeVisible()
     expect(
       screen.queryByRole('combobox', { name: '지도 크기 선택' }),
     ).not.toBeInTheDocument()
     expect(screen.queryByText('민간 유닛')).not.toBeInTheDocument()
     expect(screen.queryByRole('tab', { name: '발전' })).not.toBeInTheDocument()
     expect(screen.queryByRole('tab', { name: '건설' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '게임 시작' }))
+    expect(screen.queryByRole('dialog', { name: '첫 턴 안내' })).not.toBeInTheDocument()
+    expect(localStorage.getItem(FIRST_TURN_GUIDE_STORAGE_KEYS.quick)).toBe('1')
+
+    fireEvent.click(screen.getByRole('button', { name: '재시작' }))
+    expect(screen.queryByRole('dialog', { name: '첫 턴 안내' })).not.toBeInTheDocument()
+
+    firstVisit.unmount()
+    render(<App />)
+    expect(screen.queryByRole('dialog', { name: '첫 턴 안내' })).not.toBeInTheDocument()
+  })
+
+  it('opens detailed controls from the first-turn guide', () => {
+    window.history.replaceState({}, '', '/?mode=quick')
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('button', { name: '자세히 보기' }))
+
+    expect(screen.queryByRole('dialog', { name: '첫 턴 안내' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '게임 도움말' })).toBeVisible()
+    expect(screen.getByRole('tab', { name: '조작' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(localStorage.getItem(FIRST_TURN_GUIDE_STORAGE_KEYS.quick)).toBe('1')
   })
 
   it('offers only military production and no management tabs in quick mode', () => {
@@ -143,10 +172,16 @@ describe('Milestone 07 UI', () => {
 
     const map = await screen.findByTestId('game-map')
     expect(map.querySelector('.unit-token--f2')).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: '첫 턴 안내' })).toBeVisible()
+    expect(screen.getByText('확장·승리')).toBeVisible()
+    expect(localStorage.getItem(FIRST_TURN_GUIDE_STORAGE_KEYS.standard)).toBeNull()
+    await user.click(screen.getByRole('button', { name: '게임 시작' }))
+    expect(localStorage.getItem(FIRST_TURN_GUIDE_STORAGE_KEYS.standard)).toBe('1')
   })
 
   it('renders visible keyboard-focusable pointy hex tiles without exposing the seed', () => {
     const { container } = renderApp()
+    expect(screen.queryByRole('dialog', { name: '첫 턴 안내' })).not.toBeInTheDocument()
     const map = screen.getByTestId('game-map')
     const tiles = map.querySelectorAll<HTMLButtonElement>('.map-tile')
 
