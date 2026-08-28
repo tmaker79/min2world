@@ -4,6 +4,7 @@ import {
   createRandomMapSeed,
   generateGameState,
   normalizeMapSeed,
+  QUICK_OPPONENT_STARTING_UNIT_TYPES,
   QUICK_STARTING_UNIT_TYPES,
   validateGeneratedMap,
 } from './mapGenerator'
@@ -31,7 +32,7 @@ function getDisplayPositionKey(
 }
 
 describe('procedural map generation', () => {
-  it('creates a valid quick match with five military units per faction', () => {
+  it('creates a valid quick match with a larger human starting force and resource reserve', () => {
     const state = generateGameState('quick-generation', {
       boardSize: BOARD_SIZE_PRESETS.tiny,
       factionCount: 2,
@@ -43,13 +44,18 @@ describe('procedural map generation', () => {
 
     expect(state.gameMode).toBe('quick')
     expect(validateGeneratedMap(state)).toEqual([])
-    for (const factionId of state.factionOrder) {
-      expect(
-        state.units
-          .filter((unit) => unit.factionId === factionId)
-          .map((unit) => unit.type),
-      ).toEqual(QUICK_STARTING_UNIT_TYPES)
-    }
+    expect(
+      state.units
+        .filter((unit) => unit.factionId === 'f1')
+        .map((unit) => unit.type),
+    ).toEqual(QUICK_STARTING_UNIT_TYPES)
+    expect(
+      state.units
+        .filter((unit) => unit.factionId === 'f2')
+        .map((unit) => unit.type),
+    ).toEqual(QUICK_OPPONENT_STARTING_UNIT_TYPES)
+    expect(state.resources.f1).toBe(30)
+    expect(state.resources.f2).toBe(20)
     expect(state.units.some((unit) => unit.type === 'settler')).toBe(false)
     expect(state.units.some((unit) => unit.type === 'builder')).toBe(false)
   })

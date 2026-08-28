@@ -942,7 +942,7 @@ function chooseCivilianDecision(
 }
 
 export function getAiUnitCap(state: GameState, factionId: FactionId) {
-  if (state.gameMode === 'quick') return 8
+  if (state.gameMode === 'quick') return undefined
   const sites = state.sites.filter((site) => site.ownerId === factionId)
   return (
     3 +
@@ -1047,7 +1047,8 @@ function chooseMilitaryProduction(state: GameState, factionId: FactionId) {
   const unitCount = state.units.filter(
     (unit) => unit.factionId === factionId && isMilitaryUnitType(unit.type),
   ).length
-  if (unitCount >= getAiUnitCap(state, factionId)) return undefined
+  const unitCap = getAiUnitCap(state, factionId)
+  if (unitCap !== undefined && unitCount >= unitCap) return undefined
   const sites = getAvailableProductionSites(state, factionId).filter((site) =>
     getProducibleUnitTypes(site).some(isMilitaryUnitType),
   )
@@ -1144,8 +1145,11 @@ function chooseInvestment(state: GameState, factionId: FactionId) {
   const unitCount = state.units.filter(
     (unit) => unit.factionId === factionId && isMilitaryUnitType(unit.type),
   ).length
+  const unitCap = getAiUnitCap(state, factionId)
   const needsCapacity =
-    unitCount >= getAiUnitCap(state, factionId) && hasProductionOpportunity(state, factionId)
+    unitCap !== undefined &&
+    unitCount >= unitCap &&
+    hasProductionOpportunity(state, factionId)
   const candidates: InvestmentCandidate[] = []
 
   for (const site of [...ownedSites].sort(compareIds)) {

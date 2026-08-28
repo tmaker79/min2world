@@ -55,7 +55,7 @@ function enemyIncomeSite(state: GameState): Site {
 }
 
 describe('hex-map AI', () => {
-  it('uses the quick cap and chooses military production without investing', () => {
+  it('uses upkeep instead of a quick unit cap and produces without investing', () => {
     const initial = createInitialGameState('quick-ai-production', {
       gameMode: 'quick',
       humanFactionId: 'f1',
@@ -71,7 +71,7 @@ describe('hex-map AI', () => {
       ),
     }
 
-    expect(getAiUnitCap(state, 'f2')).toBe(8)
+    expect(getAiUnitCap(state, 'f2')).toBeUndefined()
     const action = chooseAiAction(state, 'f2')
     expect(action?.type).toBe('unitProduced')
     if (action?.type === 'unitProduced') {

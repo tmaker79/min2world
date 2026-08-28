@@ -49,6 +49,7 @@ export const DEFAULT_MAP_SEED = 'min2world'
 export const DEFAULT_MAP_TYPE: MapType = 'balanced'
 
 const STARTING_RESOURCES = 20
+const QUICK_HUMAN_STARTING_RESOURCES = 30
 const MAX_GENERATION_ATTEMPTS = 128
 const STANDARD_CAPITAL_DISTANCE = 18
 const STANDARD_CAPITAL_DISTANCE_REFERENCE_COLUMNS = 42
@@ -69,6 +70,11 @@ export const QUICK_STARTING_UNIT_TYPES: readonly UnitType[] = [
   'infantry',
   'infantry',
   'cavalry',
+  'archer',
+  'spearman',
+]
+export const QUICK_OPPONENT_STARTING_UNIT_TYPES: readonly UnitType[] = [
+  'infantry',
   'archer',
   'spearman',
 ]
@@ -699,8 +705,12 @@ export function validateGeneratedMap(state: GameState): string[] {
   }
 
   const unitPositionKeys = state.units.map((unit) => positionKey(unit.position))
-  const startingUnitTypes = getStartingUnitTypes(state.gameMode)
   const startingUnitsAreValid = factionIds.every((factionId) => {
+    const startingUnitTypes = getStartingUnitTypes(
+      state.gameMode,
+      factionId,
+      state.humanFactionId,
+    )
     const units = state.units.filter((unit) => unit.factionId === factionId)
     return (
       units.length === startingUnitTypes.length &&
@@ -868,7 +878,8 @@ function createUnits(
   tiles: Tile[],
   factionCount: FactionCount,
   reservedKeys: ReadonlySet<string>,
-  startingUnitTypes: readonly UnitType[],
+  gameMode: GameMode,
+  humanFactionId: FactionId,
 ): Unit[] {
   const passable = getPassableKeys(tiles)
   const names: Partial<Record<FactionId, readonly string[]>> = {
@@ -883,9 +894,17 @@ function createUnits(
     f3: ['금빛 보병대', '사자 보병대', '태양 기병대', '황금 궁병대', '황금 창병대'],
     f4: ['보랏빛 보병대', '까마귀 보병대', '황혼 기병대', '자색 궁병대', '자색 창병대'],
   }
-  const usesQuickUnits = startingUnitTypes === QUICK_STARTING_UNIT_TYPES
-
   return getFactionIds(factionCount).flatMap((factionId) => {
+    const startingUnitTypes = getStartingUnitTypes(
+      gameMode,
+      factionId,
+      humanFactionId,
+    )
+    const usesQuickUnits = gameMode === 'quick'
+    const quickNameIndices =
+      startingUnitTypes === QUICK_OPPONENT_STARTING_UNIT_TYPES
+        ? [0, 3, 4]
+        : undefined
     const cityKeys = new Set(
       cityFootprints[factionId].map(positionKey),
     )
@@ -909,7 +928,9 @@ function createUnits(
     return startingUnitTypes.map((type, index) => ({
       id: `${factionId}-${type}-${index + 1}`,
       name:
-        (usesQuickUnits ? quickNames[factionId]?.[index] : names[factionId]?.[index]) ??
+        (usesQuickUnits
+          ? quickNames[factionId]?.[quickNameIndices?.[index] ?? index]
+          : names[factionId]?.[index]) ??
         `${factionId} 부대 ${index + 1}`,
       factionId,
       type,
@@ -988,8 +1009,25 @@ export type MapGenerationOptions = {
   gameMode?: GameMode
 }
 
-function getStartingUnitTypes(gameMode: GameMode): readonly UnitType[] {
-  return gameMode === 'quick' ? QUICK_STARTING_UNIT_TYPES : STARTING_UNIT_TYPES
+function getStartingUnitTypes(
+  gameMode: GameMode,
+  factionId: FactionId,
+  humanFactionId: FactionId,
+): readonly UnitType[] {
+  if (gameMode !== 'quick') return STARTING_UNIT_TYPES
+  return factionId === humanFactionId
+    ? QUICK_STARTING_UNIT_TYPES
+    : QUICK_OPPONENT_STARTING_UNIT_TYPES
+}
+
+function getStartingResources(
+  gameMode: GameMode,
+  factionId: FactionId,
+  humanFactionId: FactionId,
+): number {
+  return gameMode === 'quick' && factionId === humanFactionId
+    ? QUICK_HUMAN_STARTING_RESOURCES
+    : STARTING_RESOURCES
 }
 
 function toLegacyTwoFactionState(state: GameState): GameState {
@@ -1161,10 +1199,10 @@ function buildCandidate(
     phase: 'playing',
     activeFactionId: getFactionIds(factionCount)[0],
     resources: {
-      f1: factionCount >= 1 ? STARTING_RESOURCES : 0,
-      f2: factionCount >= 2 ? STARTING_RESOURCES : 0,
-      f3: factionCount >= 3 ? STARTING_RESOURCES : 0,
-      f4: factionCount >= 4 ? STARTING_RESOURCES : 0,
+      f1: factionCount >= 1 ? getStartingResources(gameMode, 'f1', humanFactionId) : 0,
+      f2: factionCount >= 2 ? getStartingResources(gameMode, 'f2', humanFactionId) : 0,
+      f3: factionCount >= 3 ? getStartingResources(gameMode, 'f3', humanFactionId) : 0,
+      f4: factionCount >= 4 ? getStartingResources(gameMode, 'f4', humanFactionId) : 0,
       player: 0,
       enemy: 0,
     },
@@ -1175,7 +1213,8 @@ function buildCandidate(
       tiles,
       factionCount,
       placementExcludedKeys,
-      getStartingUnitTypes(gameMode),
+      gameMode,
+      humanFactionId,
     ),
     sites,
   }
