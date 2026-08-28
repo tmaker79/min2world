@@ -35,6 +35,8 @@ import { BOARD_SIZE_PRESETS } from './game/hex'
 import { createInitialGameState } from './game/initialState'
 import {
   createRandomMapSeed,
+  QUICK_OPPONENT_STARTING_UNIT_TYPES,
+  QUICK_STARTING_UNIT_TYPES,
   STARTING_UNIT_TYPES,
 } from './game/mapGenerator'
 import { gameReducer } from './game/reducer'
@@ -1092,9 +1094,14 @@ function GameApp({
     state.humanFactionId,
   ])
 
+  const startingUnitCount =
+    state.gameMode === 'quick'
+      ? QUICK_STARTING_UNIT_TYPES.length +
+        (state.factionCount - 1) * QUICK_OPPONENT_STARTING_UNIT_TYPES.length
+      : state.factionCount * STARTING_UNIT_TYPES.length
   const hasProgress =
     state.turn > 1 ||
-    state.units.length !== state.factionCount * STARTING_UNIT_TYPES.length ||
+    state.units.length !== startingUnitCount ||
     state.units.some(
       (unit) =>
         unit.hasActed ||

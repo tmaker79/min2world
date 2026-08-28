@@ -106,6 +106,7 @@ describe('Milestone 07 UI', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '재시작' }))
     expect(screen.queryByRole('dialog', { name: '첫 턴 안내' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
 
     firstVisit.unmount()
     render(<App />)
