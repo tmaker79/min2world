@@ -2270,6 +2270,87 @@
   height: 23px;
 }
 
+.unit-selection-light {
+  position: absolute;
+  z-index: 2;
+  bottom: 8px;
+  left: 50%;
+  width: 72px;
+  height: 132px;
+  overflow: visible;
+  pointer-events: none;
+  transform: translateX(-50%);
+  transform-origin: 50% 100%;
+  animation: unit-selection-light-arrive 420ms cubic-bezier(0.2, 0.72, 0.25, 1)
+    both;
+}
+
+.unit-selection-light::before {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 252, 219, 0) 0%,
+    rgba(255, 249, 199, 0.2) 18%,
+    rgba(255, 235, 146, 0.48) 70%,
+    rgba(255, 221, 105, 0.7) 100%
+  );
+  clip-path: polygon(44% 0, 56% 0, 88% 100%, 12% 100%);
+  content: '';
+  filter: blur(1.5px) drop-shadow(0 0 9px rgba(255, 225, 125, 0.52));
+  opacity: 0.88;
+  animation: unit-selection-beam-pulse 2.2s ease-in-out infinite;
+}
+
+.unit-selection-light::after {
+  position: absolute;
+  right: 6px;
+  bottom: -6px;
+  left: 6px;
+  height: 24px;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 250, 206, 0.95) 0%,
+    rgba(255, 222, 111, 0.68) 34%,
+    rgba(255, 207, 75, 0.18) 68%,
+    rgba(255, 207, 75, 0) 78%
+  );
+  border-radius: 50%;
+  content: '';
+  filter: blur(1px);
+  animation: unit-selection-ground-pulse 1.65s ease-in-out infinite;
+}
+
+.unit-selection-light__ray {
+  position: absolute;
+  top: 7px;
+  bottom: 9px;
+  width: 7px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 239, 0) 0%,
+    rgba(255, 255, 224, 0.72) 42%,
+    rgba(255, 239, 165, 0.12) 100%
+  );
+  filter: blur(1.2px);
+  opacity: 0.6;
+  transform-origin: 50% 100%;
+  animation: unit-selection-ray-drift 2.6s ease-in-out infinite alternate;
+}
+
+.unit-selection-light__ray--left {
+  left: 25px;
+  transform: skewX(6deg);
+}
+
+.unit-selection-light__ray--right {
+  right: 24px;
+  width: 4px;
+  opacity: 0.46;
+  transform: skewX(-7deg);
+  animation-delay: -1.1s;
+}
+
 .unit-token--selected {
   z-index: 3;
   border-color: #fff3b0;
@@ -2503,6 +2584,58 @@
   }
 }
 
+@keyframes unit-selection-light-arrive {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -28px) scaleX(0.38) scaleY(1.12);
+  }
+
+  58% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+@keyframes unit-selection-beam-pulse {
+  0%,
+  100% {
+    opacity: 0.68;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes unit-selection-ground-pulse {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: scale(0.88);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes unit-selection-ray-drift {
+  0% {
+    opacity: 0.26;
+    transform: translateX(-3px) skewX(6deg);
+  }
+
+  100% {
+    opacity: 0.76;
+    transform: translateX(3px) skewX(-2deg);
+  }
+}
+
 @keyframes site-selected-pulse {
   0%,
   100% {
@@ -2677,6 +2810,13 @@
   /* Infinite pulse would restart every 1ms; stop it entirely. The static
      icon glow and tile border keep the selection visible. */
   .site-marker--selected {
+    animation: none;
+  }
+
+  .unit-selection-light,
+  .unit-selection-light::before,
+  .unit-selection-light::after,
+  .unit-selection-light__ray {
     animation: none;
   }
 

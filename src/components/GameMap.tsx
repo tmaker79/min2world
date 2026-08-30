@@ -620,6 +620,12 @@ function UnitMarker({
       className={`map-overlay-cell${attackable ? ' map-overlay-cell--attackable' : ''}`}
       style={style}
     >
+      {selected && (
+        <span className="unit-selection-light" data-unit-selection-light="true">
+          <span className="unit-selection-light__ray unit-selection-light__ray--left" />
+          <span className="unit-selection-light__ray unit-selection-light__ray--right" />
+        </span>
+      )}
       <span
         className={`unit-token unit-token--${unitRole} unit-token--${unit.factionId} ${
           selected ? 'unit-token--selected' : ''
