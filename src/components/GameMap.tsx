@@ -67,6 +67,14 @@ const HEX_BOUNDARY_EDGES = [
   [29, 66, 0, 49.5],
   [58, 49.5, 29, 66],
 ] as const
+const HEX_VOID_SHADOW_OFFSETS = [
+  [4, 3],
+  [2, -2],
+  [-2, -2],
+  [-4, 3],
+  [-3, 6],
+  [3, 6],
+] as const
 
 // 경계면 집합은 배열이 아니라 6비트 마스크로 넘긴다. 배열이면 매 렌더 새 참조가
 // 되어 TileButton의 memo 비교가 항상 실패하고, 팬 중 보이는 타일 전부가 다시
@@ -111,6 +119,18 @@ function getBoundarySides(mask: number): number[] {
   }
   return sides
 }
+
+function getVoidShadowCoordinates(side: number) {
+  const [x1, y1, x2, y2] = HEX_BOUNDARY_EDGES[side]
+  const [offsetX, offsetY] = HEX_VOID_SHADOW_OFFSETS[side]
+  return {
+    x1: x1 + offsetX,
+    y1: y1 + offsetY,
+    x2: x2 + offsetX,
+    y2: y2 + offsetY,
+  }
+}
+
 const PRODUCTION_SITE_ASSET_PREVIEW_ICONS = {
   'farm-1': farmLevel1Icon,
   'farm-2': farmLevel2Icon,
@@ -468,6 +488,37 @@ const TileButton = memo(function TileButton({
   )
 })
 
+const VoidEdgeShadowMarker = memo(function VoidEdgeShadowMarker({
+  boundaryMask,
+  style,
+}: {
+  boundaryMask: number
+  style: CSSProperties
+}) {
+  const sides = getBoundarySides(boundaryMask)
+
+  return (
+    <span
+      className="void-edge-shadow-marker"
+      data-void-edge-shadow-mask={boundaryMask}
+      style={style}
+    >
+      <svg
+        className="void-edge-shadow-marker__art"
+        viewBox={`0 0 ${HEX_WIDTH} ${HEX_HEIGHT}`}
+      >
+        {sides.map((side) => (
+          <line
+            key={side}
+            className="void-edge-shadow-marker__line"
+            {...getVoidShadowCoordinates(side)}
+          />
+        ))}
+      </svg>
+    </span>
+  )
+})
+
 function SiteMarker({
   site,
   selected,
@@ -749,6 +800,10 @@ function GameMapComponent({
   const { minimumX, minimumY, maximumX, maximumY } = layout
   const logicalWidth = maximumX - minimumX + HEX_WIDTH
   const logicalHeight = maximumY - minimumY + HEX_HEIGHT
+  const boardKeys = useMemo(
+    () => new Set(state.tiles.map((tile) => positionKey(tile.position))),
+    [state.tiles],
+  )
   const siteAssetPreviews = useMemo(() => {
     if (!showSiteAssetPreview) return []
 
@@ -993,6 +1048,19 @@ function GameMapComponent({
               onPreviewTileChange={onPreviewTileChange}
             />
           )
+        })}
+      </div>
+
+      <div className="map-layer map-layer--void-edge-shadow" aria-hidden="true">
+        {visibleTiles.map(({ tile, style }) => {
+          const boundaryMask = getKeySetBoundaryMask(tile.position, boardKeys)
+          return boundaryMask > 0 ? (
+            <VoidEdgeShadowMarker
+              key={tile.id}
+              boundaryMask={boundaryMask}
+              style={style}
+            />
+          ) : null
         })}
       </div>
 

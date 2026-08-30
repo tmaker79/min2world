@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="641" height="419" viewBox="0 0 641 419">
+  <g fill="#d9edf0">
+    <circle cx="23" cy="37" r="0.7" opacity="0.28"/>
+    <circle cx="71" cy="118" r="1.1" opacity="0.42"/>
+    <circle cx="126" cy="52" r="0.55" opacity="0.22"/>
+    <circle cx="174" cy="191" r="0.8" opacity="0.34"/>
+    <circle cx="239" cy="84" r="1.35" opacity="0.48"/>
+    <circle cx="284" cy="227" r="0.6" opacity="0.26"/>
+    <circle cx="337" cy="31" r="0.75" opacity="0.32"/>
+    <circle cx="392" cy="146" r="1" opacity="0.4"/>
+    <circle cx="451" cy="68" r="0.5" opacity="0.2"/>
+    <circle cx="517" cy="203" r="1.2" opacity="0.44"/>
+    <circle cx="586" cy="91" r="0.65" opacity="0.28"/>
+    <circle cx="623" cy="276" r="0.9" opacity="0.36"/>
+    <circle cx="42" cy="312" r="1.25" opacity="0.46"/>
+    <circle cx="103" cy="257" r="0.55" opacity="0.22"/>
+    <circle cx="151" cy="381" r="0.85" opacity="0.34"/>
+    <circle cx="215" cy="303" r="0.65" opacity="0.27"/>
+    <circle cx="267" cy="397" r="1.05" opacity="0.39"/>
+    <circle cx="329" cy="286" r="0.5" opacity="0.2"/>
+    <circle cx="374" cy="369" r="1.3" opacity="0.45"/>
+    <circle cx="428" cy="251" r="0.7" opacity="0.3"/>
+    <circle cx="489" cy="344" r="0.55" opacity="0.24"/>
+    <circle cx="548" cy="399" r="0.95" opacity="0.37"/>
+    <circle cx="601" cy="328" r="0.6" opacity="0.25"/>
+  </g>
+  <g fill="#80b7c5">
+    <circle cx="54" cy="202" r="0.8" opacity="0.3"/>
+    <circle cx="198" cy="22" r="0.55" opacity="0.25"/>
+    <circle cx="312" cy="164" r="0.9" opacity="0.34"/>
+    <circle cx="472" cy="173" r="0.6" opacity="0.26"/>
+    <circle cx="568" cy="24" r="1" opacity="0.38"/>
+    <circle cx="132" cy="286" r="0.65" opacity="0.27"/>
+    <circle cx="352" cy="411" r="0.55" opacity="0.22"/>
+    <circle cx="526" cy="279" r="0.75" opacity="0.31"/>
+  </g>
+</svg>

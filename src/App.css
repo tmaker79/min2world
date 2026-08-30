@@ -1012,9 +1012,43 @@
   min-height: 0;
   height: 100%;
   overflow: hidden;
-  background: rgba(14, 21, 26, 0.78);
+  background-color: #071118;
+  background-image:
+    radial-gradient(
+      ellipse at 18% 28%,
+      rgba(69, 121, 137, 0.38) 0%,
+      rgba(31, 70, 84, 0.22) 32%,
+      rgba(14, 38, 50, 0.08) 54%,
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse at 78% 68%,
+      rgba(51, 91, 116, 0.34) 0%,
+      rgba(26, 58, 76, 0.2) 34%,
+      rgba(12, 31, 45, 0.07) 56%,
+      transparent 72%
+    ),
+    radial-gradient(
+      ellipse at 52% 18%,
+      rgba(47, 94, 105, 0.26) 0%,
+      rgba(20, 51, 63, 0.14) 36%,
+      transparent 68%
+    ),
+    url('./assets/ui/map-void-stars.svg');
+  background-position:
+    center,
+    center,
+    center,
+    83px 47px;
+  background-repeat: no-repeat, no-repeat, no-repeat, repeat;
+  background-size:
+    132% 128%,
+    138% 132%,
+    124% 120%,
+    641px 419px;
   border: 1px solid rgba(169, 194, 204, 0.2);
   border-radius: 8px;
+  animation: map-void-parallax-drift 38s ease-in-out infinite alternate;
 }
 
 .map-zoom-controls {
@@ -1656,7 +1690,38 @@
 }
 
 .map-layer--terrain {
+  z-index: 1;
+}
+
+.map-layer--void-edge-shadow {
   z-index: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.void-edge-shadow-marker {
+  position: absolute;
+  display: block;
+  width: 58px;
+  height: 66px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.void-edge-shadow-marker__art {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.void-edge-shadow-marker__line {
+  fill: none;
+  stroke: rgba(0, 3, 7, 0.42);
+  stroke-linecap: round;
+  stroke-width: 8;
+  filter: blur(4px);
+  vector-effect: non-scaling-stroke;
 }
 
 .map-layer--sites {
@@ -2636,6 +2701,24 @@
   }
 }
 
+@keyframes map-void-parallax-drift {
+  0% {
+    background-position:
+      46% 47%,
+      54% 53%,
+      48% 46%,
+      83px 47px;
+  }
+
+  100% {
+    background-position:
+      54% 53%,
+      46% 47%,
+      52% 54%,
+      -49px 73px;
+  }
+}
+
 @keyframes site-selected-pulse {
   0%,
   100% {
@@ -2817,6 +2900,10 @@
   .unit-selection-light::before,
   .unit-selection-light::after,
   .unit-selection-light__ray {
+    animation: none;
+  }
+
+  .map-stage {
     animation: none;
   }
 

@@ -206,6 +206,24 @@ describe('Milestone 07 UI', () => {
       ),
     ).toBe(true)
     expect(container.querySelector('.map-layer--terrain .map-tile')).toBeInTheDocument()
+    const voidEdgeShadowLayer = container.querySelector<HTMLElement>(
+      '.map-layer--void-edge-shadow',
+    )
+    const voidEdgeShadowMarkers = voidEdgeShadowLayer?.querySelectorAll(
+      '[data-void-edge-shadow-mask]',
+    )
+    expect(voidEdgeShadowLayer).toHaveAttribute('aria-hidden', 'true')
+    expect(voidEdgeShadowMarkers?.length).toBeGreaterThan(0)
+    expect(getComputedStyle(voidEdgeShadowLayer!).pointerEvents).toBe('none')
+    for (const marker of voidEdgeShadowMarkers ?? []) {
+      const mask = Number(marker.getAttribute('data-void-edge-shadow-mask'))
+      const sideCount = mask.toString(2).replaceAll('0', '').length
+      expect(mask).toBeGreaterThan(0)
+      expect(marker.querySelectorAll('.void-edge-shadow-marker__line')).toHaveLength(
+        sideCount,
+      )
+    }
+    expect(container.querySelector('.continent-edge-marker')).not.toBeInTheDocument()
     expect(container.querySelector('.map-layer--sites .site-marker')).toBeInTheDocument()
     expect(container.querySelector('.map-layer--units .unit-token')).toBeInTheDocument()
     expect(container.querySelector('.map-layer--units .unit-health-bar')).toBeInTheDocument()
