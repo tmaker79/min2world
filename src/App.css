@@ -1494,17 +1494,18 @@
 }
 
 .language-menu__panel {
-  width: 148px;
-  padding: 6px;
+  width: 120px;
+  padding: 4px;
+  gap: 2px;
 }
 
 .language-menu__option {
   display: flex;
   width: 100%;
-  min-height: 44px;
-  padding: 0 12px;
+  min-height: 40px;
+  padding: 0 10px;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   border: 0;
   border-radius: 4px;
   color: var(--ink);
@@ -1512,7 +1513,7 @@
   cursor: pointer;
   font-size: 0.92rem;
   font-weight: 750;
-  text-align: left;
+  text-align: center;
 }
 
 .language-menu__option:hover,

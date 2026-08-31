@@ -117,7 +117,6 @@ export function AppChrome({
                     }}
                   >
                     <span>{label}</span>
-                    {locale === option && <span aria-hidden="true">✓</span>}
                   </button>
                 ))}
               </div>
