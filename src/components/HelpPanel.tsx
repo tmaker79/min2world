@@ -6,6 +6,7 @@ const HELP_TABS = [
   { id: 'controls', label: '조작' },
   { id: 'rules', label: '규칙' },
   { id: 'legend', label: '범례' },
+  { id: 'credits', label: '크레딧' },
 ] as const
 
 type HelpTabId = (typeof HELP_TABS)[number]['id']
@@ -147,6 +148,44 @@ export function HelpPanel({ gameMode }: HelpPanelProps) {
         )}
 
         {activeIndex === 2 && <Legend embedded gameMode={gameMode} />}
+
+        {activeIndex === 3 && (
+          <div className="help-card__guide">
+            <section className="help-card__section">
+              <h3>지형 타일</h3>
+              <p>
+                편집·변형된 지형 타일은{' '}
+                <a
+                  href="https://cmartins.itch.io/hex-tiles-fantasy"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Hex Tiles: Fantasy
+                </a>{' '}
+                by{' '}
+                <a
+                  href="https://cmartins.itch.io/"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  cmartins.art
+                </a>
+                를 기반으로 합니다.
+              </p>
+              <p>
+                원본 및 변형된 지형 타일은{' '}
+                <a
+                  href="https://creativecommons.org/licenses/by-sa/4.0/"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  CC BY-SA 4.0
+                </a>
+                으로 제공됩니다.
+              </p>
+            </section>
+          </div>
+        )}
       </div>
     </section>
   )

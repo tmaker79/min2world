@@ -112,6 +112,6 @@ npm run deploy
 - 다른 컴퓨터·브라우저·배포 주소와 동기화되지 않습니다.
 - 브라우저 사이트 데이터를 삭제하거나 시크릿 모드를 종료하면 저장이 사라질 수 있습니다.
 
-지형과 거점 래스터 이미지는 프로젝트용으로 별도 제작한 자산입니다. Nicu Buculei의 CC0 지도 클립아트에서 가져왔던 산·언덕 벡터 심볼은 래스터 타일로 대체하면서 제거했습니다. 아직 코드에 연결하지 않은 에셋은 [에셋 안내](src/assets/README.md)에 정리했습니다.
+`src/assets/terrain/cmartins/`의 지형 타일은 cmartins.art의 [Hex Tiles: Fantasy](https://cmartins.itch.io/hex-tiles-fantasy)를 기반으로 편집·변형했으며 [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)으로 제공합니다. 다리·물 지형과 거점 래스터 이미지는 프로젝트용으로 별도 제작한 자산입니다. 자세한 적용 범위와 변경 사항은 [제3자 에셋 고지](THIRD_PARTY_NOTICES.md), 아직 코드에 연결하지 않은 에셋은 [에셋 안내](src/assets/README.md)에 정리했습니다.
 
 전체 방향은 [개발 계획](docs/min2world.md), 단계별 진행 상황과 상세 명세는 [개발 마일스톤](docs/milestones/README.md)을 참고하세요.
