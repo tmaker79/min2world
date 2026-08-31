@@ -1,4 +1,8 @@
-# min2world
+<p align="center">
+  <img src="public/icons/main-game-icon.png" alt="min2world 메인 아이콘" width="240">
+</p>
+
+<h1 align="center">min2world</h1>
 
 React와 TypeScript를 학습하며 만드는 싱글 플레이 웹 턴제 전략 시뮬레이션 게임입니다.
 

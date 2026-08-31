@@ -9,6 +9,10 @@ describe('StartScreen', () => {
     const onStart = vi.fn()
     render(<StartScreen onStart={onStart} />)
 
+    expect(
+      screen.getByRole('img', { name: 'min2world 메인 아이콘' }),
+    ).toHaveAttribute('src', '/icons/main-game-icon.png')
+
     const mapTypeSelect = screen.getByRole('combobox', {
       name: '지도 종류 선택',
     })

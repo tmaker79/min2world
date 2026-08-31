@@ -19,6 +19,7 @@
 }
 
 .start-screen__card {
+  box-sizing: border-box;
   width: min(40rem, 100%);
   padding: clamp(1.5rem, 4vw, 3rem);
   border: 1px solid #405363;
@@ -26,14 +27,35 @@
   box-shadow: 0 1.5rem 5rem rgb(0 0 0 / 35%);
 }
 
+.start-screen__hero {
+  display: flex;
+  align-items: center;
+  gap: clamp(1rem, 3vw, 1.6rem);
+  margin-bottom: 1.75rem;
+}
+
+.start-screen__emblem {
+  flex: 0 0 auto;
+  width: clamp(6rem, 18vw, 8rem);
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: contain;
+  filter: drop-shadow(0 0.8rem 1.25rem rgb(0 0 0 / 32%));
+}
+
+.start-screen__intro {
+  min-width: 0;
+}
+
 .start-screen__card h1 {
   margin: 0;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(2.5rem, 8vw, 5rem);
+  font-size: clamp(2.25rem, 6vw, 4rem);
+  line-height: 0.95;
 }
 
 .start-screen__lead {
-  margin: 0.4rem 0 2rem;
+  margin: 0.4rem 0 0;
   color: #a6b7c1;
 }
 
@@ -2927,8 +2949,17 @@
     padding: 1.25rem;
   }
 
-  .start-screen__lead {
-    margin-bottom: 1.5rem;
+  .start-screen__hero {
+    gap: 0.85rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .start-screen__emblem {
+    width: clamp(4.75rem, 22vw, 6rem);
+  }
+
+  .start-screen__card h1 {
+    font-size: clamp(2.1rem, 10vw, 3rem);
   }
 }
 

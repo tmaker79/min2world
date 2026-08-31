@@ -65,9 +65,20 @@ export function StartScreen({ onStart }: StartScreenProps) {
   return (
     <main className="start-screen">
       <section className="start-screen__card" aria-labelledby="start-title">
-        <p className="eyebrow">HEX STRATEGY</p>
-        <h1 id="start-title">min2world</h1>
-        <p className="start-screen__lead">새 전장을 설정하고 원정을 시작하세요.</p>
+        <header className="start-screen__hero">
+          <img
+            className="start-screen__emblem"
+            src="/icons/main-game-icon.png"
+            alt="min2world 메인 아이콘"
+          />
+          <div className="start-screen__intro">
+            <p className="eyebrow">HEX STRATEGY</p>
+            <h1 id="start-title">min2world</h1>
+            <p className="start-screen__lead">
+              새 전장을 설정하고 원정을 시작하세요.
+            </p>
+          </div>
+        </header>
 
         <fieldset>
           <legend>지도 크기 선택</legend>
