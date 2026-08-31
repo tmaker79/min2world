@@ -70,6 +70,9 @@ export function FirstTurnGuide({
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
       >
+        <div className="first-turn-guide__hero" aria-hidden="true">
+          <img src="/icons/main-game-icon.png" alt="" />
+        </div>
         <h2 id={titleId}>{t('firstTurn')}</h2>
         <p id={descriptionId} className="first-turn-guide__description">
           {t('firstTurnIntro')}

@@ -15,6 +15,9 @@ describe('FirstTurnGuide', () => {
     )
 
     expect(screen.getByRole('dialog', { name: '첫 턴 안내' })).toBeVisible()
+    expect(
+      container.querySelector('.first-turn-guide__hero img'),
+    ).toHaveAttribute('src', '/icons/main-game-icon.png')
     expect(container.querySelectorAll('.first-turn-guide__steps li')).toHaveLength(3)
     expect(screen.getByText('부대 선택')).toBeVisible()
     expect(screen.getByText('이동·공격')).toBeVisible()

@@ -130,7 +130,8 @@ describe('Milestone 07 UI', () => {
     expect(screen.getByRole('button', { name: '재시작' })).toBeVisible()
     const turnBefore = screen.getByLabelText('턴 2').textContent
 
-    fireEvent.click(screen.getByRole('button', { name: 'EN' }))
+    fireEvent.click(screen.getByRole('button', { name: '언어' }))
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'English' }))
 
     expect(document.documentElement.lang).toBe('en')
     expect(localStorage.getItem(QUICK_LOCALE_STORAGE_KEY)).toBe('en')

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import type { GameMode } from '../game/types'
 import { useLocalization, type Locale } from '../i18n/locale'
 
@@ -29,24 +29,29 @@ export function AppChrome({
   const metaRef = useRef<HTMLDivElement>(null)
   const saveId = useId()
   const helpId = useId()
+  const languageId = useId()
+  const [languageMenuOpen, setLanguageMenuOpen] = useState(false)
 
   const toggleMenu = (menu: ChromeMenuId) => {
+    setLanguageMenuOpen(false)
     onOpenMenuChange(openMenu === menu ? null : menu)
   }
 
   useEffect(() => {
-    if (!openMenu) {
+    if (!openMenu && !languageMenuOpen) {
       return
     }
 
     const handlePointerDown = (event: MouseEvent) => {
       if (!metaRef.current?.contains(event.target as Node)) {
         onOpenMenuChange(null)
+        setLanguageMenuOpen(false)
       }
     }
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         onOpenMenuChange(null)
+        setLanguageMenuOpen(false)
       }
     }
 
@@ -56,7 +61,7 @@ export function AppChrome({
       document.removeEventListener('mousedown', handlePointerDown)
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [openMenu, onOpenMenuChange])
+  }, [languageMenuOpen, openMenu, onOpenMenuChange])
 
   return (
     <header className="app-chrome">
@@ -66,18 +71,57 @@ export function AppChrome({
 
       <div className="app-chrome__meta" ref={metaRef}>
         {gameMode === 'quick' && (
-          <div className="language-switcher" role="group" aria-label={t('language')}>
-            {(['ko', 'en'] as const).map((option) => (
-              <button
-                key={option}
-                type="button"
-                className="language-switcher__button"
-                aria-pressed={locale === option}
-                onClick={() => onLocaleChange(option)}
+          <div className="chrome-menu language-menu">
+            <button
+              type="button"
+              className="app-chrome__button"
+              aria-label={t('language')}
+              title={t('language')}
+              aria-haspopup="menu"
+              aria-expanded={languageMenuOpen}
+              aria-controls={languageId}
+              onClick={() => {
+                onOpenMenuChange(null)
+                setLanguageMenuOpen((open) => !open)
+              }}
+            >
+              <svg
+                className="app-chrome__icon app-chrome__icon--language"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
               >
-                {option.toUpperCase()}
-              </button>
-            ))}
+                <circle cx="12" cy="12" r="9" />
+                <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
+              </svg>
+            </button>
+            {languageMenuOpen && (
+              <div
+                id={languageId}
+                className="chrome-menu__panel language-menu__panel"
+                role="menu"
+                aria-label={t('language')}
+              >
+                {([
+                  ['ko', '한국어'],
+                  ['en', 'English'],
+                ] as const).map(([option, label]) => (
+                  <button
+                    key={option}
+                    type="button"
+                    className="language-menu__option"
+                    role="menuitemradio"
+                    aria-checked={locale === option}
+                    onClick={() => {
+                      onLocaleChange(option)
+                      setLanguageMenuOpen(false)
+                    }}
+                  >
+                    <span>{label}</span>
+                    {locale === option && <span aria-hidden="true">✓</span>}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
         <div className="chrome-menu">
@@ -88,6 +132,7 @@ export function AppChrome({
             title={t('restart')}
             onClick={() => {
               onOpenMenuChange(null)
+              setLanguageMenuOpen(false)
               onRandomRestart()
             }}
           >

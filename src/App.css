@@ -426,6 +426,35 @@
   content: '';
 }
 
+.first-turn-guide__hero {
+  position: relative;
+  height: 150px;
+  margin: -30px -32px 24px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 55%, rgba(44, 76, 84, 0.55), transparent 60%),
+    #081014;
+  border-bottom: 1px solid rgba(228, 185, 95, 0.28);
+}
+
+.first-turn-guide__hero::after {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, transparent 52%, rgba(19, 30, 36, 0.92) 100%),
+    linear-gradient(90deg, rgba(6, 12, 16, 0.22), transparent 25% 75%, rgba(6, 12, 16, 0.22));
+  content: '';
+  pointer-events: none;
+}
+
+.first-turn-guide__hero img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 54%;
+  filter: brightness(0.86) saturate(0.92);
+}
+
 .first-turn-guide h2 {
   margin: 0;
   font-family: Georgia, "Times New Roman", serif;
@@ -1460,42 +1489,41 @@
   cursor: pointer;
 }
 
-.language-switcher {
-  display: flex;
-  height: 48px;
-  overflow: hidden;
-  border: 1px solid var(--panel-border);
-  border-radius: 4px;
-  background: #18232a;
+.app-chrome__icon--language {
+  stroke-width: 1.8;
 }
 
-.language-switcher__button {
-  width: 48px;
-  min-width: 48px;
-  height: 48px;
-  padding: 0;
+.language-menu__panel {
+  width: 148px;
+  padding: 6px;
+}
+
+.language-menu__option {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  align-items: center;
+  justify-content: space-between;
   border: 0;
-  color: #8fa2ad;
+  border-radius: 4px;
+  color: var(--ink);
   background: transparent;
   cursor: pointer;
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
+  font-size: 0.92rem;
+  font-weight: 750;
+  text-align: left;
 }
 
-.language-switcher__button + .language-switcher__button {
-  border-left: 1px solid var(--panel-border);
+.language-menu__option:hover,
+.language-menu__option:focus-visible {
+  outline: none;
+  background: rgb(86 215 194 / 12%);
 }
 
-.language-switcher__button[aria-pressed='true'] {
-  color: #10201e;
-  background: var(--accent);
-}
-
-.language-switcher__button:focus-visible {
-  position: relative;
-  outline: 2px solid #fff;
-  outline-offset: -3px;
+.language-menu__option[aria-checked='true'] {
+  color: var(--accent);
+  background: rgb(86 215 194 / 9%);
 }
 
 .city-card__menu .command-button {
@@ -3028,6 +3056,30 @@
 
   .start-screen__card h1 {
     font-size: clamp(2.1rem, 10vw, 3rem);
+  }
+
+  .first-turn-guide {
+    padding: 22px 20px;
+  }
+
+  .first-turn-guide__hero {
+    height: 100px;
+    margin: -22px -20px 18px;
+  }
+}
+
+@media (max-height: 700px) {
+  .first-turn-guide__hero {
+    height: 100px;
+    margin-bottom: 16px;
+  }
+
+  .first-turn-guide__steps {
+    margin-top: 16px;
+  }
+
+  .first-turn-guide__actions {
+    margin-top: 16px;
   }
 }
 
