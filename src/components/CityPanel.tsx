@@ -15,6 +15,7 @@ import type {
 } from '../game/settlement'
 import type { GameMode, Site, Tile } from '../game/types'
 import type { ReactNode } from 'react'
+import { SiteCommandIcon } from './SiteCommandIcon'
 import { SiteIcon } from './SiteIcon'
 
 export type CityPanelTab = 'production' | 'development' | 'construction'
@@ -154,14 +155,17 @@ export function CityPanel({
         <div className="city-card__menu" role="tablist" aria-label="거점 메뉴">
           {canProduce && (
             <button
+              className="command-button command-button--production"
               id="site-tab-production"
               type="button"
               role="tab"
+              aria-label="생산"
               aria-controls="site-panel-production"
               aria-selected={activeTab === 'production'}
+              title="부대 생산"
               onClick={() => onTabChange('production')}
             >
-              생산
+              <SiteCommandIcon className="command-button__icon site-command-button__icon" />
             </button>
           )}
           {gameMode === 'standard' && (

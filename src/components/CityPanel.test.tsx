@@ -45,7 +45,12 @@ describe('CityPanel production support', () => {
       />,
     )
 
-    expect(screen.getByRole('tab', { name: '생산' })).toBeInTheDocument()
+    const productionTab = screen.getByRole('tab', { name: '생산' })
+
+    expect(productionTab).toBeInTheDocument()
+    expect(productionTab.textContent).toBe('')
+    expect(productionTab.querySelector('[data-site-command-icon="production"]'))
+      .toBeInTheDocument()
     expect(screen.queryByRole('tab', { name: '발전' })).not.toBeInTheDocument()
     expect(screen.queryByRole('tab', { name: '건설' })).not.toBeInTheDocument()
     expect(screen.queryByText('건물')).not.toBeInTheDocument()

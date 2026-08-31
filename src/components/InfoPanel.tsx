@@ -20,6 +20,7 @@ import type {
   Unit,
 } from '../game/types'
 import { getUnitUpkeep } from '../game/upkeep'
+import { UnitActionIcon } from './UnitActionIcon'
 import { UnitIcon } from './UnitIcon'
 
 type InfoPanelProps = {
@@ -174,22 +175,26 @@ export function InfoPanel({
 
       <div className="city-card__menu" role="toolbar" aria-label="유닛 메뉴">
         <button
+          className="command-button"
           type="button"
+          aria-label="이동"
           aria-pressed={moveMode}
           disabled={!canMove}
           title={canMove ? '이동할 타일을 선택합니다.' : '이동 가능한 타일이 없습니다.'}
           onClick={() => onMoveModeChange(!moveMode)}
         >
-          이동
+          <UnitActionIcon action="move" className="command-button__icon" />
         </button>
         <button
+          className="command-button"
           type="button"
+          aria-label="공격"
           aria-pressed={attackMode}
           disabled={!canAttack}
           title={canAttack ? '공격할 대상을 선택합니다.' : '공격 가능한 대상이 없습니다.'}
           onClick={() => onAttackModeChange(!attackMode)}
         >
-          공격
+          <UnitActionIcon action="attack" className="command-button__icon" />
         </button>
         {state.gameMode === 'standard' && unit.type === 'settler' && (
           <button
@@ -200,14 +205,16 @@ export function InfoPanel({
             정착
           </button>
         )}
-        <button
-          type="button"
-          disabled={!canDisband}
-          title={canDisband ? '이 부대를 해산합니다.' : '현재 해산할 수 없습니다.'}
-          onClick={onDisband}
-        >
-          해산
-        </button>
+        {state.gameMode === 'standard' && (
+          <button
+            type="button"
+            disabled={!canDisband}
+            title={canDisband ? '이 부대를 해산합니다.' : '현재 해산할 수 없습니다.'}
+            onClick={onDisband}
+          >
+            해산
+          </button>
+        )}
       </div>
 
       {state.gameMode === 'standard' && unit.type === 'builder' && !foundingKind && (

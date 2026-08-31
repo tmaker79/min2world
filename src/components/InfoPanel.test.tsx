@@ -163,3 +163,44 @@ describe('InfoPanel territory feedback', () => {
     )
   })
 })
+
+describe('InfoPanel unit commands', () => {
+  it('shows icon-only core commands and hides disband in quick mode', () => {
+    const state = createInitialGameState('quick-unit-commands', {
+      gameMode: 'quick',
+    })
+    const unit = state.units.find(
+      (candidate) => candidate.factionId === state.humanFactionId,
+    )!
+
+    render(
+      <InfoPanel
+        state={{ ...state, selectedUnitId: unit.id }}
+        unit={unit}
+        canMove
+        moveMode={false}
+        onMoveModeChange={() => undefined}
+        canAttack
+        attackMode={false}
+        onAttackModeChange={() => undefined}
+        canDisband
+        onDisband={() => undefined}
+        onFoundingKindSelected={() => undefined}
+        onFoundingCancel={() => undefined}
+        onFoundingConfirm={() => undefined}
+        onClose={() => undefined}
+      />,
+    )
+
+    const moveButton = screen.getByRole('button', { name: '이동' })
+    const attackButton = screen.getByRole('button', { name: '공격' })
+
+    expect(moveButton.textContent).toBe('')
+    expect(attackButton.textContent).toBe('')
+    expect(moveButton.querySelector('[data-unit-action-icon="move"]'))
+      .toBeInTheDocument()
+    expect(attackButton.querySelector('[data-unit-action-icon="attack"]'))
+      .toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '해산' })).not.toBeInTheDocument()
+  })
+})
