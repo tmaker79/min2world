@@ -59,8 +59,6 @@ import {
   resolveCombat,
   resolveSiteCombat,
   SITE_STATS,
-  TERRAIN_LABELS,
-  UNIT_TYPE_LABELS,
   UNIT_STATS,
 } from './game/rules'
 import {
@@ -93,6 +91,13 @@ import {
   hasSeenFirstTurnGuide,
   markFirstTurnGuideSeen,
 } from './storage/firstTurnGuide'
+import {
+  LocalizationProvider,
+  persistQuickLocale,
+  resolveQuickLocale,
+  useLocalization,
+  type Locale,
+} from './i18n/locale'
 import './App.css'
 
 type AppProps = {
@@ -134,10 +139,14 @@ function getCombatTimings(units: readonly Unit[], attackerId: string) {
 function GameApp({
   initialState,
   showFirstTurnGuide,
+  onLocaleChange,
 }: {
   initialState: GameState
   showFirstTurnGuide: boolean
+  onLocaleChange: (locale: Locale) => void
 }) {
+  const { locale, t, unitLabel, siteLabel, unitName, siteName, terrainLabel } =
+    useLocalization()
   const [state, dispatch] = useReducer(gameReducer, initialState)
   const [activeCombat, setActiveCombat] = useState<
     Omit<CombatAnimation, 'phase'>
@@ -388,19 +397,19 @@ function GameApp({
   const mobileInfoLabel = (() => {
     switch (sidebarContent.kind) {
       case 'deployment':
-        return `${UNIT_TYPE_LABELS[sidebarContent.unitType]} 배치`
+        return t('deployUnit', { unit: unitLabel(sidebarContent.unitType) })
       case 'site':
-        return sidebarContent.site.name
+        return siteName(sidebarContent.site)
       case 'unit':
-        return sidebarContent.unit.name
+        return unitName(sidebarContent.unit)
       case 'mapInfo':
         return (
-          sidebarContent.unit?.name ??
-          sidebarContent.site?.name ??
-          TERRAIN_LABELS[sidebarContent.tile.terrain]
+          (sidebarContent.unit && unitName(sidebarContent.unit)) ??
+          (sidebarContent.site && siteName(sidebarContent.site)) ??
+          terrainLabel(sidebarContent.tile.terrain)
         )
       case 'empty':
-        return '선택 정보'
+        return t('selectionInfo')
     }
   })()
   const playerCapital = state.sites.find(
@@ -623,12 +632,17 @@ function GameApp({
     [state],
   )
 
+  const aiLocalization = useMemo(
+    () => ({ t, unitLabel, siteLabel, unitName, siteName }),
+    [siteLabel, siteName, t, unitLabel, unitName],
+  )
   const aiAnnouncement = useAiTurn({
     state,
     combatActive: Boolean(activeCombat || activeSiteAttack),
     dispatch,
     startCombat,
     startSiteAttack,
+    localization: aiLocalization,
   })
 
   const canSave =
@@ -663,15 +677,15 @@ function GameApp({
     updateSlotFromResult(result)
     setSaveFeedback(
       result.ok
-        ? { type: 'status', message: '게임을 저장했습니다.' }
-        : { type: 'error', message: result.message },
+        ? { type: 'status', message: t('saved') }
+        : { type: 'error', message: t('saveNeedsCheck') },
     )
   }
 
   const handleLoad = () => {
     if (
       !canLoad ||
-      !window.confirm('현재 진행을 중단하고 저장된 게임을 불러올까요?')
+      !window.confirm(t('confirmLoad'))
     ) {
       return
     }
@@ -680,7 +694,7 @@ function GameApp({
     updateSlotFromResult(result)
 
     if (!result.ok) {
-      setSaveFeedback({ type: 'error', message: result.message })
+      setSaveFeedback({ type: 'error', message: t('saveNeedsCheck') })
       return
     }
 
@@ -704,25 +718,25 @@ function GameApp({
     )
     hasCenteredInitialMapRef.current = false
     dispatch({ type: 'gameLoaded', state: result.value.gameState })
-    setSaveFeedback({ type: 'status', message: '저장된 게임을 불러왔습니다.' })
+    setSaveFeedback({ type: 'status', message: t('loaded') })
   }
 
   const handleDeleteSave = () => {
     if (
       !canDelete ||
-      !window.confirm('저장된 게임을 삭제할까요? 이 작업은 되돌릴 수 없습니다.')
+      !window.confirm(t('confirmDelete'))
     ) {
       return
     }
 
     const result = deleteSavedGame(undefined, state.gameMode)
     if (!result.ok) {
-      setSaveFeedback({ type: 'error', message: result.message })
+      setSaveFeedback({ type: 'error', message: t('saveNeedsCheck') })
       return
     }
 
     setSaveSlot(inspectSavedGame(undefined, state.gameMode))
-    setSaveFeedback({ type: 'status', message: '저장된 게임을 삭제했습니다.' })
+    setSaveFeedback({ type: 'status', message: t('deleted') })
   }
 
   useEffect(() => {
@@ -763,9 +777,10 @@ function GameApp({
         setCombatPhase('hit')
         if (site) {
           setSiteAttackAnnouncement(
-            `${site.name}에 ${activeSiteAttack.damage} 피해${
-              activeSiteAttack.captured ? `, ${site.name} 점령` : ''
-            }`,
+            t(activeSiteAttack.captured ? 'siteCaptured' : 'siteDamage', {
+              site: siteName(site),
+              damage: activeSiteAttack.damage,
+            }),
           )
         }
       }, timings.hit),
@@ -780,7 +795,7 @@ function GameApp({
     ]
 
     return () => timers.forEach(window.clearTimeout)
-  }, [activeSiteAttack, state.sites, state.units])
+  }, [activeSiteAttack, siteName, state.sites, state.units, t])
 
   useEffect(() => {
     if (
@@ -919,7 +934,7 @@ function GameApp({
       if (!deployableKeys.has(positionKey(tile.position))) {
         setProductionFeedback({
           type: 'error',
-          message: '선택한 타일에는 부대를 배치할 수 없습니다.',
+          message: t('invalidDeploy'),
         })
         return
       }
@@ -1058,6 +1073,7 @@ function GameApp({
     startCombat,
     startSiteAttack,
     state,
+    t,
   ])
 
   const handleTileContextMenu = useCallback((tile: Tile) => {
@@ -1172,6 +1188,9 @@ function GameApp({
   return (
     <div className="app-shell">
       <AppChrome
+        gameMode={state.gameMode}
+        locale={locale}
+        onLocaleChange={onLocaleChange}
         openMenu={openChromeMenu}
         onOpenMenuChange={setOpenChromeMenu}
         onRandomRestart={requestRandomRestart}
@@ -1192,7 +1211,7 @@ function GameApp({
       />
 
       <main className="game-layout">
-        <section className="board-panel" aria-label="전략 지도">
+        <section className="board-panel" aria-label={t('strategyMap')}>
           <div className="status-bar-slot">
             <StatusBar
               turn={state.turn}
@@ -1227,10 +1246,12 @@ function GameApp({
             />
 
             {activeProductionUnitType && (
-              <section className="deployment-bar" aria-label="부대 배치">
+              <section className="deployment-bar" aria-label={t('deployArea')}>
                 <div className="deployment-bar__copy">
                   <strong>
-                    {UNIT_TYPE_LABELS[activeProductionUnitType]} 배치
+                    {t('deployUnit', {
+                      unit: unitLabel(activeProductionUnitType),
+                    })}
                   </strong>
                   <span
                     className={
@@ -1244,65 +1265,69 @@ function GameApp({
                   >
                     {productionFeedback?.type === 'error'
                       ? productionFeedback.message
-                      : '청록색 타일을 선택하세요.'}
+                      : t('chooseDeploy')}
                   </span>
                 </div>
                 <button
                   type="button"
-                  aria-label="부대 배치 취소"
+                  aria-label={`${t('deployArea')} ${t('cancel')}`}
                   onClick={() => {
                     setProductionUnitType(undefined)
                     setProductionFeedback(undefined)
                     openSidebarInfo()
                   }}
                 >
-                  취소 <kbd>Esc</kbd>
+                  {t('cancel')} <kbd>Esc</kbd>
                 </button>
               </section>
             )}
             {isMoveMode && selectedUnit && (
               <section
                 className="deployment-bar movement-bar"
-                aria-label="부대 이동"
+                aria-label={t('moveArea')}
               >
                 <div className="deployment-bar__copy">
-                  <strong>{selectedUnit.name} 이동</strong>
+                  <strong>
+                    {t('moveUnit', { unit: unitName(selectedUnit) })}
+                  </strong>
                   <span className="deployment-bar__message" role="status">
-                    금색 타일을 선택하세요.
+                    {t('chooseMove')}
                   </span>
                 </div>
                 <button
                   type="button"
-                  aria-label="부대 이동 취소"
+                  aria-label={`${t('moveArea')} ${t('cancel')}`}
                   onClick={() => {
                     setActiveMoveUnitId(undefined)
                     openSidebarInfo()
                   }}
                 >
-                  취소 <kbd>Esc</kbd>
+                  {t('cancel')} <kbd>Esc</kbd>
                 </button>
               </section>
             )}
             {isAttackMode && selectedUnit && (
               <section
                 className="deployment-bar attack-bar"
-                aria-label="부대 공격"
+                aria-label={t('attackArea')}
               >
                 <div className="deployment-bar__copy">
-                  <strong>{selectedUnit.name} 공격</strong>
+                  <strong>
+                    {t('attackUnit', { unit: unitName(selectedUnit) })}
+                  </strong>
                   <span className="deployment-bar__message" role="status">
-                    붉은 대상을 선택하세요.
+                    {t('chooseAttack')}
                   </span>
                 </div>
                 <button
                   type="button"
-                  aria-label="부대 공격 취소"
+                  aria-label={`${t('attackArea')} ${t('cancel')}`}
                   onClick={() => {
                     setActiveAttackUnitId(undefined)
                     openSidebarInfo()
                   }}
                 >
-                  취소 <kbd>Esc</kbd>
+                  {t('cancel')} <kbd>Esc</kbd>
                 </button>
               </section>
             )}
@@ -1349,21 +1374,21 @@ function GameApp({
                   onPreviewTileChange={handlePreviewTileChange}
                 />
               </div>
-              <div className="map-zoom-controls" aria-label="지도 확대/축소">
+              <div className="map-zoom-controls" aria-label={t('zoomControls')}>
                 <button
                   type="button"
-                  aria-label="지도 축소"
+                  aria-label={t('zoomOut')}
                   disabled={!canZoomOut}
                   onClick={zoomOut}
                 >
                   −
                 </button>
-                <output aria-label="현재 지도 배율">
+                <output aria-label={t('currentZoom')}>
                   {Math.round(mapZoom * 100)}%
                 </output>
                 <button
                   type="button"
-                  aria-label="지도 확대"
+                  aria-label={t('zoomIn')}
                   disabled={!canZoomIn}
                   onClick={zoomIn}
                 >
@@ -1372,15 +1397,15 @@ function GameApp({
                 <button
                   type="button"
                   className="map-zoom-controls__fit"
-                  aria-label="지도를 화면에 맞춤"
+                  aria-label={t('fitMap')}
                   onClick={fitToViewport}
                 >
-                  맞춤
+                  {t('fit')}
                 </button>
               </div>
             </div>
 
-            <aside className="map-sidebar" aria-label="지도 사이드바">
+            <aside className="map-sidebar" aria-label={t('mapSidebar')}>
               <div
                 className={`map-minimap-dock${
                   minimapExpanded ? ' map-minimap-dock--expanded' : ''
@@ -1390,12 +1415,12 @@ function GameApp({
                   type="button"
                   className="map-minimap-dock__toggle"
                   aria-label={
-                    minimapExpanded ? '미니맵 닫기' : '미니맵 열기'
+                    minimapExpanded ? t('closeMinimap') : t('openMinimap')
                   }
                   aria-expanded={minimapExpanded}
                   aria-controls="map-minimap"
                   title={
-                    minimapExpanded ? '미니맵 닫기' : '미니맵 열기'
+                    minimapExpanded ? t('closeMinimap') : t('openMinimap')
                   }
                   onClick={() => {
                     const expanded = !minimapExpanded
@@ -1403,7 +1428,9 @@ function GameApp({
                     if (expanded) setMobileInfoExpanded(false)
                   }}
                 >
-                  <span className="map-minimap-dock__label">미니맵</span>
+                  <span className="map-minimap-dock__label">
+                    {t('minimap')}
+                  </span>
                   {minimapExpanded ? (
                     <svg
                       className="map-minimap-dock__icon map-minimap-dock__icon--collapse"
@@ -1438,7 +1465,7 @@ function GameApp({
                 className={`map-sidebar__selection mobile-info-sheet${
                   mobileInfoExpanded ? ' mobile-info-sheet--expanded' : ''
                 }`}
-                aria-label="선택 정보"
+                aria-label={t('selectionInfo')}
               >
                 <button
                   type="button"
@@ -1605,7 +1632,9 @@ function GameApp({
                     onDisband={() => {
                       if (
                         !window.confirm(
-                          `${sidebarContent.unit.name}을 해산할까요? 자원은 환불되지 않습니다.`,
+                          t('disbandConfirm', {
+                            unit: unitName(sidebarContent.unit),
+                          }),
                         )
                       ) {
                         return
@@ -1652,7 +1681,7 @@ function GameApp({
                 {sidebarContent.kind === 'deployment' && (
                   <div className="empty-selection empty-selection--compact">
                     <span aria-hidden="true">⌖</span>
-                    <p>지도에서 청록색 배치 타일을 선택하세요.</p>
+                    <p>{t('deploymentMapHint')}</p>
                   </div>
                 )}
                 {sidebarContent.kind === 'mapInfo' && (
@@ -1679,7 +1708,7 @@ function GameApp({
                 {sidebarContent.kind === 'empty' && (
                   <div className="empty-selection empty-selection--compact">
                     <span aria-hidden="true">◇</span>
-                    <p>지도 타일을 가리키거나 선택하면 상세 정보가 표시됩니다.</p>
+                    <p>{t('mapHint')}</p>
                   </div>
                 )}
                 </div>
@@ -1711,9 +1740,9 @@ function GameApp({
       )}
       {restartConfirmationOpen && (
         <ConfirmDialog
-          title="새 지도로 재시작할까요?"
-          description="현재 진행 내용은 사라지며, 새로운 랜덤 지도로 게임을 다시 시작합니다."
-          confirmLabel="새 지도로 재시작"
+          title={t('restartTitle')}
+          description={t('restartDescription')}
+          confirmLabel={t('restartConfirm')}
           onCancel={() => setRestartConfirmationOpen(false)}
           onConfirm={() => {
             setRestartConfirmationOpen(false)
@@ -1733,7 +1762,19 @@ function GameApp({
 }
 
 function App({ initialState }: AppProps = {}) {
-  const gameMode = resolveGameMode(window.location.hostname, window.location.search)
+  const runtimeGameMode = resolveGameMode(
+    window.location.hostname,
+    window.location.search,
+  )
+  const gameMode = initialState?.gameMode ?? runtimeGameMode
+  const [locale, setLocale] = useState<Locale>(() =>
+    gameMode === 'quick'
+      ? resolveQuickLocale(
+          window.localStorage,
+          navigator.languages ?? [navigator.language],
+        )
+      : 'ko',
+  )
   const [gameState, setGameState] = useState<GameState | undefined>(() =>
     initialState ??
     (gameMode === 'quick'
@@ -1748,8 +1789,19 @@ function App({ initialState }: AppProps = {}) {
       : undefined),
   )
 
+  useEffect(() => {
+    document.documentElement.lang = locale
+  }, [locale])
+
+  const handleLocaleChange = (nextLocale: Locale) => {
+    if (gameMode !== 'quick') return
+    persistQuickLocale(nextLocale, window.localStorage)
+    setLocale(nextLocale)
+  }
+
   if (!gameState) {
     return (
+      <LocalizationProvider locale="ko">
       <StartScreen
         onStart={({ seed, boardSize, factionCount, humanFactionId, mapType, difficulty }) => {
           setGameState(
@@ -1764,14 +1816,18 @@ function App({ initialState }: AppProps = {}) {
           )
         }}
       />
+      </LocalizationProvider>
     )
   }
 
   return (
+    <LocalizationProvider locale={locale}>
     <GameApp
       initialState={gameState}
       showFirstTurnGuide={initialState === undefined}
+      onLocaleChange={handleLocaleChange}
     />
+    </LocalizationProvider>
   )
 }
 

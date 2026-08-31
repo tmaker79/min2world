@@ -11,6 +11,12 @@ import { getSiteDevelopmentTarget } from '../game/siteDevelopment'
 import { getSiteOccupiedPositions } from '../game/siteFootprint'
 import { BUILDING_DEFINITIONS } from '../game/cityAdministration'
 import type { GameAction, GameState } from '../game/types'
+import type { Localization } from '../i18n/locale'
+
+type AiLocalization = Pick<
+  Localization,
+  't' | 'unitLabel' | 'siteLabel' | 'unitName' | 'siteName'
+>
 
 type UseAiTurnOptions = {
   state: GameState
@@ -22,15 +28,20 @@ type UseAiTurnOptions = {
     siteId: string,
     sitePosition: GameState['sites'][number]['position'],
   ) => boolean
+  localization?: AiLocalization
 }
 
 export function getAiActionAnnouncement(
   state: GameState,
   action: GameAction,
   nextState?: GameState,
+  localization?: AiLocalization,
 ): string {
+  const t = localization?.t
+  const displayUnitName = localization?.unitName ?? ((unit) => unit.name)
+  const displaySiteName = localization?.siteName ?? ((site) => site.name)
   if (action.type === 'turnEnded') {
-    return 'AI 작전이 끝났습니다.'
+    return t?.('aiFinished') ?? 'AI 작전이 끝났습니다.'
   }
 
   if ('unitId' in action) {
@@ -40,15 +51,15 @@ export function getAiActionAnnouncement(
     }
 
     if (action.type === 'unitSelected') {
-      return `${unit.name} 작전 준비`
+      return t?.('aiReady', { unit: displayUnitName(unit) }) ?? `${unit.name} 작전 준비`
     }
 
     if (action.type === 'unitMoved') {
-      return `${unit.name} 이동`
+      return t?.('aiMove', { unit: displayUnitName(unit) }) ?? `${unit.name} 이동`
     }
 
     if (action.type === 'unitWaited') {
-      return `${unit.name} 대기`
+      return t?.('aiWait', { unit: displayUnitName(unit) }) ?? `${unit.name} 대기`
     }
   }
 
@@ -60,8 +71,11 @@ export function getAiActionAnnouncement(
       (unit) => unit.id === action.defenderId,
     )
     return attacker && defender
-      ? `${attacker.name}이 ${defender.name}을 공격합니다.`
-      : 'AI 공격'
+      ? t?.('aiAttack', {
+          attacker: displayUnitName(attacker),
+          defender: displayUnitName(defender),
+        }) ?? `${attacker.name}이 ${defender.name}을 공격합니다.`
+      : t?.('aiAttackFallback') ?? 'AI 공격'
   }
 
   if (action.type === 'siteAttacked') {
@@ -72,7 +86,7 @@ export function getAiActionAnnouncement(
       (candidate) => candidate.id === action.siteId,
     )
     if (!site || !nextSite) {
-      return 'AI 거점 공격'
+      return t?.('aiSiteAttack') ?? 'AI 거점 공격'
     }
 
     const beforeHp = site.hp ?? getSiteMaxHp(site) ?? 0
@@ -80,16 +94,22 @@ export function getAiActionAnnouncement(
     const damage = captured
       ? beforeHp
       : beforeHp - (nextSite.hp ?? getSiteMaxHp(nextSite) ?? beforeHp)
-    return captured
+    return t?.(captured ? 'siteCaptured' : 'siteDamage', {
+      site: displaySiteName(site),
+      damage,
+    }) ?? (captured
       ? `${site.name}에 ${damage} 피해, ${site.name} 점령`
-      : `${site.name}에 ${damage} 피해`
+      : `${site.name}에 ${damage} 피해`)
   }
 
   if (action.type === 'unitProduced') {
     const site = state.sites.find(
       (candidate) => candidate.id === action.siteId,
     )
-    return `${site?.name ?? '거점'}에서 ${UNIT_TYPE_LABELS[action.unitType]}을 생산합니다.`
+    return t?.('producedAt', {
+      site: site ? displaySiteName(site) : t('genericSite'),
+      unit: localization?.unitLabel(action.unitType) ?? UNIT_TYPE_LABELS[action.unitType],
+    }) ?? `${site?.name ?? '거점'}에서 ${UNIT_TYPE_LABELS[action.unitType]}을 생산합니다.`
   }
 
   if (action.type === 'siteDeveloped') {
@@ -98,26 +118,34 @@ export function getAiActionAnnouncement(
     )
     const target = site ? getSiteDevelopmentTarget(site) : undefined
     return site && target
-      ? `${site.name}을 ${SITE_TYPE_LABELS[target.kind]}(으)로 발전시킵니다.`
-      : 'AI가 거점을 발전시킵니다.'
+      ? t?.('developSite', {
+          site: displaySiteName(site),
+          target: localization?.siteLabel(target.kind) ?? SITE_TYPE_LABELS[target.kind],
+        }) ?? `${site.name}을 ${SITE_TYPE_LABELS[target.kind]}(으)로 발전시킵니다.`
+      : t?.('aiDevelop') ?? 'AI가 거점을 발전시킵니다.'
   }
 
   if (action.type === 'unitDisbanded') {
     const unit = state.units.find(
       (candidate) => candidate.id === action.unitId,
     )
-    return unit ? `${unit.name}을 유지비 절감을 위해 해산합니다.` : 'AI가 부대를 해산합니다.'
+    return unit
+      ? t?.('disbandUnit', { unit: displayUnitName(unit) }) ?? `${unit.name}을 유지비 절감을 위해 해산합니다.`
+      : t?.('aiDisband') ?? 'AI가 부대를 해산합니다.'
   }
 
   if (action.type === 'constructionStarted') {
     const site = state.sites.find(
       (candidate) => candidate.id === action.siteId,
     )
-    return `${site?.name ?? '도시'}에 ${BUILDING_DEFINITIONS[action.buildingId].label} 건설을 시작합니다.`
+    return t?.('constructionStart', {
+      site: site ? displaySiteName(site) : t('genericCity'),
+      building: BUILDING_DEFINITIONS[action.buildingId].label,
+    }) ?? `${site?.name ?? '도시'}에 ${BUILDING_DEFINITIONS[action.buildingId].label} 건설을 시작합니다.`
   }
 
   if (action.type === 'constructionCancelled') {
-    return 'AI가 건설을 취소합니다.'
+    return t?.('aiConstructionCancel') ?? 'AI가 건설을 취소합니다.'
   }
 
   return ''
@@ -129,6 +157,7 @@ export function useAiTurn({
   dispatch,
   startCombat,
   startSiteAttack,
+  localization,
 }: UseAiTurnOptions) {
   const [announcement, setAnnouncement] = useState('')
 
@@ -158,7 +187,7 @@ export function useAiTurn({
     const timer = window.setTimeout(
       () => {
         if (action.type === 'unitAttacked') {
-          setAnnouncement(getAiActionAnnouncement(state, action))
+          setAnnouncement(getAiActionAnnouncement(state, action, undefined, localization))
           startCombat(action.attackerId, action.defenderId)
           return
         }
@@ -180,7 +209,7 @@ export function useAiTurn({
                 getHexDistance(attacker.position, right) ||
               comparePositions(left, right),
           )[0]
-          setAnnouncement(getAiActionAnnouncement(state, action))
+          setAnnouncement(getAiActionAnnouncement(state, action, undefined, localization))
           const started = startSiteAttack(
             action.attackerId,
             action.siteId,
@@ -192,14 +221,14 @@ export function useAiTurn({
           return
         }
 
-        setAnnouncement(getAiActionAnnouncement(state, action))
+        setAnnouncement(getAiActionAnnouncement(state, action, undefined, localization))
         dispatch(action)
       },
       reducedMotion ? 50 : 400,
     )
 
     return () => window.clearTimeout(timer)
-  }, [combatActive, dispatch, startCombat, startSiteAttack, state])
+  }, [combatActive, dispatch, localization, startCombat, startSiteAttack, state])
 
   return announcement
 }

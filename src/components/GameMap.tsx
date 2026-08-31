@@ -14,7 +14,6 @@ import smithyLevel1Icon from '../assets/sites/smithy.png'
 import strongholdIcon from '../assets/sites/stronghold.png'
 import easternTownIcon from '../assets/sites/town-eastern-3tile-roofmatch.png'
 import easternVillageIcon from '../assets/sites/village-eastern.png'
-import { getFactionLabel } from '../game/factions'
 import {
   getHexDistance,
   getHexPixelPosition,
@@ -30,10 +29,7 @@ import {
   getUnitAt,
   isCivilianUnitType,
   positionKey,
-  SITE_TYPE_LABELS,
-  TERRAIN_LABELS,
   TERRAIN_MOVEMENT_COST,
-  UNIT_TYPE_LABELS,
 } from '../game/rules'
 import type {
   GameState,
@@ -46,6 +42,7 @@ import type {
 import { getSiteOccupiedPositions } from '../game/siteFootprint'
 import { getMapCameraGutter } from '../hooks/useMapZoom'
 import { useMapViewport } from '../hooks/useMapViewport'
+import { useLocalization, type Localization } from '../i18n/locale'
 import { ArrowVolley } from './ArrowVolley'
 import { SiteIcon } from './SiteIcon'
 import { hasTerrainImage, TerrainIcon } from './TerrainIcon'
@@ -267,44 +264,49 @@ function getTileLabel(
   selectedDevelopmentFootprint = false,
   foundingCandidate = false,
   territoryOwner?: TerritoryOwner,
+  localization?: Localization,
 ) {
+  const t = localization?.t
   const parts = [
-    `육각 좌표 ${tile.position.q}, ${tile.position.r}`,
-    TERRAIN_LABELS[tile.terrain],
+    t?.('hexCoordinate', { q: tile.position.q, r: tile.position.r }) ??
+      `육각 좌표 ${tile.position.q}, ${tile.position.r}`,
+    localization?.terrainLabel(tile.terrain) ?? tile.terrain,
   ]
   parts.push(
     territoryOwner === 'contested'
-      ? '영토 분쟁 지역'
+      ? t?.('territoryContested') ?? '영토 분쟁 지역'
       : territoryOwner
-        ? `${getFactionLabel(territoryOwner)} 영토`
-        : '미편입 지역',
+        ? t?.('territoryOwned', { faction: localization?.factionLabel(territoryOwner) ?? territoryOwner }) ?? `${territoryOwner} 영토`
+        : t?.('unclaimed') ?? '미편입 지역',
   )
-  if (deployable) parts.push('생산 배치 가능')
-  if (foundingCandidate) parts.push('정착·건설 가능')
+  if (deployable) parts.push(t?.('deployable') ?? '생산 배치 가능')
+  if (foundingCandidate) parts.push(t?.('settleBuild') ?? '정착·건설 가능')
   if (developmentFootprint) {
     parts.push(
-      selectedDevelopmentFootprint ? '선택한 발전 footprint' : '발전 footprint 후보',
+      selectedDevelopmentFootprint
+        ? t?.('developmentSelected') ?? '선택한 발전 영역'
+        : t?.('developmentCandidate') ?? '발전 영역 후보',
     )
   }
   if (site) {
     parts.push(
-      `${site.name}, ${getFactionLabel(site.ownerId)} ${SITE_TYPE_LABELS[site.kind]}`,
+      `${localization?.siteName(site) ?? site.name}, ${localization?.factionLabel(site.ownerId) ?? site.ownerId} ${localization?.siteLabel(site.kind) ?? site.kind}`,
     )
-    if (attackable) parts.push('공격 가능')
+    if (attackable) parts.push(t?.('attackable') ?? '공격 가능')
   }
   if (unit) {
-    parts.push(`${unit.name}, ${UNIT_TYPE_LABELS[unit.type]}`)
-    parts.push(`체력 ${unit.hp}/${unit.maxHp}`)
+    parts.push(`${localization?.unitName(unit) ?? unit.name}, ${localization?.unitLabel(unit.type) ?? unit.type}`)
+    parts.push(`${t?.('health') ?? '체력'} ${unit.hp}/${unit.maxHp}`)
     parts.push(
       unit.hasActed
-        ? '행동 완료'
+        ? t?.('actionDone') ?? '행동 완료'
         : isCivilianUnitType(unit.type)
-          ? '행동 가능'
+          ? t?.('actionReady') ?? '행동 가능'
         : unit.movementRemaining === 0
-          ? '공격만 가능'
-          : '행동 가능',
+          ? t?.('attackOnly') ?? '공격만 가능'
+          : t?.('actionReady') ?? '행동 가능',
     )
-    if (attackable && !site) parts.push('공격 가능')
+    if (attackable && !site) parts.push(t?.('attackable') ?? '공격 가능')
   }
   return parts.join(', ')
 }
@@ -361,6 +363,7 @@ const TileButton = memo(function TileButton({
   suppressClickRef,
   onPreviewTileChange,
 }: TileButtonProps) {
+  const localization = useLocalization()
   const pointerSourceRef = useRef<MapTileActivationSource>('mouse')
   const classNames = [
     'map-tile',
@@ -397,6 +400,7 @@ const TileButton = memo(function TileButton({
         selectedDevelopmentFootprint,
         foundingCandidate,
         territoryOwner,
+        localization,
       )}
       aria-pressed={
         selected || siteSelected ? true : unit ? false : undefined
@@ -532,6 +536,7 @@ function SiteMarker({
   siteAttackAnimation?: SiteAttackAnimation
   style: CSSProperties
 }) {
+  const { t, siteLabel, siteName } = useLocalization()
   const combatStats = getSiteCombatStats(site)
   const maxHp = getSiteMaxHp(site)
   const hp = combatStats && maxHp ? (site.hp ?? maxHp) : undefined
@@ -540,8 +545,9 @@ function SiteMarker({
   const isHit =
     site.id === siteAttackAnimation?.siteId &&
     siteAttackAnimation.phase === 'hit'
-  const healthLabel =
-    hp !== undefined && maxHp ? `, 체력 ${hp}/${maxHp}` : ''
+  const healthLabel = hp !== undefined && maxHp
+    ? `, ${t('health')} ${hp}/${maxHp}`
+    : ''
   return (
     <span
       className={`map-overlay-cell${attackable ? ' map-overlay-cell--attackable' : ''}`}
@@ -557,7 +563,7 @@ function SiteMarker({
         data-health={hp !== undefined && maxHp ? `${hp}/${maxHp}` : undefined}
         data-site-selected={selected ? 'true' : undefined}
         role="img"
-        aria-label={`${site.name}, ${SITE_TYPE_LABELS[site.kind]}${healthLabel}`}
+        aria-label={`${siteName(site)}, ${siteLabel(site.kind)}${healthLabel}`}
       >
         <SiteIcon kind={site.kind} ownerId={site.ownerId} level={site.level} />
         {site.ownerId !== 'neutral' && (
@@ -734,6 +740,7 @@ function GameMapComponent({
   onTileContextMenu,
   onPreviewTileChange,
 }: GameMapProps) {
+  const { t } = useLocalization()
   const viewport = useMapViewport(scrollElement)
   const cameraGutterX = getMapCameraGutter(
     scrollElement?.clientWidth ?? 0,
@@ -1143,11 +1150,16 @@ function GameMapComponent({
 
       {combatAnimation && (
         <span className="sr-only" role="status" aria-live="polite">
-          {combatAnimation.phase === 'attack' && '전투 중'}
+          {combatAnimation.phase === 'attack' && t('combat')}
           {combatAnimation.phase === 'hit' &&
             (combatAnimation.damageToAttacker > 0
-              ? `양쪽이 각각 ${combatAnimation.damageToDefender}, ${combatAnimation.damageToAttacker} 피해를 받았습니다`
-              : `방어 유닛이 ${combatAnimation.damageToDefender} 피해를 받았습니다`)}
+              ? t('combatBothDamage', {
+                  defender: combatAnimation.damageToDefender,
+                  attacker: combatAnimation.damageToAttacker,
+                })
+              : t('combatDefenderDamage', {
+                  damage: combatAnimation.damageToDefender,
+                }))}
         </span>
       )}
     </div>

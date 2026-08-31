@@ -3,7 +3,6 @@ import {
   isCivilianUnitType,
   SITE_TYPE_LABELS,
   UNIT_STATS,
-  UNIT_TYPE_LABELS,
 } from '../game/rules'
 import {
   BUILDABLE_SITE_TYPES,
@@ -22,6 +21,7 @@ import type {
 import { getUnitUpkeep } from '../game/upkeep'
 import { UnitActionIcon } from './UnitActionIcon'
 import { UnitIcon } from './UnitIcon'
+import { useLocalization } from '../i18n/locale'
 
 type InfoPanelProps = {
   state: GameState
@@ -95,6 +95,7 @@ export function InfoPanel({
   onFoundingConfirm,
   onClose,
 }: InfoPanelProps) {
+  const { t, unitLabel, unitName } = useLocalization()
   const stats = UNIT_STATS[unit.type]
   const civilian = isCivilianUnitType(unit.type)
   const upkeep = getUnitUpkeep(state, unit.factionId, unit.type)
@@ -115,7 +116,7 @@ export function InfoPanel({
 
   return (
     <div className="city-stack">
-      <section className="city-card" aria-label="부대 정보" data-info-mode="unit">
+      <section className="city-card" aria-label={t('unitInfo')} data-info-mode="unit">
         <div className="city-card__summary">
           <span
             className={`city-card__icon unit-card__icon unit-card__icon--${unit.factionId}`}
@@ -124,13 +125,13 @@ export function InfoPanel({
             <UnitIcon type={unit.type} />
           </span>
           <div>
-            <strong>{unit.name}</strong>
-            <span>{UNIT_TYPE_LABELS[unit.type]}</span>
+            <strong>{unitName(unit)}</strong>
+            <span>{unitLabel(unit.type)}</span>
           </div>
           <button
             type="button"
             className="city-card__close"
-            aria-label="부대 정보 닫기"
+            aria-label={t('closeUnitInfo')}
             onClick={onClose}
           >
             ×
@@ -138,49 +139,49 @@ export function InfoPanel({
         </div>
         <dl>
           <div>
-            <dt>체력</dt>
+            <dt>{t('health')}</dt>
             <dd>
               {unit.hp} / {unit.maxHp}
             </dd>
           </div>
           <div>
-            <dt>이동</dt>
+            <dt>{t('move')}</dt>
             <dd>
               {unit.movementRemaining} / {stats.movement}
             </dd>
           </div>
           {civilian ? (
             <div>
-              <dt>역할</dt>
-              <dd>비전투</dd>
+              <dt>{t('role')}</dt>
+              <dd>{t('nonCombat')}</dd>
             </div>
           ) : (
             <div>
-              <dt>근접</dt>
+              <dt>{t('melee')}</dt>
               <dd>{getDisplayedCombatStrength(unit, 'melee')}</dd>
             </div>
           )}
           <div>
-            <dt>유지비</dt>
+            <dt>{t('upkeep')}</dt>
             <dd>{upkeep}</dd>
           </div>
           {stats.ranged > 0 && (
             <div>
-              <dt>원거리</dt>
+              <dt>{t('ranged')}</dt>
               <dd>{getDisplayedCombatStrength(unit, 'ranged')}</dd>
             </div>
           )}
         </dl>
       </section>
 
-      <div className="city-card__menu" role="toolbar" aria-label="유닛 메뉴">
+      <div className="city-card__menu" role="toolbar" aria-label={t('unitMenu')}>
         <button
           className="command-button"
           type="button"
-          aria-label="이동"
+          aria-label={t('move')}
           aria-pressed={moveMode}
           disabled={!canMove}
-          title={canMove ? '이동할 타일을 선택합니다.' : '이동 가능한 타일이 없습니다.'}
+          title={canMove ? t('moveReady') : t('moveUnavailable')}
           onClick={() => onMoveModeChange(!moveMode)}
         >
           <UnitActionIcon action="move" className="command-button__icon" />
@@ -188,10 +189,10 @@ export function InfoPanel({
         <button
           className="command-button"
           type="button"
-          aria-label="공격"
+          aria-label={t('attack')}
           aria-pressed={attackMode}
           disabled={!canAttack}
-          title={canAttack ? '공격할 대상을 선택합니다.' : '공격 가능한 대상이 없습니다.'}
+          title={canAttack ? t('attackReady') : t('attackUnavailable')}
           onClick={() => onAttackModeChange(!attackMode)}
         >
           <UnitActionIcon action="attack" className="command-button__icon" />

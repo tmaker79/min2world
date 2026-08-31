@@ -3,12 +3,9 @@ import {
   getSiteIncome,
   getSiteMaxHp,
   isMilitarySiteKind,
-  SITE_TYPE_LABELS,
   TERRAIN_COMBAT_BONUS,
-  TERRAIN_LABELS,
   TERRAIN_MOVEMENT_COST,
 } from '../game/rules'
-import { getFactionLabel } from '../game/factions'
 import type {
   ProductionSupport,
   SettlementProductionCapacity,
@@ -17,6 +14,7 @@ import type { GameMode, Site, Tile } from '../game/types'
 import type { ReactNode } from 'react'
 import { SiteCommandIcon } from './SiteCommandIcon'
 import { SiteIcon } from './SiteIcon'
+import { useLocalization } from '../i18n/locale'
 
 export type CityPanelTab = 'production' | 'development' | 'construction'
 
@@ -47,6 +45,7 @@ export function CityPanel({
   onClose,
   children,
 }: CityPanelProps) {
+  const { t, factionLabel, siteLabel, siteName, terrainLabel } = useLocalization()
   const combatStats = getSiteCombatStats(site)
   const maxHp = getSiteMaxHp(site)
   const isCapacityExemptProductionSite =
@@ -57,19 +56,19 @@ export function CityPanel({
 
   return (
     <div className="city-stack">
-      <section className="city-card" aria-label="거점 정보">
+      <section className="city-card" aria-label={t('siteInfo')}>
         <div className="city-card__summary">
           <span className="city-card__icon" aria-hidden="true">
             <SiteIcon kind={site.kind} ownerId={site.ownerId} level={site.level} />
           </span>
           <div>
-            <strong>{site.name}</strong>
-            <span>{SITE_TYPE_LABELS[site.kind]}</span>
+            <strong>{siteName(site)}</strong>
+            <span>{siteLabel(site.kind)}</span>
           </div>
           <button
             type="button"
             className="city-card__close"
-            aria-label="거점 정보 닫기"
+            aria-label={t('closeSiteInfo')}
             onClick={onClose}
           >
             ×
@@ -77,32 +76,32 @@ export function CityPanel({
         </div>
         <dl>
           <div>
-            <dt>수입</dt>
+            <dt>{t('income')}</dt>
             <dd>
               {isMilitarySiteKind(site.kind)
-                ? '없음'
+                ? t('none')
                 : getSiteIncome(site)}
             </dd>
           </div>
           <div>
-            <dt>소유자</dt>
-            <dd>{getFactionLabel(site.ownerId)}</dd>
+            <dt>{t('owner')}</dt>
+            <dd>{factionLabel(site.ownerId)}</dd>
           </div>
           <div>
-            <dt>지형</dt>
-            <dd>{TERRAIN_LABELS[tile.terrain]}</dd>
+            <dt>{t('terrain')}</dt>
+            <dd>{terrainLabel(tile.terrain)}</dd>
           </div>
           <div>
-            <dt>이동 비용</dt>
+            <dt>{t('movementCost')}</dt>
             <dd>
               {TERRAIN_MOVEMENT_COST[tile.terrain] === null
-                ? '통과 불가'
+                ? t('impassable')
                 : TERRAIN_MOVEMENT_COST[tile.terrain]}
             </dd>
           </div>
           {TERRAIN_COMBAT_BONUS[tile.terrain] > 0 && (
             <div>
-              <dt>방어 보정치</dt>
+              <dt>{t('defenseBonus')}</dt>
               <dd>{TERRAIN_COMBAT_BONUS[tile.terrain]}</dd>
             </div>
           )}
@@ -114,7 +113,7 @@ export function CityPanel({
           )}
           {settlementCapacity && (
             <div>
-              <dt>지원 생산 거점</dt>
+              <dt>{t('supportedProductionSites')}</dt>
               <dd>
                 {settlementCapacity.used} / {settlementCapacity.capacity}
               </dd>
@@ -123,12 +122,16 @@ export function CityPanel({
           {showProductionSupport && !isCapacityExemptProductionSite && (
             <>
               <div>
-                <dt>지원 정착지</dt>
-                <dd>{productionSupport?.settlement.name ?? '없음'}</dd>
+                <dt>{t('supportingSettlement')}</dt>
+                <dd>
+                  {productionSupport
+                    ? siteName(productionSupport.settlement)
+                    : t('none')}
+                </dd>
               </div>
               {productionSupport && (
                 <div>
-                  <dt>지원 현황</dt>
+                  <dt>{t('supportStatus')}</dt>
                   <dd>
                     {productionSupport.used} / {productionSupport.capacity}
                   </dd>
@@ -139,11 +142,11 @@ export function CityPanel({
           {combatStats && maxHp && (
             <>
               <div>
-                <dt>체력</dt>
+                <dt>{t('health')}</dt>
                 <dd>{site.hp ?? maxHp}/{maxHp}</dd>
               </div>
               <div>
-                <dt>방어력</dt>
+                <dt>{t('defense')}</dt>
                 <dd>{combatStats.defense}</dd>
               </div>
             </>
@@ -152,17 +155,17 @@ export function CityPanel({
       </section>
 
       {(canProduce || gameMode === 'standard') && (
-        <div className="city-card__menu" role="tablist" aria-label="거점 메뉴">
+        <div className="city-card__menu" role="tablist" aria-label={t('siteMenu')}>
           {canProduce && (
             <button
               className="command-button command-button--production"
               id="site-tab-production"
               type="button"
               role="tab"
-              aria-label="생산"
+              aria-label={t('production')}
               aria-controls="site-panel-production"
               aria-selected={activeTab === 'production'}
-              title="부대 생산"
+              title={t('unitProduction')}
               onClick={() => onTabChange('production')}
             >
               <SiteCommandIcon className="command-button__icon site-command-button__icon" />

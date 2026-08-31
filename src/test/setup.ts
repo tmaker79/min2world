@@ -2,6 +2,11 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup } from '@testing-library/react'
 import { afterEach } from 'vitest'
 
+Object.defineProperty(window.navigator, 'languages', {
+  configurable: true,
+  value: ['ko-KR'],
+})
+
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
   value: (query: string) => ({

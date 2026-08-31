@@ -5,15 +5,14 @@ import {
   isCivilianUnitType,
   MILITARY_UNIT_TYPES,
   UNIT_STATS,
-  UNIT_TYPE_LABELS,
 } from '../game/rules'
 import type { GameState, Site, UnitType } from '../game/types'
 import {
   canSpendWithUpkeepReserve,
-  formatUpkeepReserveMessage,
   getUnitUpkeep,
 } from '../game/upkeep'
 import { UnitIcon } from './UnitIcon'
+import { useLocalization } from '../i18n/locale'
 
 type ProductionFeedback = {
   type: 'status' | 'error'
@@ -43,21 +42,22 @@ export function ProductionPanel({
   onUnitTypeSelected,
   onCancel,
 }: ProductionPanelProps) {
+  const { t, unitLabel } = useLocalization()
   const unavailable =
     disabled || !site || site.lastProducedTurn === turn || deployableCount === 0
   const unlockedTypes = site ? getProducibleUnitTypes(site) : []
   const groups = site?.kind === 'city' && state.gameMode === 'standard'
     ? [
-        { label: '군사 유닛', types: MILITARY_UNIT_TYPES },
-        { label: '민간 유닛', types: CIVILIAN_UNIT_TYPES },
+        { label: t('militaryUnits'), types: MILITARY_UNIT_TYPES },
+        { label: t('civilianUnits'), types: CIVILIAN_UNIT_TYPES },
       ]
-    : [{ label: '군사 유닛', types: MILITARY_UNIT_TYPES }]
+    : [{ label: t('militaryUnits'), types: MILITARY_UNIT_TYPES }]
 
   return (
     <section
       id="site-panel-production"
       className="production-card"
-      aria-label="부대 생산"
+      aria-label={t('unitProduction')}
       role="tabpanel"
       aria-labelledby="site-tab-production"
     >
@@ -104,24 +104,22 @@ export function ProductionPanel({
                       >
                         <strong>
                           <UnitIcon type={unitType} />
-                          {UNIT_TYPE_LABELS[unitType]}
+                          {unitLabel(unitType)}
                         </strong>
-                        <span>{cost} 자원</span>
+                        <span>{t('resources', { cost })}</span>
                         <small>
                           {!unlocked
                             ? `${site.kind} 단계에서는 해금되지 않은 병종입니다.`
                             : !spending.ok &&
                                   spending.reason === 'insufficientUpkeepReserve'
-                                ? formatUpkeepReserveMessage(spending.reserve)
+                                ? t('upkeepReserveRequired', {
+                                    reserve: spending.reserve,
+                                  })
                                 : !spending.ok
-                                  ? '자원이 부족합니다.'
+                                  ? t('insufficientResources')
                                   : isCivilianUnitType(unitType)
-                                    ? `이동 ${stats.movement} · 비전투 · 유지비 ${getUnitUpkeep(state, state.humanFactionId, unitType)}`
-                                    : `이동 ${stats.movement} · 근접 ${stats.melee}${
-                                        stats.ranged > 0
-                                          ? ` · 원거리 ${stats.ranged}`
-                                          : ''
-                                      } · 사거리 ${stats.range}`}
+                                    ? t('civilianStats', { move: stats.movement, upkeep: getUnitUpkeep(state, state.humanFactionId, unitType) })
+                                    : t('militaryStats', { move: stats.movement, melee: stats.melee, ranged: stats.ranged > 0 ? t('rangedStat', { ranged: stats.ranged }) : '', range: stats.range })}
                         </small>
                       </button>
                     )
@@ -133,22 +131,22 @@ export function ProductionPanel({
 
           {selectedUnitType && (
             <div className="production-card__deployment" role="status">
-              <span>청록색 타일에 배치하세요.</span>
+              <span>{t('deployPrompt')}</span>
               <button type="button" onClick={onCancel}>
-                취소 <kbd>Esc</kbd>
+                {t('cancel')} <kbd>Esc</kbd>
               </button>
             </div>
           )}
 
           {!selectedUnitType && site?.lastProducedTurn === turn && (
-            <p className="production-card__notice">이번 라운드 생산 완료</p>
+            <p className="production-card__notice">{t('productionDone')}</p>
           )}
           {!selectedUnitType && site && deployableCount === 0 && (
-            <p className="production-card__notice">배치 가능한 타일 없음</p>
+            <p className="production-card__notice">{t('noDeployTile')}</p>
           )}
         </>
       ) : (
-        <p className="production-card__empty">생산 가능한 거점이 없습니다.</p>
+        <p className="production-card__empty">{t('noProductionSite')}</p>
       )}
 
       {feedback && (

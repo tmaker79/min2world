@@ -24,6 +24,7 @@ import {
   getFactionUpkeepReserve,
 } from './game/upkeep'
 import { FIRST_TURN_GUIDE_STORAGE_KEYS } from './storage/firstTurnGuide'
+import { QUICK_LOCALE_STORAGE_KEY } from './i18n/locale'
 
 function createEasyPlayerState(
   seed: string,
@@ -111,6 +112,60 @@ describe('Milestone 07 UI', () => {
     firstVisit.unmount()
     render(<App />)
     expect(screen.queryByRole('dialog', { name: '첫 턴 안내' })).not.toBeInTheDocument()
+  })
+
+  it('switches every quick-match surface to English and persists the choice', () => {
+    window.history.replaceState({}, '', '/?mode=quick')
+    localStorage.setItem(FIRST_TURN_GUIDE_STORAGE_KEYS.quick, '1')
+    localStorage.setItem(QUICK_LOCALE_STORAGE_KEY, 'ko')
+    const preservedSave = JSON.stringify({ untouched: true })
+    localStorage.setItem('min2world:quick:save', preservedSave)
+    const state = createInitialGameState('locale-switch', {
+      gameMode: 'quick',
+      humanFactionId: 'f1',
+    })
+    render(<App initialState={{ ...state, turn: 2 }} />)
+
+    expect(document.documentElement.lang).toBe('ko')
+    expect(screen.getByRole('button', { name: '재시작' })).toBeVisible()
+    const turnBefore = screen.getByLabelText('턴 2').textContent
+
+    fireEvent.click(screen.getByRole('button', { name: 'EN' }))
+
+    expect(document.documentElement.lang).toBe('en')
+    expect(localStorage.getItem(QUICK_LOCALE_STORAGE_KEY)).toBe('en')
+    expect(screen.getByRole('button', { name: 'Restart' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'End Turn' })).toBeVisible()
+    expect(screen.getByLabelText('Turn 2')).toHaveTextContent(turnBefore ?? '')
+    expect(screen.getByLabelText(/Azure Dragon Infantry/)).toBeVisible()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Help' }))
+    expect(screen.getByRole('heading', { name: 'Help' })).toBeVisible()
+    expect(screen.getByRole('tab', { name: 'Controls' })).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Help' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(screen.getByRole('heading', { name: 'Save Management' })).toBeVisible()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save' })[0])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Restart' }))
+    expect(
+      screen.getByRole('alertdialog', { name: 'Restart on a new map?' }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole('button', { name: 'Restart on New Map' }),
+    ).toBeVisible()
+    expect(localStorage.getItem('min2world:quick:save')).toBe(preservedSave)
+  }, 20_000)
+
+  it('keeps standard mode Korean and does not show a language switcher', () => {
+    localStorage.setItem(QUICK_LOCALE_STORAGE_KEY, 'en')
+    renderApp(createInitialGameState('standard-locale', { gameMode: 'standard' }))
+
+    expect(document.documentElement.lang).toBe('ko')
+    expect(screen.queryByRole('group', { name: '언어' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Language' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '재시작' })).toBeVisible()
   })
 
   it('opens detailed controls from the first-turn guide', () => {

@@ -1,4 +1,5 @@
 import type { SavedGame, StorageResult } from '../storage/saveGame'
+import { useLocalization, type Locale } from '../i18n/locale'
 
 type SaveFeedback = {
   type: 'status' | 'error'
@@ -17,8 +18,8 @@ type SavePanelProps = {
   onDelete: () => void
 }
 
-function formatSavedAt(savedAt: string) {
-  return new Intl.DateTimeFormat('ko-KR', {
+function formatSavedAt(savedAt: string, locale: Locale) {
+  return new Intl.DateTimeFormat(locale === 'ko' ? 'ko-KR' : 'en-US', {
     dateStyle: 'short',
     timeStyle: 'short',
   }).format(new Date(savedAt))
@@ -35,32 +36,32 @@ export function SavePanel({
   onLoad,
   onDelete,
 }: SavePanelProps) {
-  const slotError =
-    !slot.ok && slot.code !== 'notFound' ? slot.message : undefined
+  const { locale, t } = useLocalization()
+  const slotError = !slot.ok && slot.code !== 'notFound' ? t('saveNeedsCheck') : undefined
 
   return (
     <section className="save-card" aria-labelledby="save-heading">
-      <h2 id="save-heading">저장 관리</h2>
+      <h2 id="save-heading">{t('saveManagement')}</h2>
 
       <div className="save-card__summary">
         {slot.ok ? (
           <>
-            <strong>{slot.value.gameState.turn}턴 저장</strong>
-            <span>{formatSavedAt(slot.value.savedAt)}</span>
+            <strong>{t('savedTurn', { turn: slot.value.gameState.turn })}</strong>
+            <span>{formatSavedAt(slot.value.savedAt, locale)}</span>
           </>
         ) : (
           <span>
-            {slot.code === 'notFound' ? '저장된 게임 없음' : '저장 확인 필요'}
+            {slot.code === 'notFound' ? t('noSavedGame') : t('saveNeedsCheck')}
           </span>
         )}
       </div>
 
       <div className="save-card__actions">
         <button type="button" disabled={!canSave} onClick={onSave}>
-          저장
+          {t('save')}
         </button>
         <button type="button" disabled={!canLoad} onClick={onLoad}>
-          불러오기
+          {t('load')}
         </button>
         <button
           className="save-card__delete"
@@ -68,7 +69,7 @@ export function SavePanel({
           disabled={!canDelete}
           onClick={onDelete}
         >
-          삭제
+          {t('delete')}
         </button>
       </div>
 
@@ -84,7 +85,7 @@ export function SavePanel({
       )}
       {hasBlockedLegacySave && (
         <p className="save-card__message" role="status">
-          기존 전체모드 저장은 보존되어 있지만 빠른대전에서는 불러올 수 없습니다.
+          {t('legacySaveBlocked')}
         </p>
       )}
     </section>

@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import resourceMedallionImage from '../assets/ui/resource-medallion.png'
 import turnMedallionImage from '../assets/ui/turn-medallion.png'
 import type { FactionId } from '../game/types'
+import { useLocalization } from '../i18n/locale'
 
 type StatusBarProps = {
   turn: number
@@ -16,8 +17,8 @@ type StatusBarProps = {
   onEndTurn: () => void
 }
 
-function formatSigned(value: number) {
-  return value > 0 ? `+${value}` : `${value}`
+function formatSigned(value: number, formatNumber: (value: number) => string) {
+  return value > 0 ? `+${formatNumber(value)}` : formatNumber(value)
 }
 
 export function StatusBar({
@@ -32,6 +33,7 @@ export function StatusBar({
   disabled,
   onEndTurn,
 }: StatusBarProps) {
+  const { t, formatNumber } = useLocalization()
   const [economyExpanded, setEconomyExpanded] = useState(false)
   const economyRef = useRef<HTMLDivElement>(null)
   const economyDetailsId = useId()
@@ -59,16 +61,16 @@ export function StatusBar({
   }, [economyExpanded])
 
   return (
-    <section className="status-bar" aria-label="현재 게임 상태">
+    <section className="status-bar" aria-label={t('gameStatus')}>
       <div className="status-bar__summary">
-        <span className="status-bar__turn" aria-label={`턴 ${turn}`}>
+        <span className="status-bar__turn" aria-label={t('turn', { turn })}>
           <img
             className="status-bar__turn-image"
             src={turnMedallionImage}
             alt=""
             aria-hidden="true"
           />
-          <strong aria-hidden="true">{turn}</strong>
+          <strong aria-hidden="true">{formatNumber(turn)}</strong>
         </span>
         <span className="status-bar__dot" aria-hidden="true">
           ·
@@ -77,7 +79,10 @@ export function StatusBar({
           <button
             type="button"
             className="status-bar__economy-toggle"
-            aria-label={`자원 ${resource}, 턴 순수입 ${formatSigned(netIncome)}`}
+            aria-label={t('resourcesIncome', {
+              resource,
+              income: formatSigned(netIncome, formatNumber),
+            })}
             aria-expanded={economyExpanded}
             aria-controls={economyDetailsId}
             onClick={() => setEconomyExpanded((expanded) => !expanded)}
@@ -89,7 +94,7 @@ export function StatusBar({
               aria-hidden="true"
             />
             <strong className="status-bar__resource-value" aria-hidden="true">
-              {resource}
+              {formatNumber(resource)}
             </strong>
             <sup
               className={`status-bar__net-income${
@@ -101,7 +106,7 @@ export function StatusBar({
               }`}
               aria-hidden="true"
             >
-              {formatSigned(netIncome)}
+              {formatSigned(netIncome, formatNumber)}
             </sup>
             <svg
               className="status-bar__economy-chevron"
@@ -116,26 +121,30 @@ export function StatusBar({
               id={economyDetailsId}
               className="status-bar__economy-popover"
               role="region"
-              aria-label="경제 상세"
+              aria-label={t('economyDetails')}
             >
-              <strong className="status-bar__economy-title">경제 상세</strong>
+              <strong className="status-bar__economy-title">{t('economyDetails')}</strong>
               <dl>
                 <div>
-                  <dt>수입</dt>
-                  <dd>{formatSigned(income)}</dd>
+                  <dt>{t('income')}</dt>
+                  <dd>{formatSigned(income, formatNumber)}</dd>
                 </div>
                 <div>
-                  <dt>유지비</dt>
-                  <dd>{upkeep > 0 ? `-${upkeep}` : upkeep}</dd>
+                  <dt>{t('upkeep')}</dt>
+                  <dd>
+                    {upkeep > 0
+                      ? `-${formatNumber(upkeep)}`
+                      : formatNumber(upkeep)}
+                  </dd>
                 </div>
                 <div className={netIncome < 0 ? 'status-bar__deficit' : undefined}>
-                  <dt>순수입</dt>
-                  <dd>{formatSigned(netIncome)}</dd>
+                  <dt>{t('netIncome')}</dt>
+                  <dd>{formatSigned(netIncome, formatNumber)}</dd>
                 </div>
                 {upkeepReserve > 0 && (
                   <div className="status-bar__deficit">
-                    <dt>예약 유지비</dt>
-                    <dd>{upkeepReserve}</dd>
+                    <dt>{t('reservedUpkeep')}</dt>
+                    <dd>{formatNumber(upkeepReserve)}</dd>
                   </div>
                 )}
               </dl>
@@ -151,12 +160,12 @@ export function StatusBar({
       >
         {activeFactionId !== humanFactionId ? (
           <>
-            AI 작전 중…
+            {t('aiOperating')}
             <span aria-hidden="true">◆</span>
           </>
         ) : (
           <>
-            턴 종료
+            {t('endTurn')}
             <kbd aria-hidden="true">Enter</kbd>
           </>
         )}

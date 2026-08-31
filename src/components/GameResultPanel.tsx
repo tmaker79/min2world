@@ -1,4 +1,5 @@
 import type { GamePhase } from '../game/types'
+import { useLocalization } from '../i18n/locale'
 
 type GameResultPanelProps = {
   phase: Exclude<GamePhase, 'playing'>
@@ -7,28 +8,16 @@ type GameResultPanelProps = {
   onRandomRestart: () => void
 }
 
-const RESULT_CONTENT = {
-  victory: {
-    eyebrow: 'CAMPAIGN COMPLETE',
-    heading: '대륙 통일',
-    description: '푸른 연맹이 모든 거점을 점령했습니다.',
-    summary: '승리',
-  },
-  defeat: {
-    eyebrow: 'CAMPAIGN LOST',
-    heading: '수도 함락',
-    description: '붉은 제국이 모든 거점을 점령했습니다.',
-    summary: '패배',
-  },
-} as const
-
 export function GameResultPanel({
   phase,
   turn,
   onRestart,
   onRandomRestart,
 }: GameResultPanelProps) {
-  const content = RESULT_CONTENT[phase]
+  const { t } = useLocalization()
+  const content = phase === 'victory'
+    ? { eyebrow: 'CAMPAIGN COMPLETE', heading: t('victoryHeading'), description: t('victoryDescription'), summary: t('victory') }
+    : { eyebrow: 'CAMPAIGN LOST', heading: t('defeatHeading'), description: t('defeatDescription'), summary: t('defeat') }
 
   return (
     <div
@@ -45,14 +34,14 @@ export function GameResultPanel({
         <h2 id="result-heading">{content.heading}</h2>
         <p>{content.description}</p>
         <strong>
-          {turn}턴 만에 {content.summary}
+          {t('resultTurns', { turn, result: content.summary })}
         </strong>
         <div className="result-panel__actions">
           <button type="button" onClick={onRestart} autoFocus>
-            같은 지도에서 다시 시작
+            {t('restartSame')}
           </button>
           <button type="button" onClick={onRandomRestart}>
-            새 지도에서 시작
+            {t('restartNew')}
           </button>
         </div>
       </section>

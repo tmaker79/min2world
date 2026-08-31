@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef } from 'react'
+import { useLocalization } from '../i18n/locale'
 
 type ConfirmDialogProps = {
   title: string
@@ -15,6 +16,7 @@ export function ConfirmDialog({
   onCancel,
   onConfirm,
 }: ConfirmDialogProps) {
+  const { t } = useLocalization()
   const titleId = useId()
   const descriptionId = useId()
   const cancelButtonRef = useRef<HTMLButtonElement>(null)
@@ -82,7 +84,7 @@ export function ConfirmDialog({
             className="confirm-dialog__button confirm-dialog__button--cancel"
             onClick={onCancel}
           >
-            취소
+            {t('cancel')}
           </button>
           <button
             ref={confirmButtonRef}

@@ -1,17 +1,14 @@
-import { getFactionLabel } from '../game/factions'
 import {
   getSiteCombatStats,
   getSiteMaxHp,
-  SITE_TYPE_LABELS,
   TERRAIN_COMBAT_BONUS,
-  TERRAIN_LABELS,
   TERRAIN_MOVEMENT_COST,
-  UNIT_TYPE_LABELS,
 } from '../game/rules'
 import type { Site, Tile, Unit } from '../game/types'
 import type { TerritoryOwner } from '../game/territory'
 import { TerrainIcon } from './TerrainIcon'
 import { UnitIcon } from './UnitIcon'
+import { useLocalization } from '../i18n/locale'
 
 type MapInfoPanelProps = {
   tile: Tile
@@ -23,9 +20,9 @@ type MapInfoPanelProps = {
   onClose?: () => void
 }
 
-function movementCostLabel(tile: Tile) {
+function movementCostLabel(tile: Tile, impassable: string) {
   const cost = TERRAIN_MOVEMENT_COST[tile.terrain]
-  return cost === null ? '통과 불가' : String(cost)
+  return cost === null ? impassable : String(cost)
 }
 
 export function MapInfoPanel({
@@ -37,12 +34,13 @@ export function MapInfoPanel({
   preview = false,
   onClose,
 }: MapInfoPanelProps) {
-  const title = unit?.name ?? site?.name ?? TERRAIN_LABELS[tile.terrain]
+  const { t, factionLabel, siteLabel, siteName, terrainLabel, unitLabel, unitName } = useLocalization()
+  const title = unit ? unitName(unit) : site ? siteName(site) : terrainLabel(tile.terrain)
   const subtitle = unit
-    ? `${getFactionLabel(unit.factionId)} · ${UNIT_TYPE_LABELS[unit.type]}`
+    ? `${factionLabel(unit.factionId)} · ${unitLabel(unit.type)}`
     : site
-      ? `${getFactionLabel(site.ownerId)} · ${SITE_TYPE_LABELS[site.kind]}`
-      : '지형'
+      ? `${factionLabel(site.ownerId)} · ${siteLabel(site.kind)}`
+      : t('terrain')
   const siteStats = site ? getSiteCombatStats(site) : undefined
   const siteMaxHp = site ? getSiteMaxHp(site) : undefined
 
@@ -50,7 +48,7 @@ export function MapInfoPanel({
     <div className="city-stack">
       <section
         className="city-card map-info-card"
-        aria-label={preview ? '지도 정보 미리보기' : '타일 정보'}
+        aria-label={preview ? t('mapPreview') : t('tileInfo')}
         data-info-mode={preview ? 'preview' : 'tile'}
       >
         <div className="city-card__summary">
@@ -82,7 +80,7 @@ export function MapInfoPanel({
             <button
               type="button"
               className="city-card__close"
-              aria-label="타일 정보 닫기"
+              aria-label={t('closeTileInfo')}
               onClick={onClose}
             >
               ×
@@ -93,7 +91,7 @@ export function MapInfoPanel({
         <dl>
           {unit && (
             <div>
-              <dt>체력</dt>
+              <dt>{t('health')}</dt>
               <dd>
                 {unit.hp} / {unit.maxHp}
               </dd>
@@ -103,17 +101,17 @@ export function MapInfoPanel({
             <>
               {unit && (
                 <div>
-                  <dt>거점</dt>
-                  <dd>{site.name}</dd>
+                  <dt>{t('site')}</dt>
+                  <dd>{siteName(site)}</dd>
                 </div>
               )}
               <div>
-                <dt>거점 단계</dt>
+                <dt>{t('siteLevel')}</dt>
                 <dd>{site.level}</dd>
               </div>
               {siteStats && siteMaxHp && (
                 <div>
-                  <dt>거점 체력</dt>
+                  <dt>{t('siteHealth')}</dt>
                   <dd>
                     {site.hp ?? siteMaxHp} / {siteMaxHp}
                   </dd>
@@ -123,23 +121,23 @@ export function MapInfoPanel({
           )}
           {(unit || site) && (
             <div>
-              <dt>지형</dt>
-              <dd>{TERRAIN_LABELS[tile.terrain]}</dd>
+              <dt>{t('terrain')}</dt>
+              <dd>{terrainLabel(tile.terrain)}</dd>
             </div>
           )}
           {territoryOwner && territoryOwner !== 'contested' && (
             <div>
-              <dt>소유자</dt>
-              <dd>{getFactionLabel(territoryOwner)}</dd>
+              <dt>{t('owner')}</dt>
+              <dd>{factionLabel(territoryOwner)}</dd>
             </div>
           )}
           <div>
-            <dt>이동 비용</dt>
-            <dd>{movementCostLabel(tile)}</dd>
+            <dt>{t('movementCost')}</dt>
+            <dd>{movementCostLabel(tile, t('impassable'))}</dd>
           </div>
           {TERRAIN_COMBAT_BONUS[tile.terrain] > 0 && (
             <div>
-              <dt>방어 보정치</dt>
+              <dt>{t('defenseBonus')}</dt>
               <dd>{TERRAIN_COMBAT_BONUS[tile.terrain]}</dd>
             </div>
           )}

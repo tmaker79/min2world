@@ -1,11 +1,13 @@
 import {
   isMilitarySiteKind,
   SITE_STATS,
-  SITE_TYPE_LABELS,
+  TERRAIN_COMBAT_BONUS,
+  TERRAIN_MOVEMENT_COST,
 } from '../game/rules'
 import type { GameMode, SiteType } from '../game/types'
 import { SiteIcon } from './SiteIcon'
 import { hasTerrainImage, TerrainIcon } from './TerrainIcon'
+import { useLocalization } from '../i18n/locale'
 
 const TERRAIN_ITEMS = [
   ['plain', '평지', '비용 1'],
@@ -41,15 +43,17 @@ const STANDARD_SITE_ITEMS = [
   'blacksmith',
 ] as const satisfies readonly SiteType[]
 
-function getSiteLegendDetail(kind: SiteType) {
-  if (isMilitarySiteKind(kind)) return '수입 없음 · 방어 거점'
+function getSiteLegendDetail(kind: SiteType, t: ReturnType<typeof useLocalization>['t']) {
+  if (isMilitarySiteKind(kind)) {
+    return `${t('income')} ${t('none')} · ${t('defensiveSite')}`
+  }
 
   const income = SITE_STATS[kind].income
-  if (kind === 'city') return `수입 ${income} · 생산`
+  if (kind === 'city') return t('cityIncome', { income })
   if (kind === 'blacksmith') {
-    return `수입 ${income} · 군사 생산비 할인`
+    return t('smithyIncome', { income })
   }
-  return `수입 ${income}`
+  return t('siteIncome', { income })
 }
 
 type LegendProps = {
@@ -58,6 +62,7 @@ type LegendProps = {
 }
 
 export function Legend({ embedded = false, gameMode }: LegendProps) {
+  const { t, siteLabel, terrainLabel } = useLocalization()
   const siteItems =
     gameMode === 'quick' ? QUICK_SITE_ITEMS : STANDARD_SITE_ITEMS
 
@@ -69,16 +74,23 @@ export function Legend({ embedded = false, gameMode }: LegendProps) {
       {!embedded && (
         <>
           <p className="eyebrow">MAP LEGEND</p>
-          <h2 id="legend-heading">지도 범례</h2>
+          <h2 id="legend-heading">{t('mapLegend')}</h2>
         </>
       )}
       <ul>
-        {TERRAIN_ITEMS.map(([terrain, label, detail]) => (
+        {TERRAIN_ITEMS.map(([terrain]) => (
           <li key={terrain}>
             <span className={`legend-swatch legend-swatch--${terrain}`}>
               {hasTerrainImage(terrain) && <TerrainIcon terrain={terrain} />}
             </span>
-            {label} <small>{detail}</small>
+            {terrainLabel(terrain)}{' '}
+            <small>
+              {TERRAIN_MOVEMENT_COST[terrain] === null
+                ? t('noMove')
+                : TERRAIN_COMBAT_BONUS[terrain] > 0
+                  ? t('costCombat', { cost: TERRAIN_MOVEMENT_COST[terrain]! })
+                  : t('cost', { cost: TERRAIN_MOVEMENT_COST[terrain]! })}
+            </small>
           </li>
         ))}
         {siteItems.map((kind) => (
@@ -86,40 +98,40 @@ export function Legend({ embedded = false, gameMode }: LegendProps) {
             <span className={`legend-site legend-site--${kind}`}>
               <SiteIcon kind={kind} />
             </span>
-            {SITE_TYPE_LABELS[kind]} <small>{getSiteLegendDetail(kind)}</small>
+            {siteLabel(kind)} <small>{getSiteLegendDetail(kind, t)}</small>
           </li>
         ))}
         <li>
           <span className="legend-flag legend-flag--player" />
-          아군 점령
+          {t('friendlyCapture')}
         </li>
         <li>
           <span className="legend-flag legend-flag--enemy" />
-          적 점령
+          {t('enemyCapture')}
         </li>
         <li>
           <span className="legend-swatch legend-swatch--friendly-territory" />
-          아군 영토
+          {t('friendlyTerritory')}
         </li>
         <li>
           <span className="legend-swatch legend-swatch--enemy-territory" />
-          적 영토
+          {t('enemyTerritory')}
         </li>
         <li>
           <span className="legend-swatch legend-swatch--contested-territory" />
-          분쟁 지역
+          {t('contested')}
         </li>
         <li>
           <span className="legend-swatch legend-swatch--reachable" />
-          이동 가능 <small>이동 명령 또는 우클릭</small>
+          {t('reachable')} <small>{t('moveCommand')}</small>
         </li>
         <li>
           <span className="legend-swatch legend-swatch--attackable" />
-          공격 가능
+          {t('attackable')}
         </li>
         <li>
           <span className="legend-swatch legend-swatch--deployable" />
-          생산 배치 가능
+          {t('deployable')}
         </li>
       </ul>
     </section>

@@ -9,6 +9,7 @@ import {
 import { getSiteOccupiedPositions } from '../game/siteFootprint'
 import type { TerritoryIndex, TerritoryOwner } from '../game/territory'
 import type { GameState, Position, Terrain } from '../game/types'
+import { useLocalization } from '../i18n/locale'
 
 // App.css의 .map-tile--* 배경색과 동기화해야 한다.
 // 단색 지형은 같은 값을, 그라디언트 지형은 어두운 쪽 색을 쓴다.
@@ -178,6 +179,7 @@ function MinimapComponent({
   selectedSiteId,
   zoom = 1,
 }: MinimapProps) {
+  const { t } = useLocalization()
   const bodyRef = useRef<HTMLDivElement>(null)
   const [viewport, setViewport] = useState<Viewport>()
 
@@ -346,7 +348,7 @@ function MinimapComponent({
         ref={bodyRef}
         className="minimap__body"
         role="img"
-        aria-label="미니맵"
+        aria-label={t('minimap')}
         onPointerDown={(event) => {
           event.preventDefault()
           bodyRef.current?.setPointerCapture(event.pointerId)

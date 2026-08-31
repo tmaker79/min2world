@@ -1,12 +1,13 @@
 import { useId, useRef, useState, type KeyboardEvent } from 'react'
 import type { GameMode } from '../game/types'
 import { Legend } from './Legend'
+import { useLocalization } from '../i18n/locale'
 
 const HELP_TABS = [
-  { id: 'controls', label: '조작' },
-  { id: 'rules', label: '규칙' },
-  { id: 'legend', label: '범례' },
-  { id: 'credits', label: '크레딧' },
+  { id: 'controls', labelKey: 'controls' },
+  { id: 'rules', labelKey: 'rules' },
+  { id: 'legend', labelKey: 'legend' },
+  { id: 'credits', labelKey: 'credits' },
 ] as const
 
 type HelpTabId = (typeof HELP_TABS)[number]['id']
@@ -16,6 +17,7 @@ type HelpPanelProps = {
 }
 
 export function HelpPanel({ gameMode }: HelpPanelProps) {
+  const { t } = useLocalization()
   const [activeTab, setActiveTab] = useState<HelpTabId>('controls')
   const headingId = useId()
   const tabIdPrefix = useId()
@@ -55,8 +57,8 @@ export function HelpPanel({ gameMode }: HelpPanelProps) {
 
   return (
     <section className="help-card" aria-labelledby={headingId}>
-      <h2 id={headingId}>도움말</h2>
-      <div className="help-card__tabs" role="tablist" aria-label="도움말 항목">
+      <h2 id={headingId}>{t('help')}</h2>
+      <div className="help-card__tabs" role="tablist" aria-label={t('helpItems')}>
         {HELP_TABS.map((tab, index) => (
           <button
             key={tab.id}
@@ -72,7 +74,7 @@ export function HelpPanel({ gameMode }: HelpPanelProps) {
             onClick={() => setActiveTab(tab.id)}
             onKeyDown={(event) => handleTabKeyDown(event, index)}
           >
-            {tab.label}
+            {t(tab.labelKey)}
           </button>
         ))}
       </div>
@@ -87,20 +89,17 @@ export function HelpPanel({ gameMode }: HelpPanelProps) {
         {activeIndex === 0 && (
           <div className="help-card__guide">
             <section className="help-card__section">
-              <h3>기본 조작</h3>
+              <h3>{t('basicControls')}</h3>
               <ul>
-                <li>아군 유닛을 선택한 뒤 이동 또는 공격 명령을 선택하세요.</li>
-                <li>
-                  금색 칸은 이동 가능 범위이며 우클릭으로 이동합니다. 붉은
-                  표시는 공격 가능 대상으로 좌클릭해 공격합니다.
-                </li>
+                <li>{t('controlSelect')}</li>
+                <li>{t('controlMoveAttack')}</li>
               </ul>
             </section>
             <section className="help-card__section">
-              <h3>단축키</h3>
+              <h3>{t('shortcuts')}</h3>
               <ul>
-                <li><kbd>Enter</kbd> 현재 턴 종료</li>
-                <li><kbd>Esc</kbd> 선택 중인 이동·공격·생산·건설 취소</li>
+                <li><kbd>Enter</kbd> {t('shortcutEnd')}</li>
+                <li><kbd>Esc</kbd> {t('shortcutCancel')}</li>
               </ul>
             </section>
           </div>
@@ -109,15 +108,12 @@ export function HelpPanel({ gameMode }: HelpPanelProps) {
         {activeIndex === 1 && (
           <div className="help-card__guide">
             <section className="help-card__section">
-              <h3>생산·경제</h3>
+              <h3>{t('productionEconomy')}</h3>
               <ul>
                 {gameMode === 'quick' ? (
                   <>
-                    <li>도시에서 군사 유닛을 생산하고 청록색 칸에 배치하세요.</li>
-                    <li>
-                      중립 농장·광산·대장간으로 이동해 점령하면 턴 수입이
-                      늘어납니다.
-                    </li>
+                    <li>{t('quickProduce')}</li>
+                    <li>{t('quickCaptureIncome')}</li>
                   </>
                 ) : (
                   <>
@@ -131,17 +127,14 @@ export function HelpPanel({ gameMode }: HelpPanelProps) {
                     </li>
                   </>
                 )}
-                <li>
-                  상태바의 자원을 선택하면 수입·유지비·순수입을 확인할 수
-                  있습니다.
-                </li>
+                <li>{t('economyHelp')}</li>
               </ul>
             </section>
             <section className="help-card__section">
-              <h3>승리 조건</h3>
+              <h3>{t('victoryConditions')}</h3>
               <ul>
-                <li>상대 수도를 점령하면 승리합니다.</li>
-                <li>내 수도를 빼앗기면 패배합니다.</li>
+                <li>{t('captureCapital')}</li>
+                <li>{t('loseCapital')}</li>
               </ul>
             </section>
           </div>
@@ -152,9 +145,9 @@ export function HelpPanel({ gameMode }: HelpPanelProps) {
         {activeIndex === 3 && (
           <div className="help-card__guide">
             <section className="help-card__section">
-              <h3>지형 타일</h3>
+              <h3>{t('terrainTiles')}</h3>
               <p>
-                편집·변형된 지형 타일은{' '}
+                {t('creditsBased')}{' '}
                 <a
                   href="https://cmartins.itch.io/hex-tiles-fantasy"
                   target="_blank"
@@ -170,10 +163,9 @@ export function HelpPanel({ gameMode }: HelpPanelProps) {
                 >
                   cmartins.art
                 </a>
-                를 기반으로 합니다.
               </p>
               <p>
-                원본 및 변형된 지형 타일은{' '}
+                {t('creditsLicense')}{' '}
                 <a
                   href="https://creativecommons.org/licenses/by-sa/4.0/"
                   target="_blank"
@@ -181,7 +173,6 @@ export function HelpPanel({ gameMode }: HelpPanelProps) {
                 >
                   CC BY-SA 4.0
                 </a>
-                으로 제공됩니다.
               </p>
             </section>
           </div>

@@ -236,8 +236,8 @@
 
 .app-chrome__button {
   display: grid;
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   padding: 0;
   place-items: center;
   color: var(--ink);
@@ -1458,6 +1458,44 @@
   border-radius: 3px;
   font-weight: 800;
   cursor: pointer;
+}
+
+.language-switcher {
+  display: flex;
+  height: 48px;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  background: #18232a;
+}
+
+.language-switcher__button {
+  width: 48px;
+  min-width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  color: #8fa2ad;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.language-switcher__button + .language-switcher__button {
+  border-left: 1px solid var(--panel-border);
+}
+
+.language-switcher__button[aria-pressed='true'] {
+  color: #10201e;
+  background: var(--accent);
+}
+
+.language-switcher__button:focus-visible {
+  position: relative;
+  outline: 2px solid #fff;
+  outline-offset: -3px;
 }
 
 .city-card__menu .command-button {
@@ -4144,10 +4182,6 @@
     flex-wrap: nowrap;
     justify-content: flex-end;
     gap: 4px;
-  }
-
-  .app-chrome__button {
-    min-height: 40px;
   }
 
   .status-bar {

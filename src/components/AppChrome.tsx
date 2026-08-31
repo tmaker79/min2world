@@ -1,8 +1,13 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
+import type { GameMode } from '../game/types'
+import { useLocalization, type Locale } from '../i18n/locale'
 
 export type ChromeMenuId = 'save' | 'help'
 
 type AppChromeProps = {
+  gameMode: GameMode
+  locale: Locale
+  onLocaleChange: (locale: Locale) => void
   openMenu: ChromeMenuId | null
   onOpenMenuChange: (menu: ChromeMenuId | null) => void
   onRandomRestart: () => void
@@ -11,12 +16,16 @@ type AppChromeProps = {
 }
 
 export function AppChrome({
+  gameMode,
+  locale,
+  onLocaleChange,
   openMenu,
   onOpenMenuChange,
   onRandomRestart,
   savePanel,
   helpPanel,
 }: AppChromeProps) {
+  const { t } = useLocalization()
   const metaRef = useRef<HTMLDivElement>(null)
   const saveId = useId()
   const helpId = useId()
@@ -56,12 +65,27 @@ export function AppChrome({
       </div>
 
       <div className="app-chrome__meta" ref={metaRef}>
+        {gameMode === 'quick' && (
+          <div className="language-switcher" role="group" aria-label={t('language')}>
+            {(['ko', 'en'] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                className="language-switcher__button"
+                aria-pressed={locale === option}
+                onClick={() => onLocaleChange(option)}
+              >
+                {option.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="chrome-menu">
           <button
             type="button"
             className="app-chrome__button"
-            aria-label="재시작"
-            title="재시작"
+            aria-label={t('restart')}
+            title={t('restart')}
             onClick={() => {
               onOpenMenuChange(null)
               onRandomRestart()
@@ -82,8 +106,8 @@ export function AppChrome({
           <button
             type="button"
             className="app-chrome__button"
-            aria-label="저장"
-            title="저장"
+            aria-label={t('save')}
+            title={t('save')}
             aria-expanded={openMenu === 'save'}
             aria-controls={saveId}
             onClick={() => toggleMenu('save')}
@@ -108,8 +132,8 @@ export function AppChrome({
           <button
             type="button"
             className="app-chrome__button"
-            aria-label="도움말"
-            title="도움말"
+            aria-label={t('help')}
+            title={t('help')}
             aria-expanded={openMenu === 'help'}
             aria-controls={helpId}
             onClick={() => toggleMenu('help')}

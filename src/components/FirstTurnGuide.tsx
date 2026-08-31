@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef } from 'react'
 import type { GameMode } from '../game/types'
+import { useLocalization } from '../i18n/locale'
 
 type FirstTurnGuideProps = {
   gameMode: GameMode
@@ -12,6 +13,7 @@ export function FirstTurnGuide({
   onDismiss,
   onOpenHelp,
 }: FirstTurnGuideProps) {
+  const { t } = useLocalization()
   const titleId = useId()
   const descriptionId = useId()
   const detailsButtonRef = useRef<HTMLButtonElement>(null)
@@ -68,33 +70,33 @@ export function FirstTurnGuide({
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
       >
-        <h2 id={titleId}>첫 턴 안내</h2>
+        <h2 id={titleId}>{t('firstTurn')}</h2>
         <p id={descriptionId} className="first-turn-guide__description">
-          세 가지만 기억하고 전투를 시작하세요.
+          {t('firstTurnIntro')}
         </p>
 
         <ol className="first-turn-guide__steps">
           <li>
             <span aria-hidden="true">1</span>
             <div>
-              <strong>부대 선택</strong>
-              <p>지도에서 아군 유닛을 선택하세요.</p>
+              <strong>{t('selectUnit')}</strong>
+              <p>{t('selectUnitHelp')}</p>
             </div>
           </li>
           <li>
             <span aria-hidden="true">2</span>
             <div>
-              <strong>이동·공격</strong>
-              <p>금색 칸은 우클릭으로 이동하고 붉은 대상은 좌클릭해 공격합니다.</p>
+              <strong>{t('moveAttack')}</strong>
+              <p>{t('moveAttackHelp')}</p>
             </div>
           </li>
           <li>
             <span aria-hidden="true">3</span>
             <div>
-              <strong>{gameMode === 'quick' ? '병력 생산·승리' : '확장·승리'}</strong>
+              <strong>{gameMode === 'quick' ? t('produceWin') : '확장·승리'}</strong>
               <p>
                 {gameMode === 'quick'
-                  ? '도시에서 병력을 생산하고 상대 수도를 점령하세요.'
+                  ? t('produceWinHelp')
                   : '도시에서 생산하고 정착·건설하며 상대 수도를 점령하세요.'}
               </p>
             </div>
@@ -108,7 +110,7 @@ export function FirstTurnGuide({
             className="first-turn-guide__button first-turn-guide__button--details"
             onClick={onOpenHelp}
           >
-            자세히 보기
+            {t('details')}
           </button>
           <button
             ref={startButtonRef}
@@ -116,7 +118,7 @@ export function FirstTurnGuide({
             className="first-turn-guide__button first-turn-guide__button--start"
             onClick={onDismiss}
           >
-            게임 시작
+            {t('startGame')}
           </button>
         </div>
       </section>
