@@ -70,59 +70,6 @@ export function AppChrome({
       </div>
 
       <div className="app-chrome__meta" ref={metaRef}>
-        {gameMode === 'quick' && (
-          <div className="chrome-menu language-menu">
-            <button
-              type="button"
-              className="app-chrome__button"
-              aria-label={t('language')}
-              title={t('language')}
-              aria-haspopup="menu"
-              aria-expanded={languageMenuOpen}
-              aria-controls={languageId}
-              onClick={() => {
-                onOpenMenuChange(null)
-                setLanguageMenuOpen((open) => !open)
-              }}
-            >
-              <svg
-                className="app-chrome__icon app-chrome__icon--language"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <circle cx="12" cy="12" r="9" />
-                <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
-              </svg>
-            </button>
-            {languageMenuOpen && (
-              <div
-                id={languageId}
-                className="chrome-menu__panel language-menu__panel"
-                role="menu"
-                aria-label={t('language')}
-              >
-                {([
-                  ['ko', '한국어'],
-                  ['en', 'English'],
-                ] as const).map(([option, label]) => (
-                  <button
-                    key={option}
-                    type="button"
-                    className="language-menu__option"
-                    role="menuitemradio"
-                    aria-checked={locale === option}
-                    onClick={() => {
-                      onLocaleChange(option)
-                      setLanguageMenuOpen(false)
-                    }}
-                  >
-                    <span>{label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
         <div className="chrome-menu">
           <button
             type="button"
@@ -201,6 +148,60 @@ export function AppChrome({
             </div>
           )}
         </div>
+
+        {gameMode === 'quick' && (
+          <div className="chrome-menu language-menu">
+            <button
+              type="button"
+              className="app-chrome__button"
+              aria-label={t('language')}
+              title={t('language')}
+              aria-haspopup="menu"
+              aria-expanded={languageMenuOpen}
+              aria-controls={languageId}
+              onClick={() => {
+                onOpenMenuChange(null)
+                setLanguageMenuOpen((open) => !open)
+              }}
+            >
+              <svg
+                className="app-chrome__icon app-chrome__icon--language"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="9" />
+                <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
+              </svg>
+            </button>
+            {languageMenuOpen && (
+              <div
+                id={languageId}
+                className="chrome-menu__panel language-menu__panel"
+                role="menu"
+                aria-label={t('language')}
+              >
+                {([
+                  ['ko', '한국어'],
+                  ['en', 'English'],
+                ] as const).map(([option, label]) => (
+                  <button
+                    key={option}
+                    type="button"
+                    className="language-menu__option"
+                    role="menuitemradio"
+                    aria-checked={locale === option}
+                    onClick={() => {
+                      onLocaleChange(option)
+                      setLanguageMenuOpen(false)
+                    }}
+                  >
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </header>
   )

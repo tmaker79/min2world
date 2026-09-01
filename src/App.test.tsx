@@ -128,6 +128,11 @@ describe('Milestone 07 UI', () => {
 
     expect(document.documentElement.lang).toBe('ko')
     expect(screen.getByRole('button', { name: '재시작' })).toBeVisible()
+    expect(
+      within(screen.getByRole('banner'))
+        .getAllByRole('button')
+        .map((button) => button.getAttribute('aria-label')),
+    ).toEqual(['재시작', '저장', '도움말', '언어'])
     const turnBefore = screen.getByLabelText('턴 2').textContent
 
     fireEvent.click(screen.getByRole('button', { name: '언어' }))

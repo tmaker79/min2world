@@ -15,10 +15,17 @@ describe('HelpPanel', () => {
     expect(rulesTab).toHaveAttribute('aria-selected', 'false')
     expect(creditsTab).toHaveAttribute('aria-selected', 'false')
     expect(screen.getByRole('heading', { name: '기본 조작' })).toBeVisible()
+    expect(
+      screen.getByText('지도를 드래그해 이동하고 마우스 휠이나 핀치로 확대·축소합니다.'),
+    ).toBeVisible()
     expect(screen.queryByRole('heading', { name: '생산·경제' })).not.toBeInTheDocument()
 
     fireEvent.click(rulesTab)
     expect(rulesTab).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('heading', { name: '이동·전투' })).toBeVisible()
+    expect(
+      screen.getByText('적 통제 구역에 진입하면 추가 이동이 멈춥니다.'),
+    ).toBeVisible()
     expect(screen.getByRole('heading', { name: '생산·경제' })).toBeVisible()
 
     rulesTab.focus()
@@ -42,9 +49,18 @@ describe('HelpPanel', () => {
       'href',
       'https://cmartins.itch.io/',
     )
+    expect(screen.getByText('편집·변형 기반 자산:')).toBeVisible()
+    expect(screen.getByText('제작자:')).toBeVisible()
     expect(screen.getByRole('link', { name: 'CC BY-SA 4.0' })).toHaveAttribute(
       'href',
       'https://creativecommons.org/licenses/by-sa/4.0/',
+    )
+    expect(screen.getByText('개발:').parentElement).toHaveTextContent(
+      '개발: Honghyun',
+    )
+    expect(screen.getByRole('link', { name: 'GitHub 저장소' })).toHaveAttribute(
+      'href',
+      'https://github.com/tmaker79/min2world',
     )
 
     fireEvent.keyDown(creditsTab, { key: 'ArrowRight' })
@@ -57,5 +73,14 @@ describe('HelpPanel', () => {
     expect(controlsTab).toHaveFocus()
     fireEvent.keyDown(controlsTab, { key: 'ArrowLeft' })
     expect(creditsTab).toHaveFocus()
+  })
+
+  it('shows quick-match shortcuts without standard-mode actions', () => {
+    render(<HelpPanel gameMode="quick" />)
+
+    expect(screen.getByText('선택 중인 이동·공격·생산 취소')).toBeVisible()
+    expect(
+      screen.queryByText('선택 중인 이동·공격·생산·정착·발전·건설 취소'),
+    ).not.toBeInTheDocument()
   })
 })

@@ -93,13 +93,17 @@ export function HelpPanel({ gameMode }: HelpPanelProps) {
               <ul>
                 <li>{t('controlSelect')}</li>
                 <li>{t('controlMoveAttack')}</li>
+                <li>{t('mapNavigation')}</li>
               </ul>
             </section>
             <section className="help-card__section">
               <h3>{t('shortcuts')}</h3>
               <ul>
                 <li><kbd>Enter</kbd> {t('shortcutEnd')}</li>
-                <li><kbd>Esc</kbd> {t('shortcutCancel')}</li>
+                <li>
+                  <kbd>Esc</kbd>{' '}
+                  {t(gameMode === 'quick' ? 'quickShortcutCancel' : 'shortcutCancel')}
+                </li>
               </ul>
             </section>
           </div>
@@ -107,6 +111,12 @@ export function HelpPanel({ gameMode }: HelpPanelProps) {
 
         {activeIndex === 1 && (
           <div className="help-card__guide">
+            <section className="help-card__section">
+              <h3>{t('movementCombat')}</h3>
+              <ul>
+                <li>{t('zoneOfControl')}</li>
+              </ul>
+            </section>
             <section className="help-card__section">
               <h3>{t('productionEconomy')}</h3>
               <ul>
@@ -147,15 +157,17 @@ export function HelpPanel({ gameMode }: HelpPanelProps) {
             <section className="help-card__section">
               <h3>{t('terrainTiles')}</h3>
               <p>
-                {t('creditsBased')}{' '}
+                <strong>{t('creditsBased')}:</strong>{' '}
                 <a
                   href="https://cmartins.itch.io/hex-tiles-fantasy"
                   target="_blank"
                   rel="noreferrer"
                 >
                   Hex Tiles: Fantasy
-                </a>{' '}
-                by{' '}
+                </a>
+              </p>
+              <p>
+                <strong>{t('creditsCreator')}:</strong>{' '}
                 <a
                   href="https://cmartins.itch.io/"
                   target="_blank"
@@ -165,13 +177,29 @@ export function HelpPanel({ gameMode }: HelpPanelProps) {
                 </a>
               </p>
               <p>
-                {t('creditsLicense')}{' '}
+                <strong>{t('creditsLicense')}:</strong>{' '}
                 <a
                   href="https://creativecommons.org/licenses/by-sa/4.0/"
                   target="_blank"
                   rel="noreferrer"
                 >
                   CC BY-SA 4.0
+                </a>
+              </p>
+            </section>
+            <section className="help-card__section">
+              <h3>{t('project')}</h3>
+              <p>
+                <strong>{t('developer')}:</strong> Honghyun
+              </p>
+              <p>
+                <strong>{t('sourceAndHistory')}:</strong>{' '}
+                <a
+                  href="https://github.com/tmaker79/min2world"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {t('githubRepository')}
                 </a>
               </p>
             </section>

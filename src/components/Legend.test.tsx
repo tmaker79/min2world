@@ -26,6 +26,8 @@ describe('Legend', () => {
     )
     expect(screen.queryByText(SITE_TYPE_LABELS.stronghold)).not.toBeInTheDocument()
     expect(screen.queryByText(SITE_TYPE_LABELS.village)).not.toBeInTheDocument()
+    expect(screen.getByText('아군 거점')).toBeVisible()
+    expect(screen.getByText('적 거점')).toBeVisible()
     expect(screen.queryByText('적 통제 구역')).not.toBeInTheDocument()
   })
 
