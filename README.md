@@ -73,6 +73,8 @@ npm run deploy
 
 ## 에셋과 라이선스
 
+이 프로젝트의 소스 코드는 [MIT License](LICENSE)로 제공됩니다. 이미지 및 기타 에셋은 별도로 명시하지 않는 한 MIT License 적용 대상에서 제외됩니다.
+
 `src/assets/terrain/cmartins/`의 지형 타일은 cmartins.art의 [Hex Tiles: Fantasy](https://cmartins.itch.io/hex-tiles-fantasy)를 기반으로 편집·변형했으며 [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)으로 제공합니다. 다리·물 지형과 거점 래스터 이미지는 프로젝트용으로 별도 제작한 자산입니다.
 
 자세한 적용 범위와 변경 사항은 [제3자 에셋 고지](THIRD_PARTY_NOTICES.md), 아직 코드에 연결하지 않은 에셋은 [에셋 안내](src/assets/README.md)를 참고하세요.
