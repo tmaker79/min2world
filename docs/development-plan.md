@@ -83,7 +83,8 @@
 - 평지, 다리, 언덕, 숲, 산, 물, 사막, 사막 언덕, 오아시스, 툰드라, 툰드라 숲, 툰드라 산의 지형 12종
 - 일반 숲의 활엽수·침엽수 군락 변형과 지형별 래스터 타일
 - Outpost·Keep·Stronghold, Village·Town·City, Farm·Mine·Blacksmith의 거점 9종
-- 세력별 수도(성) 1개와 시작 유닛 5개(보병 2, 기병 1, 개척자 1, 건설자 1)
+- 전체모드는 세력별 수도 1개와 시작 유닛 5개(보병 2, 기병 1, 개척자 1, 건설자 1)를 배치한다.
+- 빠른대전은 플레이어에게 군사 유닛 5개(보병 2, 기병 1, 궁병 1, 창병 1), AI에 3개(보병·궁병·창병 각 1)를 배치한다.
 - 보병, 기병, 궁병, 창병, 개척자, 건설자
 - 최대 체력 100, 근접/원거리 전투력과 병종 상성
 - 궁병 공격은 반격 없음, 반격은 근접 전투력 사용
@@ -91,7 +92,7 @@
 - 지형 이동 비용과 언덕·숲·사막 언덕·툰드라 숲 전투력 보정(+3)
 - 군사 거점 공성, 일반 거점 점령, 다세력 수도 점령 승패
 - 턴 종료 시 소유 거점·건물 수입과 병종별 유닛 유지비 정산
-- 생산·발전·건설의 예상 유지비 예약액 검사와 플레이어 부대 해산
+- 생산·발전·건설의 예상 유지비 예약액 검사와 전체모드의 플레이어 부대 해산
 - 상태바의 자원·순수입 기본 표시와 클릭형 수입·유지비·예약액 상세, 적자 AI의 선제 반복 해산
 - City 전용 건물 7종과 도시당 하나의 건설 대기열
 - 곡창·시장 수입, 성벽 방어, 병영 생산비, 선술집·신전 회복, 도서관 개발비 효과
@@ -205,7 +206,7 @@ React UI ── GameAction ──> 게임 reducer / 규칙 함수
 - 이동 가능 타일, 선택 유닛의 전투력 합계 같은 값은 저장하지 않고 계산한다.
 - 배열과 객체를 직접 변경하지 않고 새로운 상태를 반환한다.
 - UI는 게임 상태를 임의로 수정하지 않고 `GameAction`을 전달한다.
-- 게임 엔진 상태와 모달, 전투 연출, seed 입력, 성/생산 HUD 같은 일시적인 UI 상태를 구분한다.
+- 게임 엔진 상태와 모달, 전투 연출, 정보 패널, 생산 HUD 같은 일시적인 UI 상태를 구분한다.
 - 유닛, 거점, 세력은 화면 위치가 아니라 안정적인 ID로 참조한다.
 
 ### 현재 데이터 모델
@@ -218,6 +219,7 @@ type Position = {
 
 type Terrain =
   | 'plain'
+  | 'bridge'
   | 'mountain'
   | 'water'
   | 'hill'
@@ -229,6 +231,8 @@ type Terrain =
   | 'tundraForest'
   | 'tundraMountain'
 type MapType = 'balanced' | 'plains' | 'mountainous' | 'forested'
+type GameMode = 'quick' | 'standard'
+type Difficulty = 'easy' | 'normal'
 type FactionId = 'f1' | 'f2' | 'f3' | 'f4' | 'player' | 'enemy' // player/enemy는 스키마 6 마이그레이션용
 type FactionCount = 2 | 3 | 4
 type BoardSize = { columns: number; rows: number }
@@ -301,7 +305,7 @@ type Site = {
 
 type GameState = {
   schemaVersion: number // 16
-  gameMode: 'quick' | 'standard'
+  gameMode: GameMode
   mapSeed: string
   mapType: MapType
   mapGenerationVersion: number // 25
@@ -358,6 +362,8 @@ type GameAction =
       factionCount?: FactionCount
       humanFactionId?: FactionId
       mapType?: MapType
+      difficulty?: Difficulty
+      gameMode?: GameMode
     }
 ```
 
@@ -365,116 +371,34 @@ type GameAction =
 
 ```text
 src/
-├─ game/
-│  ├─ types.ts
-│  ├─ hex.ts            # 보드 프리셋, 육각 좌표·인접·픽셀
-│  ├─ mapGenerator.ts   # seed 기반 지도·거점·시작 배치
-│  ├─ initialState.ts
-│  ├─ reducer.ts
-│  ├─ rules.ts
-│  ├─ selectors.ts
-│  ├─ ai.ts
-│  ├─ cityAdministration.ts
-│  ├─ playerEconomy.ts
-│  ├─ settlement.ts     # 정착·건설 비용과 공통 배치 판정
-│  ├─ siteDevelopment.ts
-│  ├─ siteFootprint.ts
-│  ├─ spatialIndex.ts
-│  ├─ territory.ts      # 정착지 기반 파생 영토
-│  ├─ upkeep.ts
-│  ├─ priorityQueue.ts
-│  └─ state.ts
-├─ components/
-│  ├─ StartScreen.tsx
-│  ├─ AppChrome.tsx
-│  ├─ NewGameMenu.tsx
-│  ├─ GameMap.tsx
-│  ├─ Minimap.tsx
-│  ├─ StatusBar.tsx
-│  ├─ InfoPanel.tsx
-│  ├─ CityPanel.tsx
-│  ├─ ProductionPanel.tsx
-│  ├─ SavePanel.tsx
-│  ├─ Legend.tsx
-│  ├─ GameResultPanel.tsx
-│  ├─ SiteIcon.tsx
-│  ├─ TerrainIcon.tsx
-│  └─ UnitIcon.tsx
-├─ hooks/
-│  ├─ useAiTurn.ts
-│  ├─ useMapPan.ts
-│  ├─ useMapZoom.ts
-│  └─ useMapViewport.ts
-├─ storage/
-│  └─ saveGame.ts
+├─ game/          # 타입, 규칙, 지도 생성, AI와 상태 전이
+├─ components/    # 게임 화면, 패널, 도움말과 전투 연출
+├─ hooks/         # AI 턴과 지도 팬·줌·뷰포트
+├─ i18n/          # 빠른대전 한국어·영어 현지화
+├─ storage/       # 저장, 마이그레이션과 첫 턴 안내 상태
+├─ test/          # 공통 테스트 설정
 ├─ App.tsx
+├─ index.css
 └─ main.tsx
+
+docs/
+├─ game-guide.md
+├─ development-plan.md
+└─ milestones/
 ```
 
 기능이 작을 때는 불필요하게 폴더와 추상화를 늘리지 않는다. 파일이 커지거나 동일한 책임이 반복될 때 분리한다.
 
-## 7. 개발 단계와 완료 조건
+## 7. 개발 단계
 
-01–09는 완료됐다. 각 단계의 상세 기록은 마일스톤 문서를 따른다.
+현재 상태의 기준은 [개발 마일스톤](milestones/README.md) 한 곳에서 관리한다.
 
-### 0단계: 프로젝트 기반
+- 기반 및 Milestone 01–05: 전투·AI·저장·경제를 갖춘 첫 MVP 완료
+- Milestone 06–09: 무작위 육각 지도·UI·가변 지도·지형 확장 완료
+- Milestone 10–14: 거점 발전·도시 내정·유지비·AI 고도화·거점 건설 완료
+- Milestone 15–17: 현재 상태와 재개 순서는 개발 마일스톤 색인에서 관리
 
-- Vite React TypeScript 프로젝트 실행
-- lint, format, test 명령 구성
-- 기본 화면과 테스트 1개 작성
-
-완료 조건: 새 환경에서 문서의 명령만으로 개발 서버와 테스트를 실행할 수 있다.
-
-### Milestone 01–07
-
-상세 기록은 [개발 마일스톤](milestones/README.md)의 각 문서를 따른다.
-
-### Milestone 08: 가변 지도·다세력·HUD 조작
-
-상세 기록: [Milestone 08](milestones/08-variable-map-and-hud.md)
-
-- 맵 크기·세력 수·내 세력 시작 설정
-- 휠 줌·팬·미니맵
-- 우클릭 이동, 성/부대 정보창, 지형·유닛 툴팁
-- 스키마 7
-
-### Milestone 09: 지형 확장
-
-상세 기록: [Milestone 09](milestones/09-terrain-expansion.md)
-
-- 온도 축과 사막·툰드라 기후대
-- 사막 언덕·오아시스·툰드라 숲·툰드라 산 후속 확장
-- 지형 래스터 타일, 미니맵 색, 범례, 툴팁
-- 일반 숲의 활엽수·침엽수 군락 변형
-- 완료 당시 스키마 8, 맵 생성 버전 20
-
-### Milestone 10: 거점 발전
-
-상세 기록: [Milestone 10](milestones/10-site-development.md)
-
-- Outpost → Keep → Stronghold와 Village → Town → City 발전 계열
-- Farm·Mine·Blacksmith 1~3레벨 및 수입·생산 보조 효과
-- Village·Town·City의 동일한 1타일 footprint 지도 미리보기
-- 거점별 병종 해금, AI 발전, 군사 거점 공성, 스키마 11·맵 생성 버전 22
-- 후속 맵 생성 버전 23에서 15×11 2인용 지도에 중앙 강과 두 다리를 추가
-- 맵 생성 버전 24에서 신규 중립 거점을 생산 특화 시설(Farm·Mine·Blacksmith)로 제한
-- 맵 생성 버전 25에서 Town·City를 기준 위치 한 칸만 점유하도록 변경
-
-### Milestone 11–12: 도시 내정과 유지비
-
-- City 전용 건물 7종, 슬롯 제한 없는 완공 목록과 도시당 하나의 건설 대기열
-- 병종별 유지비와 `max(0, 현재 자원 + 수입 - 유지비)` 턴 정산
-- 행동 후 경제를 기준으로 한 생산·발전·건설 예약액 검사
-- 플레이어 무환불 해산과 적자 AI의 행동 전 반복 해산
-- 저장 스키마 12 유지: 경제 요약은 저장하지 않는 파생 정보
-
-### Milestone 13: AI 고도화
-
-- 전체 미행동 유닛의 전투 결과 예측과 수도 점령·방어 우선순위
-- 중립 경제 거점, 다중 수도와 대체 공격 목표 탐색
-- 적 노출도·방어 지형·병종별 거리를 반영한 전술 이동
-- 통합 투자 평가와 AI 병력 상한·생산 후 비적자 정책
-- 저장 상태 없이 같은 상태에서 같은 액션과 결정 이유를 반환하는 결정론
+완료된 단계의 세부 규칙과 당시 스키마는 각 마일스톤 문서에 기록하며, 현재 사용자 규칙은 [게임 가이드](game-guide.md)를 따른다.
 
 ## 8. 테스트 전략
 
@@ -490,7 +414,7 @@ src/
 - 거점 위에 적 유닛이 도착하면 소유권이 변경된다.
 - 상대 수도를 점령하면 즉시 승패가 결정된다.
 - 턴 종료 시 소유 거점·건물 수입에서 유닛 유지비를 뺀 만큼 정산되고 자원이 0 아래로 내려가지 않는다.
-- 생산·발전·건설은 예상 유지비 예약액을 침범하지 않으며 해산은 환불 없이 소유 유닛만 제거한다.
+- 생산·발전·건설은 예상 유지비 예약액을 침범하지 않으며 전체모드의 해산은 환불 없이 소유 유닛만 제거한다.
 - 같은 seed와 지도 종류는 같은 지도와 시작 배치를 만든다.
 - 오아시스는 사막 계열 6칸 내부에만 생성되고 서로 인접하지 않는다.
 - 연결된 일반 숲은 같은 활엽수·침엽수 변형을 사용한다.
@@ -511,7 +435,7 @@ src/
 - 유효하지 않은 타일 클릭 시 유닛이 이동하거나 생산되지 않는다.
 - 턴 종료 버튼이 올바른 단계에서 동작한다.
 - 적 수도 점령 시 승리 메시지가 표시된다.
-- 상태바에 경제 요약과 적자 예약액이 표시되고, 해산 확인 및 유지비 차단 사유가 동작한다.
+- 상태바에 경제 요약과 적자 예약액이 표시되고, 전체모드의 해산 확인 및 유지비 차단 사유가 동작한다.
 
 ## 9. 저장 정책
 
@@ -558,29 +482,7 @@ localStorage 데이터는 브라우저를 닫아도 일반적으로 유지되지
 - 오류를 재현하는 테스트를 먼저 작성할 수 있다.
 - 성능 문제를 추측이 아니라 측정 결과로 판단할 수 있다.
 
-## 11. 기능 로드맵
-
-상세 명세는 [개발 마일스톤](milestones/README.md)의 각 문서를 따른다.
-
-| 단계 | 목표 | 상태 |
-| --- | --- | --- |
-| [09](milestones/09-terrain-expansion.md) | 사막·툰드라와 후속 지형 확장 | 완료 |
-| [10](milestones/10-site-development.md) | 역할별 거점 발전 | 완료 |
-| [11](milestones/11-city-administration.md) | City 전용 건물·대기열 | 완료 |
-| [12](milestones/12-upkeep.md) | 유지비(소프트 제약) | 완료 |
-| [13](milestones/13-ai-refinement.md) | 경제를 보는 AI | 완료 |
-| [14](milestones/14-settlement-construction.md) | 개척자·건설자의 신규 거점 건설 | 완료 |
-| [15](milestones/15-supply-and-morale.md) | 보급·사기(라이트) | 보류 |
-| [16](milestones/16-site-expansion.md) | 농장 본체와 인접 농지 확장 | 부분 완료·확장 보류 |
-| [17](milestones/17-road-construction.md) | 도로 건설과 이동 이점 | 보류 |
-
-### 로드맵 밖 후보
-
-- 여러 저장 슬롯, 자동 저장, 전장의 안개
-- 장수·장비·경험치, 기술·외교
-- PixiJS 렌더러, 서버 저장
-
-## 12. 현재 개발 목표
+## 11. 현재 개발 목표
 
 현재 목표는 공개 메인인 **2인용 빠른대전**의 완성도를 높이는 것이다.
 
