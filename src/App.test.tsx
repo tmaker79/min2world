@@ -189,6 +189,18 @@ describe('Milestone 07 UI', () => {
     expect(localStorage.getItem(FIRST_TURN_GUIDE_STORAGE_KEYS.quick)).toBe('1')
   })
 
+  it('reopens the first-turn guide from Help', () => {
+    window.history.replaceState({}, '', '/?mode=quick')
+    localStorage.setItem(FIRST_TURN_GUIDE_STORAGE_KEYS.quick, '1')
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('button', { name: '도움말' }))
+    fireEvent.click(screen.getByRole('button', { name: '첫 턴 안내 다시 보기' }))
+
+    expect(screen.queryByRole('heading', { name: '도움말' })).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: '첫 턴 안내' })).toBeVisible()
+  })
+
   it('offers only military production and no management tabs in quick mode', () => {
     const state = createInitialGameState('quick-ui-controls', {
       gameMode: 'quick',

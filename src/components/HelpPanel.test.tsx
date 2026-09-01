@@ -1,10 +1,16 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { HelpPanel } from './HelpPanel'
 
 describe('HelpPanel', () => {
   it('starts on controls and switches tabs with click and keyboard navigation', () => {
-    render(<HelpPanel gameMode="standard" />)
+    const onShowFirstTurnGuide = vi.fn()
+    render(
+      <HelpPanel
+        gameMode="standard"
+        onShowFirstTurnGuide={onShowFirstTurnGuide}
+      />,
+    )
 
     const controlsTab = screen.getByRole('tab', { name: '조작' })
     const rulesTab = screen.getByRole('tab', { name: '규칙' })
@@ -18,6 +24,8 @@ describe('HelpPanel', () => {
     expect(
       screen.getByText('지도를 드래그해 이동하고 마우스 휠이나 핀치로 확대·축소합니다.'),
     ).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: '첫 턴 안내 다시 보기' }))
+    expect(onShowFirstTurnGuide).toHaveBeenCalledOnce()
     expect(screen.queryByRole('heading', { name: '생산·경제' })).not.toBeInTheDocument()
 
     fireEvent.click(rulesTab)
@@ -76,7 +84,7 @@ describe('HelpPanel', () => {
   })
 
   it('shows quick-match shortcuts without standard-mode actions', () => {
-    render(<HelpPanel gameMode="quick" />)
+    render(<HelpPanel gameMode="quick" onShowFirstTurnGuide={() => undefined} />)
 
     expect(screen.getByText('선택 중인 이동·공격·생산 취소')).toBeVisible()
     expect(

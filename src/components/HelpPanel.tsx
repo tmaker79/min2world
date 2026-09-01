@@ -14,9 +14,10 @@ type HelpTabId = (typeof HELP_TABS)[number]['id']
 
 type HelpPanelProps = {
   gameMode: GameMode
+  onShowFirstTurnGuide: () => void
 }
 
-export function HelpPanel({ gameMode }: HelpPanelProps) {
+export function HelpPanel({ gameMode, onShowFirstTurnGuide }: HelpPanelProps) {
   const { t } = useLocalization()
   const [activeTab, setActiveTab] = useState<HelpTabId>('controls')
   const headingId = useId()
@@ -95,6 +96,13 @@ export function HelpPanel({ gameMode }: HelpPanelProps) {
                 <li>{t('controlMoveAttack')}</li>
                 <li>{t('mapNavigation')}</li>
               </ul>
+              <button
+                type="button"
+                className="help-card__guide-button"
+                onClick={onShowFirstTurnGuide}
+              >
+                {t('showFirstTurnGuide')}
+              </button>
             </section>
             <section className="help-card__section">
               <h3>{t('shortcuts')}</h3>

@@ -1185,6 +1185,11 @@ function GameApp({
     setOpenChromeMenu('help')
   }
 
+  const showFirstTurnGuideFromHelp = () => {
+    setOpenChromeMenu(null)
+    setFirstTurnGuideOpen(true)
+  }
+
   return (
     <div className="app-shell">
       <AppChrome
@@ -1207,7 +1212,12 @@ function GameApp({
             onDelete={handleDeleteSave}
           />
         }
-        helpPanel={<HelpPanel gameMode={state.gameMode} />}
+        helpPanel={
+          <HelpPanel
+            gameMode={state.gameMode}
+            onShowFirstTurnGuide={showFirstTurnGuideFromHelp}
+          />
+        }
       />
 
       <main className="game-layout">
