@@ -714,7 +714,8 @@
 .status-bar {
   position: relative;
   z-index: 8;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 7.5rem 9.25rem;
   align-items: center;
   min-height: 44px;
   margin: 0 0 8px;
@@ -786,6 +787,7 @@
 }
 
 .deployment-bar button {
+  width: 5.75rem;
   min-height: 28px;
   margin-left: auto;
   padding: 5px 9px;
@@ -823,7 +825,6 @@
   display: flex;
   min-width: 0;
   padding: 0 14px;
-  flex: 1;
   align-items: center;
   flex-wrap: wrap;
   gap: 6px 8px;
@@ -1040,7 +1041,6 @@
 
 .next-unit-button {
   align-self: stretch;
-  flex: none;
   padding-inline: 12px;
   color: var(--ink);
   background: transparent;
@@ -1065,9 +1065,7 @@
 .end-turn-button {
   display: flex;
   align-self: stretch;
-  min-width: 132px;
   min-height: 0;
-  margin-left: auto;
   padding: 0 14px;
   align-items: center;
   justify-content: center;
@@ -1705,8 +1703,10 @@
 
 .city-card__summary {
   display: flex;
+  min-height: 3.75rem;
   align-items: center;
   gap: 10px;
+  line-height: 1.25;
 }
 
 .city-card__icon {
@@ -1767,7 +1767,9 @@
 
 .city-card__summary div {
   display: grid;
+  min-width: 0;
   gap: 2px;
+  overflow-wrap: anywhere;
 }
 
 .city-card__summary span,
@@ -4230,27 +4232,33 @@
   }
 
   .status-bar {
-    min-height: 44px;
-    flex-wrap: nowrap;
+    grid-template-columns: minmax(0, 1fr) 6.25rem 5.25rem;
   }
 
   .status-bar__summary {
-    width: auto;
-    padding: 0 10px;
+    padding: 0 8px;
     gap: 4px 6px;
     font-size: 0.74rem;
   }
 
+  .status-bar__dot {
+    display: none;
+  }
+
+  .status-bar__resource-image {
+    margin-right: 4px;
+  }
+
+  .status-bar__economy-chevron {
+    margin-left: 4px;
+  }
+
   .end-turn-button {
-    width: auto;
-    min-width: 76px;
-    min-height: 0;
-    margin-left: 0;
-    padding-inline: 10px;
+    padding-inline: 4px;
     font-size: 0.78rem;
   }
 
-  .end-turn-button kbd {
+  .end-turn-button [aria-hidden='true'] {
     display: none;
   }
 
