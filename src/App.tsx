@@ -11,6 +11,7 @@ import type { ChromeMenuId } from './components/AppChrome'
 import { CityPanel } from './components/CityPanel'
 import type { CityPanelTab } from './components/CityPanel'
 import { ConfirmDialog } from './components/ConfirmDialog'
+import { CombatPreview } from './components/CombatPreview'
 import { ConstructionPanel } from './components/ConstructionPanel'
 import { DevelopmentPanel } from './components/DevelopmentPanel'
 import { FirstTurnGuide } from './components/FirstTurnGuide'
@@ -40,7 +41,7 @@ import {
   QUICK_STARTING_UNIT_TYPES,
   STARTING_UNIT_TYPES,
 } from './game/mapGenerator'
-import { gameReducer } from './game/reducer'
+import { createGameSession, gameSessionReducer } from './game/turnSummary'
 import { getSiteDevelopmentFootprints } from './game/siteDevelopment'
 import {
   createProductionSupportIndex,
@@ -105,6 +106,11 @@ type AppProps = {
   initialState?: GameState
 }
 
+type PendingAttack = { attackerId: string; returnFocusTo: HTMLElement | null } & (
+  | { kind: 'unit'; targetId: string }
+  | { kind: 'site'; targetId: string; position: Position }
+)
+
 const COMPACT_MAP_OVERLAY_QUERY =
   '(max-width: 700px), (max-width: 980px) and (max-height: 500px)'
 const SIDEBAR_OVERLAY_QUERY = '(max-width: 980px)'
@@ -148,7 +154,8 @@ function GameApp({
 }) {
   const { locale, t, unitLabel, siteLabel, unitName, siteName, terrainLabel } =
     useLocalization()
-  const [state, dispatch] = useReducer(gameReducer, initialState)
+  const [{ game: state, summary }, dispatch] = useReducer(gameSessionReducer, initialState, createGameSession)
+  const [pendingAttack, setPendingAttack] = useState<PendingAttack>()
   const [activeCombat, setActiveCombat] = useState<
     Omit<CombatAnimation, 'phase'>
   >()
@@ -630,6 +637,21 @@ function GameApp({
     state.activeFactionId === state.humanFactionId && !combatActive
   const canWait = playerCanAct && selectedUnit?.factionId === state.humanFactionId &&
     !selectedUnit.hasActed
+  const previewTarget = pendingAttack && playerCanAct && selectedUnit?.id === pendingAttack.attackerId
+    ? pendingAttack.kind === 'site'
+      ? attackableSites.find((site) => site.id === pendingAttack.targetId)
+      : attackableUnits.find((unit) => unit.id === pendingAttack.targetId)
+    : undefined
+
+  const confirmAttack = () => {
+    setPendingAttack(undefined)
+    if (!previewTarget || !pendingAttack) return
+    if (pendingAttack.kind === 'site') {
+      startSiteAttack(pendingAttack.attackerId, previewTarget.id, pendingAttack.position)
+    } else {
+      startCombat(pendingAttack.attackerId, previewTarget.id)
+    }
+  }
 
   const selectNextUnit = (wait: boolean) => {
     if (!playerCanAct || (wait && !canWait)) return
@@ -712,6 +734,7 @@ function GameApp({
       return
     }
 
+    setPendingAttack(undefined)
     setActiveCombat(undefined)
     setCombatPhase('attack')
     setActiveMoveUnitId(undefined)
@@ -815,7 +838,8 @@ function GameApp({
     if (
       state.phase !== 'playing' ||
       activeCombat ||
-      activeSiteAttack
+      activeSiteAttack ||
+      previewTarget
     ) {
       return
     }
@@ -872,6 +896,8 @@ function GameApp({
         event.metaKey ||
         isEditing ||
         isNonMapInteractive ||
+        (target instanceof HTMLButtonElement &&
+          (target.dataset.attackable === 'true' || target.dataset.attackableSite === 'true')) ||
         isMoveMode ||
         isAttackMode ||
         state.activeFactionId !== state.humanFactionId
@@ -902,6 +928,7 @@ function GameApp({
     activeProductionUnitType,
     activeSiteTab,
     foundingKind,
+    previewTarget,
     isMoveMode,
     isAttackMode,
     mobileInfoExpanded,
@@ -969,15 +996,18 @@ function GameApp({
       return
     }
 
-    if (selectedUnit && unit && attackableIds.has(unit.id)) {
+    const target = unit && attackableIds.has(unit.id)
+      ? { kind: 'unit' as const, targetId: unit.id }
+      : site && attackableSiteIds.has(site.id)
+        ? { kind: 'site' as const, targetId: site.id, position: tile.position }
+        : undefined
+    if (selectedUnit && target) {
       setInspectedTileKey(undefined)
-      startCombat(selectedUnit.id, unit.id)
-      return
-    }
-
-    if (selectedUnit && site && attackableSiteIds.has(site.id)) {
-      setInspectedTileKey(undefined)
-      startSiteAttack(selectedUnit.id, site.id, tile.position)
+      setPendingAttack({
+        ...target,
+        attackerId: selectedUnit.id,
+        returnFocusTo: document.activeElement instanceof HTMLElement ? document.activeElement : null,
+      })
       return
     }
 
@@ -1084,8 +1114,6 @@ function GameApp({
     isAttackMode,
     openSidebarInfo,
     selectedUnit,
-    startCombat,
-    startSiteAttack,
     state,
     t,
   ])
@@ -1149,6 +1177,7 @@ function GameApp({
     )
 
   const restartGame = (seed: string) => {
+    setPendingAttack(undefined)
     setActiveCombat(undefined)
     setActiveSiteAttack(undefined)
     setCombatPhase('attack')
@@ -1211,6 +1240,7 @@ function GameApp({
   return (
     <div className="app-shell">
       <AppChrome
+        inert={Boolean(previewTarget)}
         gameMode={state.gameMode}
         locale={locale}
         onLocaleChange={onLocaleChange}
@@ -1238,11 +1268,12 @@ function GameApp({
         }
       />
 
-      <main className="game-layout">
+      <main className="game-layout" inert={Boolean(previewTarget)}>
         <section className="board-panel" aria-label={t('strategyMap')}>
           <div className="status-bar-slot">
             <StatusBar
               turn={state.turn}
+              summary={summary}
               resource={state.resources[state.humanFactionId] ?? 0}
               income={getFactionIncome(state, state.humanFactionId)}
               upkeep={getFactionUpkeep(state, state.humanFactionId)}
@@ -1764,6 +1795,16 @@ function GameApp({
         <span className="sr-only" role="status" aria-live="polite">
           {siteAttackAnnouncement}
         </span>
+      )}
+      {pendingAttack && previewTarget && selectedUnit && (
+        <CombatPreview
+          state={state}
+          attacker={selectedUnit}
+          target={previewTarget}
+          returnFocusTo={pendingAttack.returnFocusTo}
+          onCancel={() => setPendingAttack(undefined)}
+          onConfirm={confirmAttack}
+        />
       )}
       {restartConfirmationOpen && (
         <ConfirmDialog

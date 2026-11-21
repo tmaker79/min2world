@@ -95,6 +95,7 @@ export function HelpPanel({ gameMode, onShowFirstTurnGuide }: HelpPanelProps) {
                 <li>{t('controlSelect')}</li>
                 <li>{t('controlMoveAttack')}</li>
                 <li>{t('controlNextUnit')}</li>
+                <li>{t('summaryHelp')}</li>
                 <li>{t('mapNavigation')}</li>
               </ul>
               <button

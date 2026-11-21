@@ -149,6 +149,10 @@ export type SiteCombatResult = {
   siteHp: number
 }
 
+export function getSiteHpAfterCapture(maxHp: number) {
+  return Math.ceil(maxHp * 0.5)
+}
+
 export function resolveSiteCombat(
   state: GameState,
   attacker: Unit,

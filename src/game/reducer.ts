@@ -20,6 +20,7 @@ import {
   getFactionIncome,
   getMovementCost,
   getSiteAt,
+  getSiteHpAfterCapture,
   getSiteMaxHp,
   getUnitProductionCost,
   isCivilianUnitType,
@@ -285,7 +286,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           ? {
               ...candidate,
               ownerId: captured ? attacker.factionId : candidate.ownerId,
-              hp: captured ? Math.ceil(maxHp * 0.5) : result.siteHp,
+              hp: captured ? getSiteHpAfterCapture(maxHp) : result.siteHp,
               maxHp,
               ...(captured ? { lastDevelopedTurn: state.turn } : {}),
             }

@@ -1,10 +1,12 @@
 import { useEffect, useId, useRef } from 'react'
+import type { ReactNode } from 'react'
 import { useLocalization } from '../i18n/locale'
 
 type ConfirmDialogProps = {
   title: string
-  description: string
+  description: ReactNode
   confirmLabel: string
+  returnFocusTo?: HTMLElement | null
   onCancel: () => void
   onConfirm: () => void
 }
@@ -13,6 +15,7 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel,
+  returnFocusTo,
   onCancel,
   onConfirm,
 }: ConfirmDialogProps) {
@@ -28,7 +31,7 @@ export function ConfirmDialog({
   }, [onCancel])
 
   useEffect(() => {
-    const previouslyFocused = document.activeElement as HTMLElement | null
+    const previouslyFocused = returnFocusTo ?? (document.activeElement as HTMLElement | null)
     cancelButtonRef.current?.focus()
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -55,9 +58,9 @@ export function ConfirmDialog({
     document.addEventListener('keydown', handleKeyDown)
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
-      previouslyFocused?.focus()
+      previouslyFocused?.focus({ preventScroll: true })
     }
-  }, [])
+  }, [returnFocusTo])
 
   return (
     <div
@@ -74,9 +77,9 @@ export function ConfirmDialog({
         aria-describedby={descriptionId}
       >
         <h2 id={titleId}>{title}</h2>
-        <p id={descriptionId} className="confirm-dialog__description">
+        <div id={descriptionId} className="confirm-dialog__description">
           {description}
-        </p>
+        </div>
         <div className="confirm-dialog__actions">
           <button
             ref={cancelButtonRef}

@@ -2,10 +2,13 @@ import { useEffect, useId, useRef, useState } from 'react'
 import resourceMedallionImage from '../assets/ui/resource-medallion.png'
 import turnMedallionImage from '../assets/ui/turn-medallion.png'
 import type { FactionId } from '../game/types'
+import type { TurnSummary } from '../game/turnSummary'
+import { TurnSummaryButton } from './TurnSummaryButton'
 import { useLocalization } from '../i18n/locale'
 
 type StatusBarProps = {
   turn: number
+  summary?: TurnSummary
   resource: number
   income: number
   upkeep: number
@@ -25,6 +28,7 @@ function formatSigned(value: number, formatNumber: (value: number) => string) {
 
 export function StatusBar({
   turn,
+  summary,
   resource,
   income,
   upkeep,
@@ -64,18 +68,20 @@ export function StatusBar({
     }
   }, [economyExpanded])
 
+  const turnIndicator = (
+    <>
+      <img className="status-bar__turn-image" src={turnMedallionImage} alt="" aria-hidden="true" />
+      <strong aria-hidden="true">{formatNumber(turn)}</strong>
+    </>
+  )
   return (
     <section className="status-bar" aria-label={t('gameStatus')}>
       <div className="status-bar__summary">
-        <span className="status-bar__turn" aria-label={t('turn', { turn })}>
-          <img
-            className="status-bar__turn-image"
-            src={turnMedallionImage}
-            alt=""
-            aria-hidden="true"
-          />
-          <strong aria-hidden="true">{formatNumber(turn)}</strong>
-        </span>
+        {summary ? (
+          <TurnSummaryButton key={turn} summary={summary}>{turnIndicator}</TurnSummaryButton>
+        ) : (
+          <span className="status-bar__turn" aria-label={t('turn', { turn })}>{turnIndicator}</span>
+        )}
         <span className="status-bar__dot" aria-hidden="true">
           ·
         </span>
