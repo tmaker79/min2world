@@ -249,7 +249,9 @@ export function resolveSiteDevelopment(
         kind: target.kind,
         level: target.level,
         lastDevelopedTurn: state.turn,
-        footprint: check.footprint,
+        footprint: target.kind === 'town' || target.kind === 'city'
+          ? check.footprint
+          : undefined,
         ...(targetHp !== undefined && targetMaxHp !== undefined
           ? { hp: targetHp, maxHp: targetMaxHp }
           : {}),

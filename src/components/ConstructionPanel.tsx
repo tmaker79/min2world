@@ -82,7 +82,7 @@ export function ConstructionPanel({
           </div>
           <button
             type="button"
-            disabled={!canCancelConstruction(state, site.id)}
+            disabled={site.ownerId !== state.humanFactionId || !canCancelConstruction(state, site.id)}
             onClick={onCancel}
           >
             건설 취소

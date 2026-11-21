@@ -53,6 +53,7 @@ function getFactionOrderAfterCapture(
   const defeatedFactionId = sites.find(
     (site) =>
       site.capitalFor &&
+      state.factionOrder.includes(site.capitalFor) &&
       site.capitalFor !== state.humanFactionId &&
       site.capitalFor !== capturerFactionId &&
       site.ownerId === capturerFactionId,

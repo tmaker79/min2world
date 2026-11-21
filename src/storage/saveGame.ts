@@ -232,6 +232,7 @@ function parseSite(value: unknown, boardSize: BoardSize): Site | undefined {
   const footprint = Array.isArray(value.footprint)
     ? value.footprint.map((candidate) => parsePosition(candidate, boardSize))
     : undefined
+  const usesFootprint = kind === 'town' || kind === 'city'
   if (
     !position ||
     !buildings ||
@@ -262,7 +263,9 @@ function parseSite(value: unknown, boardSize: BoardSize): Site | undefined {
           footprint as Position[],
           boardSize,
         ))) ||
-    (kind !== 'town' && kind !== 'city' && value.footprint !== undefined) ||
+    // Earlier saves also recorded the anchor after developing a single-tile site.
+    (!usesFootprint && value.footprint !== undefined &&
+      (footprint?.length !== 1 || !footprint[0] || !positionsEqual(footprint[0], position))) ||
     (fortified
       ? value.maxHp !== expectedMaxHp ||
         !isIntegerInRange(value.hp, 1, expectedMaxHp)
@@ -275,9 +278,7 @@ function parseSite(value: unknown, boardSize: BoardSize): Site | undefined {
     name: value.name,
     kind,
     position,
-    ...(footprint === undefined
-      ? {}
-      : { footprint: footprint as Position[] }),
+    ...(usesFootprint ? { footprint: footprint as Position[] } : {}),
     ownerId: value.ownerId as SiteOwnerId,
     ...(value.foundedBy === undefined
       ? {}
@@ -358,7 +359,9 @@ function parseGameState(value: unknown): StorageResult<GameState> {
     typeof value.humanFactionId !== 'string' ||
     !FACTIONS.has(value.humanFactionId as FactionId) ||
     !Array.isArray(factionOrder) ||
-    factionOrder.length !== factionCount ||
+    factionOrder.length < 2 ||
+    factionOrder.length > factionCount ||
+    !factionOrder.includes(value.humanFactionId) ||
     factionOrder.some(
       (factionId) =>
         typeof factionId !== 'string' || !FACTIONS.has(factionId as FactionId),
@@ -476,12 +479,19 @@ function parseGameState(value: unknown): StorageResult<GameState> {
       site.constructionQueue === undefined ||
       site.constructionQueue.startedTurn <= state.turn,
   )
-  const capitals = parsedSites.filter((site) => site.capitalFor)
+  const capitals = parsedSites.filter(
+    (site): site is Site & { capitalFor: FactionId } => site.capitalFor !== undefined,
+  )
+  const originalFactions = new Set(capitals.map((site) => site.capitalFor))
+  const survivingFactions = capitals
+    .filter((site) => site.ownerId === site.capitalFor)
+    .map((site) => site.capitalFor)
   const capitalsAreValid =
     capitals.length === factionCount &&
-    (factionOrder as FactionId[]).every((factionId) =>
-      capitals.some((site) => site.capitalFor === factionId),
-    )
+    originalFactions.size === factionCount &&
+    capitals.every((site) => site.ownerId !== 'neutral' && originalFactions.has(site.ownerId)) &&
+    survivingFactions.length === factionOrder.length &&
+    survivingFactions.every((factionId) => factionOrder.includes(factionId))
 
   if (
     !tilesMatchSites ||

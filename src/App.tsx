@@ -35,6 +35,7 @@ import { BOARD_SIZE_PRESETS } from './game/hex'
 import { createInitialGameState } from './game/initialState'
 import {
   createRandomMapSeed,
+  getStartingResources,
   QUICK_OPPONENT_STARTING_UNIT_TYPES,
   QUICK_STARTING_UNIT_TYPES,
   STARTING_UNIT_TYPES,
@@ -86,7 +87,6 @@ import {
   loadGame,
   saveGame,
 } from './storage/saveGame'
-import type { SavedGame, StorageResult } from './storage/saveGame'
 import {
   hasSeenFirstTurnGuide,
   markFirstTurnGuideSeen,
@@ -636,9 +636,10 @@ function GameApp({
     () => ({ t, unitLabel, siteLabel, unitName, siteName }),
     [siteLabel, siteName, t, unitLabel, unitName],
   )
+  const combatActive = Boolean(activeCombat || activeSiteAttack)
   const aiAnnouncement = useAiTurn({
     state,
-    combatActive: Boolean(activeCombat || activeSiteAttack),
+    combatActive,
     dispatch,
     startCombat,
     startSiteAttack,
@@ -662,19 +663,13 @@ function GameApp({
       (saveSlot.code === 'invalidData' ||
         saveSlot.code === 'unsupportedVersion'))
 
-  const updateSlotFromResult = (
-    result: StorageResult<SavedGame>,
-  ) => {
-    setSaveSlot(result)
-  }
-
   const handleSave = () => {
     if (!canSave) {
       return
     }
 
     const result = saveGame(state)
-    updateSlotFromResult(result)
+    setSaveSlot(result.ok ? result : inspectSavedGame(undefined, state.gameMode))
     setSaveFeedback(
       result.ok
         ? { type: 'status', message: t('saved') }
@@ -691,7 +686,7 @@ function GameApp({
     }
 
     const result = loadGame(undefined, state.gameMode)
-    updateSlotFromResult(result)
+    setSaveSlot(result)
 
     if (!result.ok) {
       setSaveFeedback({ type: 'error', message: t('saveNeedsCheck') })
@@ -1117,6 +1112,9 @@ function GameApp({
       : state.factionCount * STARTING_UNIT_TYPES.length
   const hasProgress =
     state.turn > 1 ||
+    state.factionOrder.some((id) =>
+      state.resources[id] !== getStartingResources(state.gameMode, id, state.humanFactionId),
+    ) ||
     state.units.length !== startingUnitCount ||
     state.units.some(
       (unit) =>
@@ -1126,6 +1124,7 @@ function GameApp({
     ) ||
     state.sites.some(
       (site) =>
+        site.constructionQueue !== undefined ||
         (site.capitalFor && site.ownerId !== site.capitalFor) ||
         (!site.capitalFor && site.ownerId !== 'neutral'),
     )
@@ -1238,7 +1237,7 @@ function GameApp({
               disabled={
                 state.phase !== 'playing' ||
                 state.activeFactionId !== state.humanFactionId ||
-                Boolean(activeCombat || activeSiteAttack)
+                combatActive
               }
               onEndTurn={() => {
                 setActiveMoveUnitId(undefined)
@@ -1531,7 +1530,7 @@ function GameApp({
                       setDevelopmentFootprintIndex(0)
                       setProductionUnitType(undefined)
                       setProductionFeedback(undefined)
-                      dispatch({ type: 'selectionCleared' })
+                      if (!combatActive) dispatch({ type: 'selectionCleared' })
                     }}
                   >
                     {activeSiteTab === 'production' && (
@@ -1544,7 +1543,7 @@ function GameApp({
                         disabled={
                           state.phase !== 'playing' ||
                           state.activeFactionId !== state.humanFactionId ||
-                          Boolean(activeCombat || activeSiteAttack)
+                          combatActive
                         }
                         feedback={productionFeedback}
                         onUnitTypeSelected={(unitType) => {
@@ -1680,7 +1679,7 @@ function GameApp({
                       setActiveMoveUnitId(undefined)
                       setActiveAttackUnitId(undefined)
                     }}
-                    onClose={() => {
+                    onClose={combatActive ? undefined : () => {
                       setActiveMoveUnitId(undefined)
                       setFoundingKind(undefined)
                       setMobileInfoExpanded(false)
@@ -1710,7 +1709,7 @@ function GameApp({
                         : () => {
                             setInspectedTileKey(undefined)
                             setMobileInfoExpanded(false)
-                            dispatch({ type: 'selectionCleared' })
+                            if (!combatActive) dispatch({ type: 'selectionCleared' })
                           }
                     }
                   />
@@ -1779,10 +1778,7 @@ function App({ initialState }: AppProps = {}) {
   const gameMode = initialState?.gameMode ?? runtimeGameMode
   const [locale, setLocale] = useState<Locale>(() =>
     gameMode === 'quick'
-      ? resolveQuickLocale(
-          window.localStorage,
-          navigator.languages ?? [navigator.language],
-        )
+      ? resolveQuickLocale()
       : 'ko',
   )
   const [gameState, setGameState] = useState<GameState | undefined>(() =>
@@ -1805,7 +1801,7 @@ function App({ initialState }: AppProps = {}) {
 
   const handleLocaleChange = (nextLocale: Locale) => {
     if (gameMode !== 'quick') return
-    persistQuickLocale(nextLocale, window.localStorage)
+    persistQuickLocale(nextLocale)
     setLocale(nextLocale)
   }
 

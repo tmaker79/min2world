@@ -122,9 +122,12 @@ function createLocalization(locale: Locale): Localization {
   const siteName = (site: Site) => {
     if (locale === 'ko') return site.name
     if (site.capitalFor) return `${FACTION_ADJECTIVES[site.capitalFor]} City`
-    if (site.ownerId === 'neutral') {
+    const generatedProductionSite = !site.foundedBy &&
+      (site.kind === 'farm' || site.kind === 'mine' || site.kind === 'blacksmith')
+    if (site.ownerId === 'neutral' || generatedProductionSite) {
       const sequence = site.name.match(/(\d+)$/)?.[1]
-      return `Neutral ${SITE_LABELS.en[site.kind]}${sequence ? ` ${sequence}` : ''}`
+      const prefix = site.ownerId === 'neutral' ? 'Neutral ' : ''
+      return `${prefix}${SITE_LABELS.en[site.kind]}${sequence ? ` ${sequence}` : ''}`
     }
     return site.name
   }
@@ -154,14 +157,22 @@ export function useLocalization() {
 
 export const QUICK_LOCALE_STORAGE_KEY = 'min2world:quick:locale:v1'
 
-export function resolveQuickLocale(storage: Pick<Storage, 'getItem'> | undefined, languages: readonly string[] = []): Locale {
+export function resolveQuickLocale(
+  storage?: Pick<Storage, 'getItem'>,
+  languages: readonly string[] = navigator.languages ?? [navigator.language],
+): Locale {
   try {
-    const stored = storage?.getItem(QUICK_LOCALE_STORAGE_KEY)
+    const stored = (storage ?? window.localStorage).getItem(QUICK_LOCALE_STORAGE_KEY)
     if (stored === 'ko' || stored === 'en') return stored
   } catch { /* fall through to browser language */ }
   return languages[0]?.toLowerCase().startsWith('ko') ? 'ko' : 'en'
 }
 
-export function persistQuickLocale(locale: Locale, storage: Pick<Storage, 'setItem'> | undefined) {
-  try { storage?.setItem(QUICK_LOCALE_STORAGE_KEY, locale); return true } catch { return false }
+export function persistQuickLocale(locale: Locale, storage?: Pick<Storage, 'setItem'>) {
+  try {
+    (storage ?? window.localStorage).setItem(QUICK_LOCALE_STORAGE_KEY, locale)
+    return true
+  } catch {
+    return false
+  }
 }

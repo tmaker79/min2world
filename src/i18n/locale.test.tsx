@@ -77,6 +77,7 @@ describe('quick-match localization', () => {
             unitName(producedUnit),
             siteName(capital),
             siteName(neutral),
+            siteName({ ...neutral, ownerId: 'f1' }),
           ].join('|')}
         </output>
       )
@@ -89,7 +90,7 @@ describe('quick-match localization', () => {
     )
 
     expect(screen.getByText(/Azure Dragon Infantry/)).toHaveTextContent(
-      'Azure Dragon Infantry|Blue Archer 3|Blue City|Neutral Mine 2',
+      'Azure Dragon Infantry|Blue Archer 3|Blue City|Neutral Mine 2|Mine 2',
     )
   })
 

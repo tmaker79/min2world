@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { HEX_TILE_COUNT, positionKey } from '../game/hex'
+import { BOARD_SIZE_PRESETS, getHexNeighbors, HEX_TILE_COUNT, positionKey } from '../game/hex'
 import { createInitialGameState } from '../game/initialState'
+import { gameReducer } from '../game/reducer'
 import {
   getSiteMaxHp,
   isFortifiedSiteKind,
@@ -136,6 +137,70 @@ describe('saved games', () => {
           ),
       ).toBe(true)
     }
+  })
+
+  it('round-trips a developed farm and recovers its older single-anchor save', () => {
+    const storage = new MemoryStorage()
+    const initial = createInitialGameState('farm-roundtrip', { difficulty: 'easy' })
+    const farm = initial.sites.find((site) => site.kind === 'farm')!
+    farm.ownerId = initial.humanFactionId
+    const state = gameReducer(initial, { type: 'siteDeveloped', siteId: farm.id })
+    const developed = state.sites.find((site) => site.id === farm.id)!
+    expect(developed.level).toBe(2)
+    expect(developed.footprint).toBeUndefined()
+    expect(saveGame(state, storage).ok).toBe(true)
+    expect(loadGame(storage).ok).toBe(true)
+
+    storeEnvelope(storage, {
+      ...state,
+      sites: state.sites.map((site) =>
+        site.id === farm.id ? { ...site, footprint: [site.position] } : site,
+      ),
+    })
+    const recovered = loadGame(storage)
+    expect(recovered.ok).toBe(true)
+    if (recovered.ok) {
+      const restored = recovered.value.gameState
+      expect(restored.sites.find((site) => site.id === farm.id)).toEqual(developed)
+      expect(saveGame(restored, storage).ok).toBe(true)
+      expect(loadGame(storage).ok).toBe(true)
+    }
+  })
+
+  it.each([3, 4] as const)('resumes the surviving factions in a %i-faction game', (factionCount) => {
+    const storage = new MemoryStorage()
+    let state = createInitialGameState('surviving-factions', {
+      boardSize: BOARD_SIZE_PRESETS.standard, factionCount,
+    })
+    const lastFaction = state.factionOrder[factionCount - 1]
+    const attacker = state.units.find((unit) => unit.factionId === state.humanFactionId)!
+    for (const defeated of state.factionOrder.slice(1, -1)) {
+      const capital = state.sites.find((site) => site.capitalFor === defeated)!
+      const adjacent = getHexNeighbors(capital.position, state.boardSize).find((position) =>
+        state.tiles.some((tile) => positionKey(tile.position) === positionKey(position) &&
+          TERRAIN_MOVEMENT_COST[tile.terrain] !== null),
+      )!
+      state = gameReducer({
+        ...state,
+        units: [{ ...attacker, type: 'archer', position: adjacent, movementRemaining: 2 }],
+        selectedUnitId: attacker.id,
+        sites: state.sites.map((site) => site.id === capital.id ? { ...site, hp: 1 } : site),
+      }, { type: 'siteAttacked', attackerId: attacker.id, siteId: capital.id })
+    }
+    expect(state.phase).toBe('playing')
+    expect(state.factionOrder).toEqual([state.humanFactionId, lastFaction])
+    expect(saveGame(state, storage).ok).toBe(true)
+    const loaded = loadGame(storage)
+    expect(loaded.ok).toBe(true)
+    if (loaded.ok) {
+      const next = gameReducer(loaded.value.gameState, { type: 'turnEnded' })
+      expect(next.activeFactionId).toBe(lastFaction)
+      expect(gameReducer(next, { type: 'turnEnded' })).toMatchObject({
+        activeFactionId: state.humanFactionId, turn: state.turn + 1,
+      })
+    }
+    storeEnvelope(storage, { ...state, factionOrder: [state.humanFactionId, 'f2'] })
+    expect(loadGame(storage)).toMatchObject({ ok: false, code: 'invalidData' })
   })
 
   it('round-trips completed buildings and an active City construction queue', () => {
@@ -660,7 +725,14 @@ describe('saved games', () => {
       delete village.level
       village.footprint = [village.position, { q: village.position.q + 1, r: village.position.r }]
     }],
-    ['footprint on a one-tile site', (state: GameState) => { state.sites.find((site) => site.kind === 'farm')!.footprint = [state.sites.find((site) => site.kind === 'farm')!.position] }],
+    ['shifted footprint on a farm', (state: GameState) => {
+      state.sites.find((site) => site.kind === 'farm')!.footprint =
+        [state.sites.find((site) => site.kind === 'mine')!.position]
+    }],
+    ['multi-tile footprint on a farm', (state: GameState) => {
+      const farm = state.sites.find((site) => site.kind === 'farm')!
+      farm.footprint = [farm.position, state.sites.find((site) => site.kind === 'mine')!.position]
+    }],
     ['future development turn', (state: GameState) => { state.sites[0].lastDevelopedTurn = state.turn + 1 }],
     ['invalid founder', (state: GameState) => { state.sites[0].foundedBy = 'neutral' as never }],
     ['missing fortified hp', (state: GameState) => { delete state.sites.find((site) => site.kind === 'city')!.hp }],

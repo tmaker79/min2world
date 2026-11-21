@@ -38,7 +38,7 @@ type InfoPanelProps = {
   onFoundingKindSelected: (kind: FoundingKind) => void
   onFoundingCancel: () => void
   onFoundingConfirm: () => void
-  onClose: () => void
+  onClose?: () => void
 }
 
 export type FoundingKind = 'village' | BuildableSiteType
@@ -132,6 +132,7 @@ export function InfoPanel({
             type="button"
             className="city-card__close"
             aria-label={t('closeUnitInfo')}
+            disabled={!onClose}
             onClick={onClose}
           >
             ×

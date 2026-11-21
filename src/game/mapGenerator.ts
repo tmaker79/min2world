@@ -1020,7 +1020,7 @@ function getStartingUnitTypes(
     : QUICK_OPPONENT_STARTING_UNIT_TYPES
 }
 
-function getStartingResources(
+export function getStartingResources(
   gameMode: GameMode,
   factionId: FactionId,
   humanFactionId: FactionId,

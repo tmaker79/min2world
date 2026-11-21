@@ -10,7 +10,7 @@ import {
 } from './game/hex'
 import { createInitialGameState } from './game/initialState'
 import type { MapGenerationOptions } from './game/mapGenerator'
-import { getFactionIncome, TERRAIN_LABELS } from './game/rules'
+import { getFactionIncome, resolveCombat, TERRAIN_LABELS } from './game/rules'
 import { getSiteDevelopmentFootprints } from './game/siteDevelopment'
 import { getSiteOccupiedPositions } from './game/siteFootprint'
 import {
@@ -24,6 +24,7 @@ import {
   getFactionUpkeepReserve,
 } from './game/upkeep'
 import { FIRST_TURN_GUIDE_STORAGE_KEYS } from './storage/firstTurnGuide'
+import { saveGame } from './storage/saveGame'
 import { QUICK_LOCALE_STORAGE_KEY } from './i18n/locale'
 
 function createEasyPlayerState(
@@ -172,6 +173,42 @@ describe('Milestone 07 UI', () => {
     expect(screen.queryByRole('group', { name: '언어' })).not.toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Language' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '재시작' })).toBeVisible()
+  })
+
+  it('starts and switches quick-match language when access to localStorage is denied', () => {
+    window.history.replaceState({}, '', '/?mode=quick')
+    const getter = vi.spyOn(window, 'localStorage', 'get').mockImplementation(() => {
+      throw new DOMException('Storage disabled', 'SecurityError')
+    })
+    try {
+      render(<App />)
+      expect(screen.getByTestId('game-map')).toBeVisible()
+      expect(document.documentElement.lang).toBe('ko')
+      fireEvent.click(screen.getByRole('button', { name: '게임 시작' }))
+      fireEvent.click(screen.getByRole('button', { name: '언어' }))
+      fireEvent.click(screen.getByRole('menuitemradio', { name: 'English' }))
+      expect(document.documentElement.lang).toBe('en')
+      expect(screen.getByRole('button', { name: 'End Turn' })).toBeEnabled()
+    } finally {
+      getter.mockRestore()
+    }
+  })
+
+  it('loads the previous slot immediately after a failed overwrite', () => {
+    const state = createInitialGameState('save-quota', { boardSize: BOARD_SIZE_PRESETS.tiny })
+    expect(saveGame({ ...state, turn: 3 }).ok).toBe(true)
+    renderApp(state)
+    fireEvent.click(screen.getByRole('button', { name: '저장' }))
+    const panel = within(screen.getByRole('region', { name: '저장 관리' }))
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Storage full', 'QuotaExceededError')
+    })
+    fireEvent.click(panel.getByRole('button', { name: '저장' }))
+    expect(panel.getByRole('alert')).toHaveTextContent('저장 확인 필요')
+    expect(panel.getByText('3턴 저장')).toBeVisible()
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    fireEvent.click(panel.getByRole('button', { name: '불러오기' }))
+    expect(screen.getByLabelText('턴 3')).toBeVisible()
   })
 
   it('opens detailed controls from the first-turn guide', () => {
@@ -1438,6 +1475,36 @@ describe('Milestone 07 UI', () => {
     expect(screen.getByLabelText('턴 1')).toBeInTheDocument()
   })
 
+  it('keeps a first-turn construction order and its cost when restart is dismissed', () => {
+    const state = createInitialGameState('first-turn-construction', { boardSize: BOARD_SIZE_PRESETS.tiny })
+    const city = state.sites.find((site) => site.capitalFor === state.humanFactionId)!
+    const { container } = renderApp(state)
+    fireEvent.click(container.querySelector(`.map-tile[data-coordinate="${positionKey(city.position)}"]`)!)
+    fireEvent.click(screen.getByRole('tab', { name: '건설' }))
+    fireEvent.click(screen.getByRole('button', { name: /곡창.*15 자원/ }))
+
+    const restart = screen.getByRole('button', { name: '재시작' })
+    fireEvent.click(restart)
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: '취소' }))
+    expect(screen.getByText('곡창 건설 중')).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: '건설 취소' }))
+    fireEvent.click(restart)
+    expect(screen.getByRole('alertdialog')).toBeVisible()
+  })
+
+  it('keeps an AI construction queue read-only during its own turn', () => {
+    const state = createInitialGameState('opponent-construction', { boardSize: BOARD_SIZE_PRESETS.tiny })
+    const city = state.sites.find((site) => site.capitalFor === 'f2')!
+    city.constructionQueue = { buildingId: 'wall', startedTurn: 1, turnsRemaining: 2 }
+    const { container } = renderApp({ ...state, activeFactionId: 'f2' })
+    fireEvent.click(container.querySelector(`.map-tile[data-coordinate="${positionKey(city.position)}"]`)!)
+    fireEvent.click(screen.getByRole('tab', { name: '건설' }))
+    const cancel = screen.getByRole('button', { name: '건설 취소' })
+    expect(cancel).toBeDisabled()
+    fireEvent.click(cancel)
+    expect(screen.getByText('성벽 건설 중')).toBeVisible()
+  })
+
   it('opens city information before offering production from an owned stronghold', async () => {
     const user = userEvent.setup()
     const state = createInitialGameState('ui-production')
@@ -2031,6 +2098,9 @@ describe('Milestone 07 UI', () => {
     expect(target).toHaveAttribute('data-attackable-site', 'true')
 
     fireEvent.click(target)
+    const close = screen.getByRole('button', { name: '부대 정보 닫기' })
+    expect(close).toBeDisabled()
+    fireEvent.click(close)
     expect(container.querySelector('[data-testid="arrow-volley"]')).toBeInTheDocument()
     expect(container.querySelector(`[data-unit-id="${winner.id}"]`))
       .not.toHaveClass('unit-token--striking')
@@ -2129,6 +2199,32 @@ describe('Milestone 07 UI', () => {
     expect(container.querySelector(`[data-unit-id="${attacker.id}"]`))
       .toHaveClass('unit-token--striking')
     vi.useRealTimers()
+  })
+
+  it('applies an archer attack once when the unit panel close button is pressed mid-volley', () => {
+    vi.useFakeTimers()
+    try {
+      const initial = createInitialGameState('archer-close', { boardSize: BOARD_SIZE_PRESETS.tiny })
+      const defender = initial.units.find((unit) => unit.factionId === 'f2' && unit.type === 'infantry')!
+      const attacker: Unit = {
+        ...initial.units.find((unit) => unit.factionId === 'f1')!,
+        type: 'archer', position: getHexNeighbors(defender.position, initial.boardSize)[0],
+      }
+      const state = { ...initial, units: [attacker, defender], selectedUnitId: attacker.id }
+      const expectedHp = resolveCombat(state, attacker, defender).defenderHp
+      const { container } = renderApp(state)
+      fireEvent.click(container.querySelector(`.map-tile[data-coordinate="${positionKey(defender.position)}"]`)!)
+      expect(screen.getByTestId('arrow-volley')).toBeInTheDocument()
+      const close = screen.getByRole('button', { name: '부대 정보 닫기' })
+      expect(close).toBeDisabled()
+      fireEvent.click(close)
+      act(() => vi.advanceTimersByTime(200))
+      expect(container.querySelector(`[data-unit-id="${defender.id}"]`))
+        .toHaveAttribute('data-health', `${expectedHp}/${defender.maxHp}`)
+      expect(container.querySelector(`[data-unit-id="${attacker.id}"]`)).toHaveClass('unit-token--acted')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('shows a compact net income summary with an accessible economy popover', async () => {
