@@ -21,6 +21,17 @@ Object.defineProperty(window, 'matchMedia', {
   }),
 })
 
+// jsdom has no layout or native element scrolling.
+HTMLElement.prototype.scrollTo = function (options?: ScrollToOptions | number, y?: number) {
+  if (typeof options === 'number') {
+    this.scrollLeft = options
+    this.scrollTop = y ?? 0
+  } else {
+    this.scrollLeft = options?.left ?? this.scrollLeft
+    this.scrollTop = options?.top ?? this.scrollTop
+  }
+}
+
 HTMLCanvasElement.prototype.getContext = ((
   contextId: string,
 ) => {

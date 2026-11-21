@@ -6,6 +6,9 @@ export type Locale = 'ko' | 'en'
 type Params = Record<string, string | number>
 
 const ko = {
+  nextUnit: '다음 부대', selectNextUnit: '다음 부대 선택 · 행동 가능 {count}', waitUnit: '대기',
+  waitHint: '이번 턴에 이 부대의 행동을 마칩니다.',
+  controlNextUnit: '다음 부대로 행동할 부대를 찾고, 자리를 지킬 부대는 대기를 선택하세요.',
   restart: '재시작', save: '저장', help: '도움말', language: '언어',
   gameStatus: '현재 게임 상태', turn: '턴 {turn}', resourcesIncome: '자원 {resource}, 턴 순수입 {income}',
   economyDetails: '경제 상세', income: '수입', upkeep: '유지비', netIncome: '순수입', reservedUpkeep: '예약 유지비',
@@ -43,6 +46,9 @@ type TranslationKey = keyof typeof ko
 type TranslationTable = Record<TranslationKey, string>
 
 const en: TranslationTable = {
+  nextUnit: 'Next unit', selectNextUnit: 'Select next unit · {count} ready', waitUnit: 'Wait',
+  waitHint: 'End this unit’s actions for this turn.',
+  controlNextUnit: 'Use Next unit to find a unit that can act. Choose Wait to hold its position for this turn.',
   restart: 'Restart', save: 'Save', help: 'Help', language: 'Language', gameStatus: 'Current game status', turn: 'Turn {turn}', resourcesIncome: 'Resources {resource}, net income {income} this turn', economyDetails: 'Economy details', income: 'Income', upkeep: 'Upkeep', netIncome: 'Net income', reservedUpkeep: 'Reserved upkeep', aiOperating: 'AI operating…', endTurn: 'End Turn', strategyMap: 'Strategy map',
   unitInfo: 'Unit information', closeUnitInfo: 'Close unit information', health: 'Health', move: 'Move', role: 'Role', nonCombat: 'Non-combat', melee: 'Melee', ranged: 'Ranged', attack: 'Attack', unitMenu: 'Unit commands', moveReady: 'Select a destination tile.', moveUnavailable: 'No reachable tiles.', attackReady: 'Select a target to attack.', attackUnavailable: 'No targets in range.',
   siteInfo: 'Site information', closeSiteInfo: 'Close site information', owner: 'Owner', terrain: 'Terrain', movementCost: 'Movement cost', impassable: 'Impassable', defenseBonus: 'Defense bonus', defense: 'Defense', none: 'None', siteMenu: 'Site commands', production: 'Production', unitProduction: 'Unit production', supportedProductionSites: 'Supported production sites', supportingSettlement: 'Supporting settlement', supportStatus: 'Support status', militaryUnits: 'Military units', civilianUnits: 'Civilian units', resources: '{cost} resources', insufficientResources: 'Not enough resources.', upkeepReserveRequired: 'Keep {reserve} resources for the next upkeep payment.', militaryStats: 'Move {move} · Melee {melee}{ranged} · Range {range}', civilianStats: 'Move {move} · Non-combat · Upkeep {upkeep}', rangedStat: ' · Ranged {ranged}', deployPrompt: 'Deploy on a teal tile.', productionDone: 'Production complete this round', noDeployTile: 'No deployment tiles available', noProductionSite: 'No production site is available.', cancel: 'Cancel',

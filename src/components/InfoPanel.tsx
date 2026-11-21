@@ -33,6 +33,7 @@ type InfoPanelProps = {
   attackMode: boolean
   onAttackModeChange: (active: boolean) => void
   canDisband: boolean
+  onWait?: () => void
   onDisband: () => void
   foundingKind?: FoundingKind
   onFoundingKindSelected: (kind: FoundingKind) => void
@@ -88,6 +89,7 @@ export function InfoPanel({
   attackMode,
   onAttackModeChange,
   canDisband,
+  onWait,
   onDisband,
   foundingKind,
   onFoundingKindSelected,
@@ -197,6 +199,9 @@ export function InfoPanel({
           onClick={() => onAttackModeChange(!attackMode)}
         >
           <UnitActionIcon action="attack" className="command-button__icon" />
+        </button>
+        <button type="button" disabled={!onWait} onClick={onWait} title={t('waitHint')}>
+          {t('waitUnit')}
         </button>
         {state.gameMode === 'standard' && unit.type === 'settler' && (
           <button

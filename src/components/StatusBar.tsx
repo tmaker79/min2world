@@ -14,6 +14,8 @@ type StatusBarProps = {
   activeFactionId: FactionId
   humanFactionId: FactionId
   disabled: boolean
+  actionableCount: number
+  onNextUnit: () => void
   onEndTurn: () => void
 }
 
@@ -31,6 +33,8 @@ export function StatusBar({
   activeFactionId,
   humanFactionId,
   disabled,
+  actionableCount,
+  onNextUnit,
   onEndTurn,
 }: StatusBarProps) {
   const { t, formatNumber } = useLocalization()
@@ -152,6 +156,15 @@ export function StatusBar({
           )}
         </div>
       </div>
+      <button
+        className="next-unit-button"
+        type="button"
+        aria-label={t('selectNextUnit', { count: actionableCount })}
+        disabled={disabled || actionableCount === 0}
+        onClick={onNextUnit}
+      >
+        {t('nextUnit')} · {formatNumber(actionableCount)}
+      </button>
       <button
         className="end-turn-button"
         type="button"

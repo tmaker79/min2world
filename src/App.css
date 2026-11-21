@@ -948,6 +948,30 @@
   color: #ef9187;
 }
 
+.next-unit-button {
+  align-self: stretch;
+  flex: none;
+  padding-inline: 12px;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-left: 1px solid var(--panel-border);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.next-unit-button:hover:not(:disabled) {
+  background: rgb(86 215 194 / 12%);
+}
+
+.next-unit-button:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
 .end-turn-button {
   display: flex;
   align-self: stretch;
@@ -4275,7 +4299,7 @@
 
   .end-turn-button {
     width: auto;
-    min-width: 104px;
+    min-width: 76px;
     min-height: 0;
     margin-left: 0;
     padding-inline: 10px;
@@ -4284,6 +4308,11 @@
 
   .end-turn-button kbd {
     display: none;
+  }
+
+  .next-unit-button {
+    padding-inline: 8px;
+    font-size: 0.78rem;
   }
 
   .map-scroll {

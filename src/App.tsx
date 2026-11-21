@@ -63,6 +63,7 @@ import {
   UNIT_STATS,
 } from './game/rules'
 import {
+  getActionablePlayerUnits,
   getSelectedUnit,
   getSelectedUnitAttackableSites,
   getSelectedUnitAttackableUnits,
@@ -71,7 +72,7 @@ import {
 import { getSiteOccupiedPositions } from './game/siteFootprint'
 import { getTileIndex } from './game/spatialIndex'
 import { createTerritoryIndex } from './game/territory'
-import type { GameState, Site, Tile, Unit, UnitType } from './game/types'
+import type { GameState, Position, Site, Tile, Unit, UnitType } from './game/types'
 import {
   getFactionNetIncome,
   getFactionUpkeep,
@@ -328,6 +329,7 @@ function GameApp({
       ? productionUnitType
       : undefined
   const selectedUnit = getSelectedUnit(state)
+  const actionableUnits = useMemo(() => getActionablePlayerUnits(state), [state])
   const foundingKind =
     foundingSelection && foundingSelection.unitId === selectedUnit?.id
       ? foundingSelection.kind
@@ -493,79 +495,66 @@ function GameApp({
     return new Set<string>()
   }, [foundingKind, selectedUnit, state])
 
+  const centerMapOn = useCallback((position: Position) => {
+    if (!mapScrollElement) return
+    const targetTile = mapScrollElement.querySelector<HTMLElement>(
+      `.map-tile[data-coordinate="${positionKey(position)}"]`,
+    )
+    const mapContent = mapScrollElement.querySelector<HTMLElement>(
+      '.map-zoom-shell',
+    )
+    if (!targetTile || !mapContent) return
+
+    const scrollBounds = mapScrollElement.getBoundingClientRect()
+    const tileBounds = targetTile.getBoundingClientRect()
+    const mapBounds = mapContent.getBoundingClientRect()
+    const mapFitsWidth = mapBounds.width <= mapScrollElement.clientWidth
+    const mapFitsHeight = mapBounds.height <= mapScrollElement.clientHeight
+    const horizontalFocusBounds = mapFitsWidth ? mapBounds : tileBounds
+    const verticalFocusBounds = mapFitsHeight ? mapBounds : tileBounds
+
+    const targetScrollLeft =
+      mapScrollElement.scrollLeft +
+        horizontalFocusBounds.left +
+        horizontalFocusBounds.width / 2 -
+        scrollBounds.left -
+        mapScrollElement.clientWidth / 2
+    const targetScrollTop =
+      mapScrollElement.scrollTop +
+        verticalFocusBounds.top +
+        verticalFocusBounds.height / 2 -
+        scrollBounds.top -
+        mapScrollElement.clientHeight / 2
+
+    const minimumScrollLeft =
+      mapScrollElement.scrollLeft + mapBounds.left - scrollBounds.left
+    const maximumScrollLeft =
+      minimumScrollLeft + mapBounds.width - mapScrollElement.clientWidth
+    const minimumScrollTop =
+      mapScrollElement.scrollTop + mapBounds.top - scrollBounds.top
+    const maximumScrollTop =
+      minimumScrollTop + mapBounds.height - mapScrollElement.clientHeight
+
+    mapScrollElement.scrollTo({
+      left: Math.max(0, mapFitsWidth
+        ? targetScrollLeft
+        : Math.min(maximumScrollLeft, Math.max(minimumScrollLeft, targetScrollLeft))),
+      top: Math.max(0, mapFitsHeight
+        ? targetScrollTop
+        : Math.min(maximumScrollTop, Math.max(minimumScrollTop, targetScrollTop))),
+      behavior: 'instant',
+    })
+    hasCenteredInitialMapRef.current = true
+  }, [mapScrollElement])
+
   useEffect(() => {
-    if (
-      hasCenteredInitialMapRef.current ||
-      !mapScrollElement ||
-      !playerCapitalPosition
-    ) return
+    if (hasCenteredInitialMapRef.current || !mapScrollElement || !playerCapitalPosition) return
 
     const frame = window.requestAnimationFrame(() => {
-      const capitalTile = mapScrollElement.querySelector<HTMLElement>(
-        `.map-tile[data-coordinate="${positionKey(playerCapitalPosition)}"]`,
-      )
-      const mapContent = mapScrollElement.querySelector<HTMLElement>(
-        '.map-zoom-shell',
-      )
-      if (!capitalTile || !mapContent) return
-
-      const scrollBounds = mapScrollElement.getBoundingClientRect()
-      const tileBounds = capitalTile.getBoundingClientRect()
-      const mapBounds = mapContent.getBoundingClientRect()
-      const mapFitsWidth = mapBounds.width <= mapScrollElement.clientWidth
-      const mapFitsHeight = mapBounds.height <= mapScrollElement.clientHeight
-      const horizontalFocusBounds = mapFitsWidth ? mapBounds : tileBounds
-      const verticalFocusBounds = mapFitsHeight ? mapBounds : tileBounds
-
-      const targetScrollLeft =
-        mapScrollElement.scrollLeft +
-          horizontalFocusBounds.left +
-          horizontalFocusBounds.width / 2 -
-          scrollBounds.left -
-          mapScrollElement.clientWidth / 2
-      const targetScrollTop =
-        mapScrollElement.scrollTop +
-          verticalFocusBounds.top +
-          verticalFocusBounds.height / 2 -
-          scrollBounds.top -
-          mapScrollElement.clientHeight / 2
-
-      const minimumScrollLeft =
-        mapScrollElement.scrollLeft + mapBounds.left - scrollBounds.left
-      const maximumScrollLeft =
-        minimumScrollLeft + mapBounds.width - mapScrollElement.clientWidth
-      const minimumScrollTop =
-        mapScrollElement.scrollTop + mapBounds.top - scrollBounds.top
-      const maximumScrollTop =
-        minimumScrollTop + mapBounds.height - mapScrollElement.clientHeight
-
-      mapScrollElement.scrollLeft = Math.max(
-        0,
-        mapFitsWidth
-          ? targetScrollLeft
-          : Math.min(
-              maximumScrollLeft,
-              Math.max(minimumScrollLeft, targetScrollLeft),
-            ),
-      )
-      mapScrollElement.scrollTop = Math.max(
-        0,
-        mapFitsHeight
-          ? targetScrollTop
-          : Math.min(
-              maximumScrollTop,
-              Math.max(minimumScrollTop, targetScrollTop),
-            ),
-      )
-      hasCenteredInitialMapRef.current = true
+      if (!hasCenteredInitialMapRef.current) centerMapOn(playerCapitalPosition)
     })
-
     return () => window.cancelAnimationFrame(frame)
-  }, [
-    mapScrollElement,
-    playerCapitalPosition,
-    state.tiles,
-  ])
+  }, [centerMapOn, mapScrollElement, playerCapitalPosition, state.tiles])
 
   const startCombat = useCallback(
     (attackerId: string, defenderId: string) => {
@@ -637,6 +626,36 @@ function GameApp({
     [siteLabel, siteName, t, unitLabel, unitName],
   )
   const combatActive = Boolean(activeCombat || activeSiteAttack)
+  const playerCanAct = state.phase === 'playing' &&
+    state.activeFactionId === state.humanFactionId && !combatActive
+  const canWait = playerCanAct && selectedUnit?.factionId === state.humanFactionId &&
+    !selectedUnit.hasActed
+
+  const selectNextUnit = (wait: boolean) => {
+    if (!playerCanAct || (wait && !canWait)) return
+    const currentIndex = selectedUnit ? state.units.indexOf(selectedUnit) : -1
+    const next = state.units.slice(currentIndex + 1).find((unit) => actionableUnits.has(unit)) ??
+      actionableUnits.values().next().value
+
+    setActiveMoveUnitId(undefined)
+    setActiveAttackUnitId(undefined)
+    setProductionUnitType(undefined)
+    setProductionFeedback(undefined)
+    setActiveSiteTab(undefined)
+    setDevelopmentFootprintIndex(0)
+    setFoundingSelection(undefined)
+    setCityInfoSiteId(undefined)
+    setInspectedTileKey(undefined)
+    setPreviewTileKey(undefined)
+    setMobileInfoExpanded(false)
+    closeSidebarOverlayMinimap()
+
+    if (wait && selectedUnit) dispatch({ type: 'unitWaited', unitId: selectedUnit.id })
+    if (!next || (wait && next === selectedUnit)) return
+    if (next !== selectedUnit) dispatch({ type: 'unitSelected', unitId: next.id })
+    centerMapOn(next.position)
+  }
+
   const aiAnnouncement = useAiTurn({
     state,
     combatActive,
@@ -1234,11 +1253,9 @@ function GameApp({
               )}
               activeFactionId={state.activeFactionId}
               humanFactionId={state.humanFactionId}
-              disabled={
-                state.phase !== 'playing' ||
-                state.activeFactionId !== state.humanFactionId ||
-                combatActive
-              }
+              disabled={!playerCanAct}
+              actionableCount={actionableUnits.size}
+              onNextUnit={() => selectNextUnit(false)}
               onEndTurn={() => {
                 setActiveMoveUnitId(undefined)
                 setProductionUnitType(undefined)
@@ -1613,6 +1630,7 @@ function GameApp({
                   <InfoPanel
                     state={state}
                     unit={sidebarContent.unit}
+                    onWait={canWait ? () => selectNextUnit(true) : undefined}
                     canMove={canEnterMoveMode}
                     moveMode={isMoveMode}
                     canAttack={canEnterAttackMode}

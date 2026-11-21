@@ -1475,6 +1475,46 @@ describe('Milestone 07 UI', () => {
     expect(screen.getByLabelText('턴 1')).toBeInTheDocument()
   })
 
+  it.each(['quick', 'standard'] as const)('cycles through %s units and waits without ending the turn', (gameMode) => {
+    const initial = createInitialGameState('cycle-and-wait', { gameMode, boardSize: BOARD_SIZE_PRESETS.tiny })
+    const [first, spent, last] = initial.units.filter((unit) => unit.factionId === 'f1')
+    const state = {
+      ...initial,
+      units: [first, { ...spent, hasActed: true, movementRemaining: 0 }, last],
+      tiles: initial.tiles.map((tile) => ({ ...tile, terrain: 'plain' as const })),
+    }
+    const { container } = renderApp(state)
+    const next = screen.getByRole('button', { name: /다음 부대 선택/ })
+    const selected = () => container.querySelector('.unit-token--selected')?.getAttribute('data-unit-id')
+    expect(next).toHaveTextContent('다음 부대 · 2')
+    fireEvent.click(next)
+    expect(selected()).toBe(first.id)
+    fireEvent.click(within(screen.getByRole('toolbar')).getByRole('button', { name: '이동' }))
+    expect(screen.getByLabelText('부대 이동')).toBeInTheDocument()
+    fireEvent.click(next)
+    expect(screen.queryByLabelText('부대 이동')).not.toBeInTheDocument()
+    expect(selected()).toBe(last.id)
+    fireEvent.click(next)
+    expect(selected()).toBe(first.id)
+    fireEvent.click(container.querySelector(`.map-tile[data-coordinate="${positionKey(spent.position)}"]`)!)
+    expect(screen.getByRole('button', { name: '대기' })).toBeDisabled()
+    fireEvent.click(next)
+    expect(selected()).toBe(last.id)
+    fireEvent.click(screen.getByRole('button', { name: '대기' }))
+    expect(selected()).toBe(first.id)
+    expect(next).toHaveTextContent('다음 부대 · 1')
+    fireEvent.click(next)
+    expect(selected()).toBe(first.id)
+    const scroll = container.querySelector<HTMLElement>('.map-scroll')!
+    scroll.scrollLeft = 67
+    fireEvent.click(screen.getByRole('button', { name: '대기' }))
+    expect(selected()).toBeUndefined()
+    expect(next).toBeDisabled()
+    expect(next).toHaveTextContent('다음 부대 · 0')
+    expect(scroll.scrollLeft).toBe(67)
+    expect(screen.getByRole('button', { name: '턴 종료' })).toBeEnabled()
+  })
+
   it('keeps a first-turn construction order and its cost when restart is dismissed', () => {
     const state = createInitialGameState('first-turn-construction', { boardSize: BOARD_SIZE_PRESETS.tiny })
     const city = state.sites.find((site) => site.capitalFor === state.humanFactionId)!
@@ -1662,6 +1702,22 @@ describe('Milestone 07 UI', () => {
     expect(
       container.querySelector('.mobile-info-sheet__toggle'),
     ).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('drops a pending deployment when cycling to a unit', () => {
+    const state = createInitialGameState('unit-cycle-deployment', { boardSize: BOARD_SIZE_PRESETS.tiny })
+    const city = state.sites.find((site) => site.capitalFor === state.humanFactionId)!
+    const { container } = renderApp(state)
+    fireEvent.click(container.querySelector(`.map-tile[data-coordinate="${positionKey(city.position)}"]`)!)
+    fireEvent.click(screen.getByRole('tab', { name: '생산' }))
+    fireEvent.click(container.querySelector('.production-option:not(:disabled)')!)
+    expect(screen.getByLabelText('부대 배치')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /다음 부대 선택/ }))
+    expect(screen.queryByLabelText('부대 배치')).not.toBeInTheDocument()
+    expect(container.querySelector('[data-deployable="true"]')).toBeNull()
+    expect(container.querySelector('.unit-token--selected')).toBeInTheDocument()
+    expect(container.querySelectorAll('.unit-token')).toHaveLength(state.units.length)
   })
 
   it('starts and cancels free player City construction without a slot limit', async () => {
@@ -2099,6 +2155,8 @@ describe('Milestone 07 UI', () => {
 
     fireEvent.click(target)
     const close = screen.getByRole('button', { name: '부대 정보 닫기' })
+    expect(screen.getByRole('button', { name: /다음 부대 선택/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '대기' })).toBeDisabled()
     expect(close).toBeDisabled()
     fireEvent.click(close)
     expect(container.querySelector('[data-testid="arrow-volley"]')).toBeInTheDocument()
@@ -2362,6 +2420,8 @@ describe('Milestone 07 UI', () => {
     })
 
     expect(screen.getByRole('button', { name: '해산' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /다음 부대 선택/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '대기' })).toBeDisabled()
   })
 
   it('waives projected upkeep and production costs for the player', async () => {
