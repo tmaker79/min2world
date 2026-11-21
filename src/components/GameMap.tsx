@@ -708,6 +708,16 @@ function UnitMarker({
           } as CSSProperties
         }
       >
+        {selected && (
+          <svg
+            className="unit-selection-marker"
+            viewBox="0 0 18 13"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d="M2 2h14l-7 9Z" strokeWidth="2" strokeLinejoin="round" />
+          </svg>
+        )}
         <span className="unit-symbol">
           <UnitIcon type={unit.type} />
         </span>
