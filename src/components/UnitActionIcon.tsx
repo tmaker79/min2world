@@ -1,4 +1,4 @@
-type UnitAction = 'move' | 'attack'
+type UnitAction = 'move' | 'attack' | 'wait'
 
 type UnitActionIconProps = {
   action: UnitAction
@@ -19,7 +19,7 @@ export function UnitActionIcon({ action, className }: UnitActionIconProps) {
       focusable="false"
       data-unit-action-icon={action}
     >
-      {action === 'move' ? (
+      {action === 'move' && (
         <>
           <circle cx="12" cy="12" r="9.2" strokeWidth="2.2" />
           <path
@@ -28,7 +28,8 @@ export function UnitActionIcon({ action, className }: UnitActionIconProps) {
             stroke="none"
           />
         </>
-      ) : (
+      )}
+      {action === 'attack' && (
         <>
           <path
             d="M2.5 2.5h7v3H5.5v4h-3v-7Zm12 0h7v7h-3v-4h-4v-3Zm-12 12h3v4h4v3h-7v-7Zm16 0h3v7h-7v-3h4v-4Z"
@@ -40,6 +41,12 @@ export function UnitActionIcon({ action, className }: UnitActionIconProps) {
             fill="currentColor"
             stroke="none"
           />
+        </>
+      )}
+      {action === 'wait' && (
+        <>
+          <path d="M5 3h14M5 21h14M6.5 3v2c0 3 2.8 5.2 5.5 7-2.7 1.8-5.5 4-5.5 7v2m11-18v2c0 3-2.8 5.2-5.5 7 2.7 1.8 5.5 4 5.5 7v2" />
+          <path d="m8.5 19 3.5-3.5 3.5 3.5Z" fill="currentColor" stroke="none" />
         </>
       )}
     </svg>

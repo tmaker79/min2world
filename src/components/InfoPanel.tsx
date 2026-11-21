@@ -200,8 +200,15 @@ export function InfoPanel({
         >
           <UnitActionIcon action="attack" className="command-button__icon" />
         </button>
-        <button type="button" disabled={!onWait} onClick={onWait} title={t('waitHint')}>
-          {t('waitUnit')}
+        <button
+          className="command-button"
+          type="button"
+          aria-label={t('waitUnit')}
+          disabled={!onWait}
+          title={t('waitHint')}
+          onClick={onWait}
+        >
+          <UnitActionIcon action="wait" className="command-button__icon" />
         </button>
         {state.gameMode === 'standard' && unit.type === 'settler' && (
           <button

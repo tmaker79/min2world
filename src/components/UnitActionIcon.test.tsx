@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { UnitActionIcon } from './UnitActionIcon'
 
 describe('UnitActionIcon', () => {
-  it.each(['move', 'attack'] as const)('renders the %s vector icon', (action) => {
+  it.each(['move', 'attack', 'wait'] as const)('renders the %s vector icon', (action) => {
     const { container } = render(
       <UnitActionIcon action={action} className="test-action-icon" />,
     )

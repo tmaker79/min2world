@@ -192,15 +192,11 @@ describe('InfoPanel unit commands', () => {
       />,
     )
 
-    const moveButton = screen.getByRole('button', { name: '이동' })
-    const attackButton = screen.getByRole('button', { name: '공격' })
-
-    expect(moveButton.textContent).toBe('')
-    expect(attackButton.textContent).toBe('')
-    expect(moveButton.querySelector('[data-unit-action-icon="move"]'))
-      .toBeInTheDocument()
-    expect(attackButton.querySelector('[data-unit-action-icon="attack"]'))
-      .toBeInTheDocument()
+    for (const [action, name] of [['move', '이동'], ['attack', '공격'], ['wait', '대기']]) {
+      const button = screen.getByRole('button', { name })
+      expect(button.textContent).toBe('')
+      expect(button.querySelector(`[data-unit-action-icon="${action}"]`)).toBeInTheDocument()
+    }
     expect(screen.queryByRole('button', { name: '해산' })).not.toBeInTheDocument()
   })
 })
