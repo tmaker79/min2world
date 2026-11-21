@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { BOARD_SIZE_PRESETS } from './hex'
+import { BOARD_SIZE_PRESETS, getHexDistance } from './hex'
 import { createInitialGameState } from './initialState'
+import { getMovementStepCost } from './movement'
 import { createGameSession, gameSessionReducer } from './turnSummary'
 import type { GameState, Site, Unit } from './types'
 
@@ -31,6 +32,43 @@ function exampleGame(): GameState {
     tiles: initial.tiles.map((tile) => ({ ...tile, terrain: 'plain', siteId: undefined })),
   }
 }
+
+describe('movement in a game session', () => {
+  it.each(['f1', 'f2'] as const)('charges %s for the path sent to the map', (factionId) => {
+    const initial = exampleGame()
+    const unit: Unit = {
+      ...initial.units[0], type: 'cavalry', id: 'rider', factionId,
+      position: { q: -3, r: -2 }, movementRemaining: 4, hasActed: false,
+    }
+    const water = { q: -2, r: -2 }, destination = { q: -1, r: -2 }
+    const game: GameState = {
+      ...initial, activeFactionId: factionId, selectedUnitId: unit.id, units: [unit],
+      tiles: initial.tiles.map(tile => {
+        if (tile.position.r !== -2) return tile
+        if (tile.position.q === water.q) return { ...tile, terrain: 'water' }
+        if (tile.position.q === destination.q) return { ...tile, terrain: 'forest' }
+        return tile
+      }),
+    }
+    const session = createGameSession(game)
+    const move = { type: 'unitMoved' as const, unitId: unit.id, destination }
+    expect(gameSessionReducer(session, { ...move, destination: water })).toBe(session)
+    const moved = gameSessionReducer(session, move)
+    const path = moved.movement!.path
+    expect(path).toHaveLength(4)
+    expect(path[0]).toEqual(unit.position)
+    expect(path.at(-1)).toEqual(destination)
+    expect(path.slice(1).every((step, i) => getHexDistance(path[i], step) === 1)).toBe(true)
+    expect(path).not.toContainEqual(water)
+    const cost = path.slice(1).reduce((sum, step, i) => sum + getMovementStepCost(game, path[i], step)!, 0)
+    expect(cost).toBe(4)
+    expect(moved.game.units[0].movementRemaining).toBe(unit.movementRemaining - cost)
+    expect(moved.movement!.stoppedByZoneOfControl).toBe(false)
+    expect(gameSessionReducer(moved, move)).toBe(moved)
+    expect(gameSessionReducer(moved, { type: 'turnEnded' }).movement).toBeUndefined()
+    expect(gameSessionReducer(moved, { type: 'gameLoaded', state: moved.game }).movement).toBeUndefined()
+  })
+})
 
 describe('player turn summaries', () => {
   it('collects losses across AI factions and construction completed on return', () => {

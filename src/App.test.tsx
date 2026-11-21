@@ -1098,6 +1098,38 @@ describe('Milestone 07 UI', () => {
     )
   })
 
+  it.each([
+    { type: 'cavalry', remaining: 4, message: '적 통제 구역 · 이동 정지 · 공격 가능' },
+    { type: 'builder', remaining: 2, message: '적 통제 구역 · 이동 정지' },
+    { type: 'cavalry', remaining: 1, message: null },
+  ] as const)('shows the stop reason for $type with $remaining movement', ({ type, remaining, message }) => {
+    vi.useFakeTimers()
+    try {
+      const initial = createInitialGameState('zone-stop-notice')
+      const rider = {
+        ...initial.units.find(unit => unit.factionId === initial.humanFactionId)!,
+        type, position: { q: 0, r: 0 }, movementRemaining: remaining,
+      }
+      const guard = {
+        ...initial.units.find(unit => unit.factionId !== rider.factionId)!,
+        type: 'infantry' as const, position: { q: 2, r: 0 },
+      }
+      const { container } = renderApp({
+        ...initial, selectedUnitId: rider.id, units: [rider, guard],
+        sites: initial.sites.filter(site => site.capitalFor),
+        tiles: initial.tiles.map(tile => ({ ...tile, terrain: 'plain' })),
+      })
+      fireEvent.contextMenu(container.querySelector('.map-tile[data-coordinate="1,0"]')!)
+      act(() => vi.advanceTimersByTime(1))
+      expect(container.querySelector('.unit-token--selected')).toHaveAttribute('data-coordinate', '1,0')
+      expect(container.querySelector('.movement-stop-notice')?.textContent ?? null).toBe(message)
+      act(() => vi.advanceTimersByTime(1600))
+      expect(container.querySelector('.movement-stop-notice')).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('does not move on left-click of a reachable cell', async () => {
     const user = userEvent.setup()
     const state = createInitialGameState('ui-move-left')
@@ -1312,9 +1344,7 @@ describe('Milestone 07 UI', () => {
     const mapOverlay = container.querySelector('.map-stage > .combat-overlay')
     expect(mapOverlay).toBeEmptyDOMElement()
     expect(attackButton).toBeEnabled()
-    expect(
-      container.querySelectorAll('[data-reachable="true"]').length,
-    ).toBeGreaterThan(0)
+    const emptyTile = container.querySelector<HTMLButtonElement>('[data-reachable="true"]')!
     fireEvent.click(attackButton)
     expect(attackButton).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByLabelText('부대 공격')).toHaveTextContent(
@@ -1327,6 +1357,9 @@ describe('Milestone 07 UI', () => {
     expect(container.querySelector('.map-tile--zoc')).toBeNull()
     expect(container.querySelectorAll('[data-reachable="true"]')).toHaveLength(0)
     expect(container.querySelectorAll('.reachable-area-mark')).toHaveLength(0)
+    fireEvent.contextMenu(emptyTile)
+    expect(container.querySelector('.unit-token--selected')).toHaveAttribute('data-coordinate', positionKey(attacker.position))
+    expect(screen.getByLabelText('부대 정보')).toHaveTextContent('2 / 2')
     expect(
       container.querySelector(
         `.map-tile[data-coordinate="${positionKey(defender.position)}"]`,

@@ -1,5 +1,5 @@
-import type { CSSProperties } from 'react'
-import { memo, useMemo, useRef } from 'react'
+import type { CSSProperties, Ref } from 'react'
+import { memo, useLayoutEffect, useMemo, useRef } from 'react'
 import farmLevel2Icon from '../assets/sites/farm-level-2.png'
 import farmLevel3Icon from '../assets/sites/farm-level-3.png'
 import farmLevel1Icon from '../assets/sites/farm.png'
@@ -40,6 +40,8 @@ import type {
   Unit,
 } from '../game/types'
 import { getSiteOccupiedPositions } from '../game/siteFootprint'
+import type { UnitMovement } from '../game/movement'
+import { useUnitMovement } from '../hooks/useUnitMovement'
 import { getMapCameraGutter } from '../hooks/useMapZoom'
 import { useMapViewport } from '../hooks/useMapViewport'
 import { useLocalization, type Localization } from '../i18n/locale'
@@ -219,6 +221,7 @@ type GameMapProps = {
   selectedSiteId?: string
   inspectedTileKey?: string
   combatTargetKey?: string
+  movement?: UnitMovement
   combatAnimation?: CombatAnimation
   siteAttackAnimation?: SiteAttackAnimation
   showSiteAssetPreview?: boolean
@@ -624,6 +627,7 @@ function SiteAssetPreviewMarker({
 
 function UnitMarker({
   unit,
+  cellRef,
   selected,
   attackable,
   combatAnimation,
@@ -631,6 +635,7 @@ function UnitMarker({
   style,
 }: {
   unit: Unit
+  cellRef?: Ref<HTMLSpanElement>
   selected: boolean
   attackable: boolean
   combatAnimation?: CombatAnimation
@@ -679,6 +684,7 @@ function UnitMarker({
 
   return (
     <span
+      ref={cellRef}
       className={`map-overlay-cell${attackable ? ' map-overlay-cell--attackable' : ''}`}
       style={style}
     >
@@ -731,6 +737,7 @@ function GameMapComponent({
   selectedSiteId,
   inspectedTileKey,
   combatTargetKey,
+  movement,
   combatAnimation,
   siteAttackAnimation,
   showSiteAssetPreview = false,
@@ -742,6 +749,7 @@ function GameMapComponent({
 }: GameMapProps) {
   const { t } = useLocalization()
   const viewport = useMapViewport(scrollElement)
+  const { movingCell, showStopNotice } = useUnitMovement(movement, state.activeFactionId === state.humanFactionId)
   const cameraGutterX = getMapCameraGutter(
     scrollElement?.clientWidth ?? 0,
     MAP_CAMERA_MINIMUM_GUTTER,
@@ -807,6 +815,27 @@ function GameMapComponent({
   const { minimumX, minimumY, maximumX, maximumY } = layout
   const logicalWidth = maximumX - minimumX + HEX_WIDTH
   const logicalHeight = maximumY - minimumY + HEX_HEIGHT
+  const stopTile = showStopNotice && movement
+    ? layout.byKey.get(positionKey(movement.path[movement.path.length - 1]))
+    : undefined
+  const noticeRef = useRef<HTMLSpanElement>(null)
+  const stopMessage = attackableKeys.size > 0 || attackableSiteKeys.size > 0
+    ? t('moveStoppedCanAttack') : t('moveStopped')
+  useLayoutEffect(() => {
+    const label = noticeRef.current
+    if (!stopTile || !label || !scrollElement) return
+
+    const view = scrollElement.getBoundingClientRect()
+    const tile = label.parentElement!.getBoundingClientRect()
+    if (tile.right < view.left || tile.left > view.right || tile.bottom < view.top || tile.top > view.bottom) return
+    const width = label.offsetWidth
+    const height = label.offsetHeight
+    const centered = tile.left + (tile.width - width) / 2
+    const left = Math.max(view.left + 4, Math.min(centered, view.right - width - 4))
+    const top = tile.top - height >= view.top ? tile.top - height : tile.bottom
+    label.style.left = `${(left - tile.left) / zoom}px`
+    label.style.top = `${(top - tile.top) / zoom}px`
+  }, [stopTile, stopMessage, scrollElement, viewport, zoom])
   const boardKeys = useMemo(
     () => new Set(state.tiles.map((tile) => positionKey(tile.position))),
     [state.tiles],
@@ -1098,6 +1127,7 @@ function GameMapComponent({
           <UnitMarker
             key={unit.id}
             unit={unit}
+            cellRef={movement?.unitId === unit.id ? movingCell : undefined}
             selected={unit.id === state.selectedUnitId}
             attackable={attackableKeys.has(positionKey(unit.position))}
             combatAnimation={combatAnimation}
@@ -1146,6 +1176,16 @@ function GameMapComponent({
               <span className="damage-popup">-{siteAttackAnimation.damage}</span>
             </span>
           )}
+      </div>
+
+      <div className="map-layer map-layer--effects" role="status" aria-atomic="true">
+        {stopTile && (
+          <span className="map-overlay-cell" style={stopTile.style}>
+            <span className="movement-stop-notice" ref={noticeRef} style={{ transform: `scale(${1 / zoom})` }}>
+              {stopMessage}
+            </span>
+          </span>
+        )}
       </div>
 
       {combatAnimation && (

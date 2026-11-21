@@ -9,6 +9,7 @@ import {
   getFactionIncome,
   getHexDistance,
   getMovementCost,
+  getMovementRoute,
   getProducibleUnitTypes,
   getReachablePositions,
   getCombatDamage,
@@ -131,6 +132,9 @@ describe('hex movement rules', () => {
 
     expect(getMovementCost(state, mover, ally.position)).toBeUndefined()
     expect(getMovementCost(state, mover, { q: 2, r: 0 })).toBe(2)
+    expect(getMovementRoute(state, mover, ally.position)).toBeUndefined()
+    expect(getMovementRoute(state, mover, { q: 2, r: 0 })?.path)
+      .toEqual([mover.position, ally.position, { q: 2, r: 0 }])
   })
 
   it('still blocks enemy-occupied tiles', () => {

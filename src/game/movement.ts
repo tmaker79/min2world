@@ -42,6 +42,14 @@ export function getReachablePositionCosts(
   state: GameState,
   unit: Unit,
 ): Map<string, number> {
+  return findReachableCosts(state, unit)
+}
+
+function findReachableCosts(
+  state: GameState,
+  unit: Unit,
+  previous?: Map<string, Position>,
+): Map<string, number> {
   if (
     state.phase !== 'playing' ||
     unit.hasActed ||
@@ -108,6 +116,7 @@ export function getReachablePositionCosts(
         continue
       }
       bestCosts.set(neighborKey, nextCost)
+      previous?.set(neighborKey, current.position)
       frontier.push({ position: neighbor, cost: nextCost })
     }
   }
@@ -117,6 +126,27 @@ export function getReachablePositionCosts(
     bestCosts.delete(alliedKey)
   }
   return bestCosts
+}
+
+export function getMovementRoute(state: GameState, unit: Unit, destination: Position) {
+  const previous = new Map<string, Position>()
+  const costs = findReachableCosts(state, unit, previous)
+  const cost = costs.get(positionKey(destination))
+  if (cost === undefined) return
+
+  const path = [destination]
+  let parent = previous.get(positionKey(destination))
+  while (parent) {
+    path.push(parent)
+    parent = previous.get(positionKey(parent))
+  }
+  return { cost, path: path.reverse() }
+}
+
+export type UnitMovement = {
+  unitId: string
+  path: readonly Position[]
+  stoppedByZoneOfControl: boolean
 }
 
 export function getReachablePositions(state: GameState, unit: Unit): Position[] {

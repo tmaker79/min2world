@@ -1982,6 +1982,23 @@
   pointer-events: none;
 }
 
+.movement-stop-notice {
+  position: absolute;
+  transform-origin: top left;
+  width: max-content;
+  max-width: 11rem;
+  padding: 4px 8px;
+  border: 1px solid #bb9951;
+  border-radius: 4px;
+  background: #192329;
+  color: #ffe6a3;
+  font-size: .75rem;
+  line-height: 1.35;
+  text-align: center;
+  word-break: keep-all;
+  pointer-events: none;
+}
+
 .map-tile {
   --hex-border: rgba(26, 38, 39, 0.2);
   position: absolute;

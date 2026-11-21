@@ -18,20 +18,19 @@ import {
   getCapitalPhase,
   getDeployablePositions,
   getFactionIncome,
-  getMovementCost,
-  getSiteAt,
+  getMovementRoute,
   getSiteHpAfterCapture,
   getSiteMaxHp,
   getUnitProductionCost,
   isCivilianUnitType,
   isPositionInEnemyZoneOfControl,
-  isFortifiedSite,
   resolveCombat,
   resolveSiteCombat,
   UNIT_MAX_HP,
   UNIT_TYPE_LABELS,
   UNIT_STATS,
 } from './rules'
+import type { UnitMovement } from './movement'
 import type { FactionId, GameAction, GameState, Site } from './types'
 import {
   canSpendWithUpkeepReserve,
@@ -62,6 +61,42 @@ function getFactionOrderAfterCapture(
   return defeatedFactionId
     ? state.factionOrder.filter((factionId) => factionId !== defeatedFactionId)
     : state.factionOrder
+}
+
+export function resolveUnitMove(
+  state: GameState,
+  action: Extract<GameAction, { type: 'unitMoved' }>,
+): { game: GameState; movement: UnitMovement } | undefined {
+  if (state.selectedUnitId !== action.unitId) return
+  const unit = state.units.find((candidate) => candidate.id === action.unitId)
+  if (!unit) return
+  const route = getMovementRoute(state, unit, action.destination)
+  if (!route) return
+
+  const afterCost = unit.movementRemaining - route.cost
+  const stoppedByZoneOfControl = afterCost > 0 &&
+    isPositionInEnemyZoneOfControl(state, unit.factionId, action.destination)
+  const sites = isCivilianUnitType(unit.type)
+    ? state.sites
+    : captureSiteAt(state.sites, action.destination, unit.factionId, state.turn)
+  const factionOrder = getFactionOrderAfterCapture(state, sites, unit.factionId)
+  const movedUnit = {
+    ...unit,
+    position: { ...action.destination },
+    movementRemaining: stoppedByZoneOfControl ? 0 : afterCost,
+    hasActed: afterCost === 0,
+  }
+
+  return {
+    game: {
+      ...state,
+      phase: getCapitalPhase(sites, state.humanFactionId, factionOrder),
+      factionOrder,
+      sites,
+      units: state.units.map((candidate) => candidate.id === unit.id ? movedUnit : candidate),
+    },
+    movement: { unitId: unit.id, path: route.path, stoppedByZoneOfControl },
+  }
 }
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
@@ -125,79 +160,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'selectionCleared':
       return state.selectedUnitId ? { ...state, selectedUnitId: undefined } : state
 
-    case 'unitMoved': {
-      if (state.selectedUnitId !== action.unitId) {
-        return state
-      }
-
-      const unit = state.units.find((candidate) => candidate.id === action.unitId)
-      if (!unit || unit.factionId !== state.activeFactionId || unit.hasActed) {
-        return state
-      }
-
-      const destinationSite = getSiteAt(state, action.destination)
-      if (
-        destinationSite &&
-        isFortifiedSite(destinationSite) &&
-        destinationSite.ownerId !== unit.factionId
-      ) {
-        return state
-      }
-
-      const movementCost = getMovementCost(state, unit, action.destination)
-
-      if (movementCost === undefined) {
-        return state
-      }
-
-      const movementAfterCost = unit.movementRemaining - movementCost
-      const stoppedByZoneOfControl =
-        movementAfterCost > 0 &&
-        isPositionInEnemyZoneOfControl(
-          state,
-          unit.factionId,
-          action.destination,
-        )
-      const movementRemaining = stoppedByZoneOfControl
-        ? 0
-        : movementAfterCost
-
-      const sites = isCivilianUnitType(unit.type)
-        ? state.sites
-        : captureSiteAt(
-            state.sites,
-            action.destination,
-            unit.factionId,
-            state.turn,
-          )
-      const factionOrder = getFactionOrderAfterCapture(
-        state,
-        sites,
-        unit.factionId,
-      )
-
-      return {
-        ...state,
-        phase: getCapitalPhase(
-          sites,
-          state.humanFactionId,
-          state.factionOrder,
-        ),
-        factionOrder,
-        selectedUnitId: unit.id,
-        sites,
-        units: state.units.map((candidate) =>
-          candidate.id === action.unitId
-            ? {
-                ...candidate,
-                position: { ...action.destination },
-                movementRemaining,
-                hasActed: movementRemaining === 0 && !stoppedByZoneOfControl,
-              }
-            : candidate,
-        ),
-      }
-    }
+    case 'unitMoved':
+      return resolveUnitMove(state, action)?.game ?? state
 
     case 'unitAttacked': {
       if (state.selectedUnitId !== action.attackerId) {

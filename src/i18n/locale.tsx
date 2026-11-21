@@ -6,6 +6,7 @@ export type Locale = 'ko' | 'en'
 type Params = Record<string, string | number>
 
 const ko = {
+  moveStopped: '적 통제 구역 · 이동 정지', moveStoppedCanAttack: '적 통제 구역 · 이동 정지 · 공격 가능',
   combatPreview: '전투 결과 미리보기', attacker: '공격 측', defender: '방어 측',
   previewHp: 'HP {before} → {after} · 피해 {damage}', unitDestroyed: '{name} 전멸',
   previewCapture: '{name} 점령 · 점령 후 HP {hp}',
@@ -53,6 +54,7 @@ type TranslationKey = keyof typeof ko
 type TranslationTable = Record<TranslationKey, string>
 
 const en: TranslationTable = {
+  moveStopped: 'Enemy zone of control · Movement stopped', moveStoppedCanAttack: 'Enemy zone of control · Movement stopped · Can attack',
   combatPreview: 'Combat preview', attacker: 'Attacker', defender: 'Defender',
   previewHp: 'HP {before} → {after} · Damage taken {damage}', unitDestroyed: '{name} destroyed',
   previewCapture: '{name} captured · {hp} HP after capture',

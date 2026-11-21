@@ -1,4 +1,5 @@
-import { gameReducer } from './reducer'
+import type { UnitMovement } from './movement'
+import { gameReducer, resolveUnitMove } from './reducer'
 import { getActionablePlayerUnits } from './selectors'
 import type { BuildingId, GameAction, GameState, Site, Unit } from './types'
 
@@ -14,6 +15,7 @@ export type TurnSummary = {
 type GameSession = {
   game: GameState
   beforeAi?: GameState
+  movement?: UnitMovement
   summary?: TurnSummary
 }
 
@@ -49,6 +51,11 @@ function summarizeTurn(before: GameState, after: GameState): TurnSummary {
 
 export function gameSessionReducer(session: GameSession, action: GameAction): GameSession {
   const before = session.game
+  if (action.type === 'unitMoved') {
+    const move = resolveUnitMove(before, action)
+    if (!move) return session
+    return move.game.phase === 'playing' ? { ...session, ...move } : createGameSession(move.game)
+  }
   const game = gameReducer(before, action)
   if (game === before) return session
   if (action.type === 'gameLoaded' || action.type === 'gameRestarted' || game.phase !== 'playing') {
@@ -60,5 +67,5 @@ export function gameSessionReducer(session: GameSession, action: GameAction): Ga
       return { game, summary: summarizeTurn(session.beforeAi, game) }
     }
   }
-  return { ...session, game }
+  return { ...session, game, movement: undefined }
 }

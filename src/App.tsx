@@ -149,7 +149,7 @@ function GameApp({
 }) {
   const { locale, t, unitLabel, siteLabel, unitName, siteName, terrainLabel } =
     useLocalization()
-  const [{ game: state, summary }, dispatch] = useReducer(gameSessionReducer, initialState, createGameSession)
+  const [{ game: state, summary, movement }, dispatch] = useReducer(gameSessionReducer, initialState, createGameSession)
   const tappedTargetRef = useRef<{ attackerId: string; tileKey: string }>(undefined)
   const [activeCombat, setActiveCombat] = useState<
     Omit<CombatAnimation, 'phase'>
@@ -1132,7 +1132,7 @@ function GameApp({
       attackTarget(selectedUnit, target, tile.position)
       return
     }
-    if (!reachableKeys.has(positionKey(tile.position))) return
+    if (isAttackMode || !reachableKeys.has(positionKey(tile.position))) return
 
     clearPreview()
     dispatch({
@@ -1142,7 +1142,7 @@ function GameApp({
     })
     setActiveMoveUnitId(undefined)
     setInspectedTileKey(undefined)
-  }, [activeProductionUnitType, attackTarget, clearPreview, getAttackTarget, playerCanAct, reachableKeys, selectedUnit])
+  }, [activeProductionUnitType, attackTarget, clearPreview, getAttackTarget, isAttackMode, playerCanAct, reachableKeys, selectedUnit])
 
   const startingUnitCount =
     state.gameMode === 'quick'
@@ -1378,6 +1378,7 @@ function GameApp({
                   selectedSiteId={cityInfoSite?.id}
                   inspectedTileKey={inspectedTileKey}
                   combatTargetKey={combatTargetKey}
+                  movement={combatActive ? undefined : movement}
                   combatAnimation={
                     activeCombat
                       ? { ...activeCombat, phase: combatPhase }
