@@ -106,11 +106,6 @@ type AppProps = {
   initialState?: GameState
 }
 
-type PendingAttack = { attackerId: string; returnFocusTo: HTMLElement | null } & (
-  | { kind: 'unit'; targetId: string }
-  | { kind: 'site'; targetId: string; position: Position }
-)
-
 const COMPACT_MAP_OVERLAY_QUERY =
   '(max-width: 700px), (max-width: 980px) and (max-height: 500px)'
 const SIDEBAR_OVERLAY_QUERY = '(max-width: 980px)'
@@ -155,7 +150,7 @@ function GameApp({
   const { locale, t, unitLabel, siteLabel, unitName, siteName, terrainLabel } =
     useLocalization()
   const [{ game: state, summary }, dispatch] = useReducer(gameSessionReducer, initialState, createGameSession)
-  const [pendingAttack, setPendingAttack] = useState<PendingAttack>()
+  const tappedTargetRef = useRef<{ attackerId: string; tileKey: string }>(undefined)
   const [activeCombat, setActiveCombat] = useState<
     Omit<CombatAnimation, 'phase'>
   >()
@@ -356,12 +351,6 @@ function GameApp({
     !cityInfoSite &&
     !state.selectedUnitId &&
     !inspectedTile
-  const handlePreviewTileChange = useCallback(
-    (tileKey?: string) => {
-      setPreviewTileKey(canPreviewMapInfo ? tileKey : undefined)
-    },
-    [canPreviewMapInfo],
-  )
   let sidebarContent: SidebarContent
   if (activeProductionUnitType) {
     sidebarContent = {
@@ -447,10 +436,6 @@ function GameApp({
     () => getSelectedUnitAttackableUnits(state),
     [state],
   )
-  const attackableIds = useMemo(
-    () => new Set(attackableUnits.map((unit) => unit.id)),
-    [attackableUnits],
-  )
   const attackableKeys = useMemo(
     () => new Set(attackableUnits.map((unit) => positionKey(unit.position))),
     [attackableUnits],
@@ -458,10 +443,6 @@ function GameApp({
   const attackableSites = useMemo(
     () => getSelectedUnitAttackableSites(state),
     [state],
-  )
-  const attackableSiteIds = useMemo(
-    () => new Set(attackableSites.map((site) => site.id)),
-    [attackableSites],
   )
   const attackableSiteKeys = useMemo(
     () =>
@@ -637,21 +618,35 @@ function GameApp({
     state.activeFactionId === state.humanFactionId && !combatActive
   const canWait = playerCanAct && selectedUnit?.factionId === state.humanFactionId &&
     !selectedUnit.hasActed
-  const previewTarget = pendingAttack && playerCanAct && selectedUnit?.id === pendingAttack.attackerId
-    ? pendingAttack.kind === 'site'
-      ? attackableSites.find((site) => site.id === pendingAttack.targetId)
-      : attackableUnits.find((unit) => unit.id === pendingAttack.targetId)
-    : undefined
+  const getAttackTarget = useCallback((position: Position) => {
+    if (!canEnterAttackMode) return
+    const key = positionKey(position)
+    if (attackableKeys.has(key)) return getUnitAt(state, position)
+    if (attackableSiteKeys.has(key)) return getSiteAt(state, position)
+  }, [attackableKeys, attackableSiteKeys, canEnterAttackMode, state])
 
-  const confirmAttack = () => {
-    setPendingAttack(undefined)
-    if (!previewTarget || !pendingAttack) return
-    if (pendingAttack.kind === 'site') {
-      startSiteAttack(pendingAttack.attackerId, previewTarget.id, pendingAttack.position)
+  const previewTarget = previewTile && getAttackTarget(previewTile.position)
+  const combatTargetKey = previewTarget ? previewTileKey : undefined
+  const handlePreviewTileChange = useCallback((tileKey?: string) => {
+    tappedTargetRef.current = undefined
+    const isTarget = tileKey && canEnterAttackMode &&
+      (attackableKeys.has(tileKey) || attackableSiteKeys.has(tileKey))
+    setPreviewTileKey(canPreviewMapInfo || isTarget ? tileKey : undefined)
+  }, [attackableKeys, attackableSiteKeys, canEnterAttackMode, canPreviewMapInfo])
+
+  const clearPreview = useCallback(() => {
+    tappedTargetRef.current = undefined
+    setPreviewTileKey(undefined)
+  }, [])
+
+  const attackTarget = useCallback((attacker: Unit, target: Unit | Site, position: Position) => {
+    clearPreview()
+    if ('kind' in target) {
+      startSiteAttack(attacker.id, target.id, position)
     } else {
-      startCombat(pendingAttack.attackerId, previewTarget.id)
+      startCombat(attacker.id, target.id)
     }
-  }
+  }, [clearPreview, startCombat, startSiteAttack])
 
   const selectNextUnit = (wait: boolean) => {
     if (!playerCanAct || (wait && !canWait)) return
@@ -668,7 +663,7 @@ function GameApp({
     setFoundingSelection(undefined)
     setCityInfoSiteId(undefined)
     setInspectedTileKey(undefined)
-    setPreviewTileKey(undefined)
+    clearPreview()
     setMobileInfoExpanded(false)
     closeSidebarOverlayMinimap()
 
@@ -734,7 +729,6 @@ function GameApp({
       return
     }
 
-    setPendingAttack(undefined)
     setActiveCombat(undefined)
     setCombatPhase('attack')
     setActiveMoveUnitId(undefined)
@@ -742,7 +736,7 @@ function GameApp({
     setActiveSiteTab(undefined)
     setDevelopmentFootprintIndex(0)
     setCityInfoSiteId(undefined)
-    setPreviewTileKey(undefined)
+    clearPreview()
     setInspectedTileKey(undefined)
     setMobileInfoExpanded(false)
     closeCompactMinimap()
@@ -839,13 +833,19 @@ function GameApp({
       state.phase !== 'playing' ||
       activeCombat ||
       activeSiteAttack ||
-      previewTarget
+      firstTurnGuideOpen ||
+      restartConfirmationOpen
     ) {
       return
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
       const target = event.target
+      if (previewTarget && event.key === 'Escape' && !openChromeMenu) {
+        event.preventDefault()
+        clearPreview()
+        return
+      }
       const isEditing =
         target instanceof HTMLInputElement ||
         target instanceof HTMLTextAreaElement ||
@@ -913,7 +913,7 @@ function GameApp({
       setActiveSiteTab(undefined)
       setDevelopmentFootprintIndex(0)
       setCityInfoSiteId(undefined)
-      setPreviewTileKey(undefined)
+      clearPreview()
       setInspectedTileKey(undefined)
       setMobileInfoExpanded(false)
       closeCompactMinimap()
@@ -929,6 +929,10 @@ function GameApp({
     activeSiteTab,
     foundingKind,
     previewTarget,
+    clearPreview,
+    firstTurnGuideOpen,
+    restartConfirmationOpen,
+    openChromeMenu,
     isMoveMode,
     isAttackMode,
     mobileInfoExpanded,
@@ -996,21 +1000,23 @@ function GameApp({
       return
     }
 
-    const target = unit && attackableIds.has(unit.id)
-      ? { kind: 'unit' as const, targetId: unit.id }
-      : site && attackableSiteIds.has(site.id)
-        ? { kind: 'site' as const, targetId: site.id, position: tile.position }
-        : undefined
+    const target = getAttackTarget(tile.position)
     if (selectedUnit && target) {
-      setInspectedTileKey(undefined)
-      setPendingAttack({
-        ...target,
-        attackerId: selectedUnit.id,
-        returnFocusTo: document.activeElement instanceof HTMLElement ? document.activeElement : null,
-      })
+      const tileKey = positionKey(tile.position)
+      const tapped = tappedTargetRef.current
+      const repeatTap = isDirectPointerAction && tapped?.attackerId === selectedUnit.id && tapped.tileKey === tileKey
+      if (activationSource === 'keyboard' || repeatTap) {
+        attackTarget(selectedUnit, target, tile.position)
+      } else if (isDirectPointerAction) {
+        tappedTargetRef.current = { attackerId: selectedUnit.id, tileKey }
+        setPreviewTileKey(tileKey)
+        setMobileInfoExpanded(false)
+        closeSidebarOverlayMinimap()
+      }
       return
     }
 
+    clearPreview()
     if (isAttackMode) {
       return
     }
@@ -1104,8 +1110,9 @@ function GameApp({
     activeCombat,
     activeSiteAttack,
     activeProductionUnitType,
-    attackableIds,
-    attackableSiteIds,
+    attackTarget,
+    clearPreview,
+    getAttackTarget,
     closeSidebarOverlayMinimap,
     deployableKeys,
     productionSite,
@@ -1119,22 +1126,15 @@ function GameApp({
   ])
 
   const handleTileContextMenu = useCallback((tile: Tile) => {
-    if (
-      activeCombat ||
-      activeSiteAttack ||
-      state.activeFactionId !== state.humanFactionId
-    ) {
+    if (!playerCanAct || activeProductionUnitType || !selectedUnit) return
+    const target = getAttackTarget(tile.position)
+    if (target) {
+      attackTarget(selectedUnit, target, tile.position)
       return
     }
+    if (!reachableKeys.has(positionKey(tile.position))) return
 
-    if (activeProductionUnitType) {
-      return
-    }
-
-    if (!selectedUnit || !reachableKeys.has(positionKey(tile.position))) {
-      return
-    }
-
+    clearPreview()
     dispatch({
       type: 'unitMoved',
       unitId: selectedUnit.id,
@@ -1142,15 +1142,7 @@ function GameApp({
     })
     setActiveMoveUnitId(undefined)
     setInspectedTileKey(undefined)
-  }, [
-    activeCombat,
-    activeSiteAttack,
-    activeProductionUnitType,
-    reachableKeys,
-    selectedUnit,
-    state.activeFactionId,
-    state.humanFactionId,
-  ])
+  }, [activeProductionUnitType, attackTarget, clearPreview, getAttackTarget, playerCanAct, reachableKeys, selectedUnit])
 
   const startingUnitCount =
     state.gameMode === 'quick'
@@ -1177,7 +1169,6 @@ function GameApp({
     )
 
   const restartGame = (seed: string) => {
-    setPendingAttack(undefined)
     setActiveCombat(undefined)
     setActiveSiteAttack(undefined)
     setCombatPhase('attack')
@@ -1186,7 +1177,7 @@ function GameApp({
     setActiveSiteTab(undefined)
     setDevelopmentFootprintIndex(0)
     setCityInfoSiteId(undefined)
-    setPreviewTileKey(undefined)
+    clearPreview()
     setInspectedTileKey(undefined)
     setMobileInfoExpanded(false)
     closeCompactMinimap()
@@ -1240,7 +1231,6 @@ function GameApp({
   return (
     <div className="app-shell">
       <AppChrome
-        inert={Boolean(previewTarget)}
         gameMode={state.gameMode}
         locale={locale}
         onLocaleChange={onLocaleChange}
@@ -1268,7 +1258,7 @@ function GameApp({
         }
       />
 
-      <main className="game-layout" inert={Boolean(previewTarget)}>
+      <main className="game-layout">
         <section className="board-panel" aria-label={t('strategyMap')}>
           <div className="status-bar-slot">
             <StatusBar
@@ -1293,7 +1283,7 @@ function GameApp({
                 setActiveSiteTab(undefined)
                 setDevelopmentFootprintIndex(0)
                 setCityInfoSiteId(undefined)
-                setPreviewTileKey(undefined)
+                clearPreview()
                 setInspectedTileKey(undefined)
                 setMobileInfoExpanded(false)
                 closeCompactMinimap()
@@ -1363,31 +1353,6 @@ function GameApp({
                 </button>
               </section>
             )}
-            {isAttackMode && selectedUnit && (
-              <section
-                className="deployment-bar attack-bar"
-                aria-label={t('attackArea')}
-              >
-                <div className="deployment-bar__copy">
-                  <strong>
-                    {t('attackUnit', { unit: unitName(selectedUnit) })}
-                  </strong>
-                  <span className="deployment-bar__message" role="status">
-                    {t('chooseAttack')}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  aria-label={`${t('attackArea')} ${t('cancel')}`}
-                  onClick={() => {
-                    setActiveAttackUnitId(undefined)
-                    openSidebarInfo()
-                  }}
-                >
-                  {t('cancel')} <kbd>Esc</kbd>
-                </button>
-              </section>
-            )}
           </div>
 
           <div className="board-workspace">
@@ -1412,6 +1377,7 @@ function GameApp({
                   }
                   selectedSiteId={cityInfoSite?.id}
                   inspectedTileKey={inspectedTileKey}
+                  combatTargetKey={combatTargetKey}
                   combatAnimation={
                     activeCombat
                       ? { ...activeCombat, phase: combatPhase }
@@ -1430,6 +1396,16 @@ function GameApp({
                   onTileContextMenu={handleTileContextMenu}
                   onPreviewTileChange={handlePreviewTileChange}
                 />
+              </div>
+              <div className="combat-overlay" aria-live="polite" aria-atomic="true">
+                {previewTarget && selectedUnit ? (
+                  <CombatPreview state={state} attacker={selectedUnit} target={previewTarget} />
+                ) : isAttackMode && (
+                  <section className="combat-overlay__hint" aria-label={t('attackArea')}>
+                    <span className="combat-overlay__mouse">{t('chooseAttack')}</span>
+                    <span className="combat-overlay__touch">{t('tapAttack')}</span>
+                  </section>
+                )}
               </div>
               <div className="map-zoom-controls" aria-label={t('zoomControls')}>
                 <button
@@ -1674,6 +1650,7 @@ function GameApp({
                       !activeSiteAttack
                     }
                     onMoveModeChange={(active) => {
+                      clearPreview()
                       setActiveAttackUnitId(undefined)
                       setActiveMoveUnitId(
                         active ? sidebarContent.unit.id : undefined,
@@ -1681,6 +1658,7 @@ function GameApp({
                       if (active) setMobileInfoExpanded(false)
                     }}
                     onAttackModeChange={(active) => {
+                      clearPreview()
                       setActiveMoveUnitId(undefined)
                       setActiveAttackUnitId(
                         active ? sidebarContent.unit.id : undefined,
@@ -1729,6 +1707,7 @@ function GameApp({
                       setActiveAttackUnitId(undefined)
                     }}
                     onClose={combatActive ? undefined : () => {
+                      clearPreview()
                       setActiveMoveUnitId(undefined)
                       setFoundingKind(undefined)
                       setMobileInfoExpanded(false)
@@ -1795,16 +1774,6 @@ function GameApp({
         <span className="sr-only" role="status" aria-live="polite">
           {siteAttackAnnouncement}
         </span>
-      )}
-      {pendingAttack && previewTarget && selectedUnit && (
-        <CombatPreview
-          state={state}
-          attacker={selectedUnit}
-          target={previewTarget}
-          returnFocusTo={pendingAttack.returnFocusTo}
-          onCancel={() => setPendingAttack(undefined)}
-          onConfirm={confirmAttack}
-        />
       )}
       {restartConfirmationOpen && (
         <ConfirmDialog

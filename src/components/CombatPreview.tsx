@@ -1,18 +1,14 @@
 import { getSiteHpAfterCapture, getSiteMaxHp, resolveCombat, resolveSiteCombat } from '../game/rules'
 import type { GameState, Site, Unit } from '../game/types'
 import { useLocalization } from '../i18n/locale'
-import { ConfirmDialog } from './ConfirmDialog'
 
 type Props = {
   state: GameState
   attacker: Unit
   target: Site | Unit
-  returnFocusTo: HTMLElement | null
-  onConfirm: () => void
-  onCancel: () => void
 }
 
-export function CombatPreview({ state, attacker, target, returnFocusTo, onConfirm, onCancel }: Props) {
+export function CombatPreview({ state, attacker, target }: Props) {
   const { t, siteName, unitName } = useLocalization()
   const site = 'kind' in target
   const maxHp = site ? getSiteMaxHp(target)! : target.maxHp
@@ -21,33 +17,29 @@ export function CombatPreview({ state, attacker, target, returnFocusTo, onConfir
     ? { attackerHp: attacker.hp, defenderHp: resolveSiteCombat(state, attacker, target).siteHp }
     : resolveCombat(state, attacker, target)
   const sides = [
-    { role: t('attacker'), name: unitName(attacker), hp: attacker.hp, after: result.attackerHp },
-    { role: t('defender'), name: site ? siteName(target) : unitName(target), hp: before, after: result.defenderHp },
+    { role: t('attacker'), name: unitName(attacker), hp: attacker.hp, after: result.attackerHp, max: attacker.maxHp },
+    { role: t('defender'), name: site ? siteName(target) : unitName(target), hp: before, after: result.defenderHp, max: maxHp },
   ]
 
   return (
-    <ConfirmDialog
-      title={t('combatPreview')}
-      confirmLabel={t('attack')}
-      returnFocusTo={returnFocusTo}
-      onConfirm={onConfirm}
-      onCancel={onCancel}
-      description={
-        <div className="combat-preview">
-          {sides.map((side) => (
-            <div className="combat-preview__row" key={side.role}>
-              <span>{side.role} · <strong>{side.name}</strong></span>
-              <span>{t('previewHp', { before: side.hp, after: side.after, damage: side.hp - side.after })}</span>
-            </div>
-          ))}
-          {result.attackerHp === 0 && <p>{t('unitDestroyed', { name: sides[0].name })}</p>}
-          {result.defenderHp === 0 && (
-            <p>{site
-              ? t('previewCapture', { name: sides[1].name, hp: getSiteHpAfterCapture(maxHp) })
-              : t('unitDestroyed', { name: sides[1].name })}</p>
-          )}
-        </div>
-      }
-    />
+    <section className="combat-preview" aria-label={t('combatPreview')}>
+      <div className="combat-preview__sides">
+        {sides.map((side) => (
+          <div className="combat-preview__side" key={side.role}>
+            <span>{side.role} · <strong>{side.name}</strong></span>
+            <span className="combat-preview__health" aria-hidden="true">
+              <span style={{ width: `${100 * side.after / side.max}%` }} />
+              <span style={{ width: `${100 * (side.hp - side.after) / side.max}%` }} />
+            </span>
+            <span>{t('previewHp', { before: side.hp, after: side.after, damage: side.hp - side.after })}</span>
+            {side.after === 0 && <strong className="combat-preview__outcome">
+              {site && side === sides[1]
+                ? t('previewCapture', { name: side.name, hp: getSiteHpAfterCapture(maxHp) })
+                : t('unitDestroyed', { name: side.name })}
+            </strong>}
+          </div>
+        ))}
+      </div>
+    </section>
   )
 }

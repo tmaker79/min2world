@@ -6,7 +6,6 @@ type ConfirmDialogProps = {
   title: string
   description: ReactNode
   confirmLabel: string
-  returnFocusTo?: HTMLElement | null
   onCancel: () => void
   onConfirm: () => void
 }
@@ -15,7 +14,6 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel,
-  returnFocusTo,
   onCancel,
   onConfirm,
 }: ConfirmDialogProps) {
@@ -31,7 +29,7 @@ export function ConfirmDialog({
   }, [onCancel])
 
   useEffect(() => {
-    const previouslyFocused = returnFocusTo ?? (document.activeElement as HTMLElement | null)
+    const previouslyFocused = document.activeElement as HTMLElement | null
     cancelButtonRef.current?.focus()
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -60,7 +58,7 @@ export function ConfirmDialog({
       document.removeEventListener('keydown', handleKeyDown)
       previouslyFocused?.focus({ preventScroll: true })
     }
-  }, [returnFocusTo])
+  }, [])
 
   return (
     <div

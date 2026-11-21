@@ -5,7 +5,6 @@ import { useLocalization, type Locale } from '../i18n/locale'
 export type ChromeMenuId = 'save' | 'help'
 
 type AppChromeProps = {
-  inert?: boolean
   gameMode: GameMode
   locale: Locale
   onLocaleChange: (locale: Locale) => void
@@ -17,7 +16,6 @@ type AppChromeProps = {
 }
 
 export function AppChrome({
-  inert,
   gameMode,
   locale,
   onLocaleChange,
@@ -66,7 +64,7 @@ export function AppChrome({
   }, [languageMenuOpen, openMenu, onOpenMenuChange])
 
   return (
-    <header className="app-chrome" inert={inert}>
+    <header className="app-chrome">
       <div className="app-chrome__brand">
         <h1>min2world</h1>
       </div>

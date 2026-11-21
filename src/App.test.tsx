@@ -38,9 +38,12 @@ function renderApp(state: GameState = createInitialGameState('ui-seed')) {
   return render(<App initialState={state} />)
 }
 
-function confirmCombatPreview() {
-  const dialog = screen.getByRole('alertdialog', { name: '전투 결과 미리보기' })
-  fireEvent.click(within(dialog).getByRole('button', { name: '공격' }))
+function combatPreview() {
+  return screen.getByRole('region', { name: '전투 결과 미리보기' })
+}
+
+function hoverTile(tile: HTMLElement) {
+  fireEvent.pointerEnter(tile, { pointerType: 'mouse' })
 }
 
 function mockViewport(width: number, height = 800) {
@@ -863,7 +866,7 @@ describe('Milestone 07 UI', () => {
       `.map-tile[data-coordinate="${positionKey(enemy.position)}"]`,
     )!
 
-    fireEvent.mouseEnter(tile)
+    hoverTile(tile)
 
     const preview = screen.getByLabelText('지도 정보 미리보기')
     expect(preview).toHaveTextContent(enemy.name)
@@ -878,7 +881,7 @@ describe('Milestone 07 UI', () => {
     ).toHaveTextContent(/^3$/)
     expect(screen.queryByLabelText('부대 정보')).not.toBeInTheDocument()
 
-    fireEvent.mouseLeave(tile)
+    fireEvent.pointerLeave(tile, { pointerType: 'mouse' })
 
     expect(screen.queryByLabelText('지도 정보 미리보기')).not.toBeInTheDocument()
     expect(screen.getByLabelText('선택 정보')).toHaveTextContent(
@@ -940,7 +943,7 @@ describe('Milestone 07 UI', () => {
     const enemyTile = container.querySelector<HTMLButtonElement>(
       `.map-tile[data-coordinate="${positionKey(enemy.position)}"]`,
     )!
-    fireEvent.mouseEnter(enemyTile)
+    hoverTile(enemyTile)
 
     expect(screen.queryByLabelText('지도 정보 미리보기')).not.toBeInTheDocument()
     expect(screen.getByLabelText('타일 정보')).toHaveTextContent('평지')
@@ -1010,7 +1013,7 @@ describe('Milestone 07 UI', () => {
 
     expect(screen.getByLabelText('부대 정보')).toHaveTextContent(attacker.name)
 
-    fireEvent.mouseEnter(targetTile)
+    hoverTile(targetTile)
     expect(screen.getByLabelText('부대 정보')).toHaveTextContent(attacker.name)
     expect(screen.queryByLabelText('지도 정보 미리보기')).not.toBeInTheDocument()
   })
@@ -1251,21 +1254,25 @@ describe('Milestone 07 UI', () => {
     expect(target).toHaveAttribute('data-attackable', 'true')
     act(() => target.focus())
     tapTile(target)
-
-    const preview = screen.getByRole('alertdialog', { name: '전투 결과 미리보기' })
+    const preview = combatPreview()
+    expect(within(preview).queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(container.querySelector('main')).not.toHaveAttribute('inert')
+    expect(screen.getByRole('button', { name: '턴 종료' })).toBeEnabled()
+    expect(target).toHaveAttribute('data-combat-target', 'true')
     expect(within(preview).getAllByText('HP 1 → 0 · 피해 1')).toHaveLength(2)
     expect(preview).toHaveTextContent(`${attacker.name} 전멸`)
     expect(preview).toHaveTextContent(`${defender.name} 전멸`)
-    fireEvent.keyDown(window, { key: 'Enter' })
-    expect(screen.getByLabelText('턴 1')).toBeInTheDocument()
     fireEvent.keyDown(document, { key: 'Escape' })
-    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(preview).not.toBeInTheDocument()
+    expect(target).not.toHaveAttribute('data-combat-target')
     expect(target).toHaveFocus()
     expect(container.querySelector('.unit-token--selected')).toHaveAttribute('data-unit-id', attacker.id)
     expect(container.querySelector('.unit-token--selected')).toHaveAttribute('data-health', '1/100')
     expect(screen.getByLabelText('부대 이동')).toBeInTheDocument()
     tapTile(target)
-    confirmCombatPreview()
+    expect(combatPreview()).toBeInTheDocument()
+    tapTile(target)
     expect(container.querySelector(`[data-unit-id="${attacker.id}"]`))
       .toHaveClass('unit-token--striking')
     act(() => vi.advanceTimersByTime(70))
@@ -1290,10 +1297,11 @@ describe('Milestone 07 UI', () => {
       id: 'command-defender',
       position: { q: 1, r: 0 },
     }
+    const second = { ...defender, id: 'second-target', name: '두 번째 대상', hp: 1, position: { q: 0, r: 1 } }
     const state = {
       ...initial,
       selectedUnitId: attacker.id,
-      units: [attacker, defender],
+      units: [attacker, defender, second],
       tiles: initial.tiles.map((tile) => ({ ...tile, terrain: 'plain' as const })),
     }
     const { container } = renderApp(state)
@@ -1301,6 +1309,8 @@ describe('Milestone 07 UI', () => {
       screen.getByRole('toolbar', { name: '유닛 메뉴' }),
     ).getByRole('button', { name: '공격' })
 
+    const mapOverlay = container.querySelector('.map-stage > .combat-overlay')
+    expect(mapOverlay).toBeEmptyDOMElement()
     expect(attackButton).toBeEnabled()
     expect(
       container.querySelectorAll('[data-reachable="true"]').length,
@@ -1308,7 +1318,7 @@ describe('Milestone 07 UI', () => {
     fireEvent.click(attackButton)
     expect(attackButton).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByLabelText('부대 공격')).toHaveTextContent(
-      '붉은 대상을 선택하세요.',
+      '우클릭해 공격하세요.',
     )
     expect(
       container.querySelector('.mobile-info-sheet__toggle'),
@@ -1325,14 +1335,33 @@ describe('Milestone 07 UI', () => {
     expect(container.querySelector(`[data-unit-id="${defender.id}"]`)?.parentElement)
       .toHaveClass('map-overlay-cell--attackable')
 
-    fireEvent.click(container.querySelector<HTMLButtonElement>(
+    const firstTile = container.querySelector<HTMLButtonElement>(
       `.map-tile[data-coordinate="${positionKey(defender.position)}"]`,
-    )!)
-
-    confirmCombatPreview()
+    )!
+    hoverTile(firstTile)
+    expect(mapOverlay).toContainElement(combatPreview())
+    expect(combatPreview()).toHaveTextContent(defender.name)
+    fireEvent.click(firstTile, { detail: 1 })
+    expect(container.querySelector('.unit-token--striking')).toBeNull()
+    fireEvent.pointerLeave(firstTile, { pointerType: 'mouse' })
+    expect(screen.queryByLabelText('전투 결과 미리보기')).not.toBeInTheDocument()
+    const secondTile = container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(second.position)}"]`,
+    )!
+    hoverTile(secondTile)
+    expect(combatPreview()).toHaveTextContent(second.name)
+    expect(combatPreview()).not.toHaveTextContent(defender.name)
+    expect(container.querySelectorAll('[data-combat-target="true"]')).toHaveLength(1)
+    expect(secondTile).toHaveAttribute('data-combat-target', 'true')
+    expect(container.querySelector('.unit-token--striking')).toBeNull()
+    hoverTile(firstTile)
+    fireEvent.contextMenu(secondTile)
     expect(screen.queryByLabelText('부대 공격')).not.toBeInTheDocument()
     expect(container.querySelector(`[data-unit-id="${attacker.id}"]`))
       .toHaveClass('unit-token--striking')
+    act(() => vi.advanceTimersByTime(70))
+    expect(container.querySelector(`[data-unit-id="${second.id}"]`)).toBeNull()
+    expect(container.querySelector(`[data-unit-id="${defender.id}"]`)).toHaveAttribute('data-health', '100/100')
     vi.clearAllTimers()
     vi.useRealTimers()
   })
@@ -1371,8 +1400,8 @@ describe('Milestone 07 UI', () => {
     expect(container.querySelector(`[data-site-id="${capital.id}"]`)?.parentElement)
       .toHaveClass('map-overlay-cell--attackable')
     tapTile(target)
-
-    confirmCombatPreview()
+    expect(combatPreview()).toHaveTextContent(capital.name)
+    tapTile(target)
     expect(container.querySelector('[data-testid="arrow-volley"]'))
       .toBeInTheDocument()
     vi.clearAllTimers()
@@ -2128,7 +2157,7 @@ describe('Milestone 07 UI', () => {
     const help = within(helpCard)
 
     expect(
-      help.getByText('아군 유닛을 선택한 뒤 이동 또는 공격 명령을 선택하세요.'),
+      help.getByText('아군 유닛을 선택하면 이동 가능한 칸과 공격 가능한 대상이 표시됩니다.'),
     ).toBeVisible()
     expect(help.queryByText(/푸른 유닛/)).not.toBeInTheDocument()
     expect(help.getByText(/금색 칸은 이동 가능 범위이며 우클릭으로 이동합니다/))
@@ -2179,11 +2208,11 @@ describe('Milestone 07 UI', () => {
     expect(target).toHaveClass('map-tile--attackable-site')
     expect(target).toHaveAttribute('data-attackable-site', 'true')
 
-    fireEvent.click(target)
-    const preview = screen.getByRole('alertdialog')
+    hoverTile(target)
+    const preview = combatPreview()
     expect(preview).toHaveTextContent('HP 1 → 0 · 피해 1')
     expect(preview).toHaveTextContent(`${capital.name} 점령 · 점령 후 HP 60`)
-    confirmCombatPreview()
+    fireEvent.contextMenu(target)
     const close = screen.getByRole('button', { name: '부대 정보 닫기' })
     expect(screen.getByRole('button', { name: /다음 부대 선택/ })).toBeDisabled()
     expect(screen.getByRole('button', { name: '대기' })).toBeDisabled()
@@ -2233,12 +2262,13 @@ describe('Milestone 07 UI', () => {
     }
     const { container } = renderApp(state)
 
-    fireEvent.click(container.querySelector<HTMLButtonElement>(
+    const target = container.querySelector<HTMLButtonElement>(
       `.map-tile[data-coordinate="${positionKey(capital.position)}"]`,
-    )!)
-    expect(screen.getByRole('alertdialog')).toHaveTextContent(capital.name)
-    expect(screen.getByRole('alertdialog')).not.toHaveTextContent(defender.name)
-    confirmCombatPreview()
+    )!
+    hoverTile(target)
+    expect(combatPreview()).toHaveTextContent(capital.name)
+    expect(combatPreview()).not.toHaveTextContent(defender.name)
+    fireEvent.contextMenu(target)
     expect(container.querySelector('[data-testid="arrow-volley"]')).toBeInTheDocument()
     expect(container.querySelector(`[data-unit-id="${attacker.id}"]`))
       .not.toHaveClass('unit-token--striking')
@@ -2258,8 +2288,7 @@ describe('Milestone 07 UI', () => {
     vi.useRealTimers()
   })
 
-  it('keeps the melee strike animation and does not render arrows for non-archers', () => {
-    vi.useFakeTimers()
+  it.each(['right-click', 'Enter', 'Space'])('starts a melee attack with %s', async (input) => {
     const initial = createInitialGameState('ui-melee-strike')
     const defender = initial.units.find(
       (unit) => unit.factionId !== initial.humanFactionId,
@@ -2282,15 +2311,20 @@ describe('Milestone 07 UI', () => {
     }
     const { container } = renderApp(state)
 
-    fireEvent.click(container.querySelector<HTMLButtonElement>(
+    const target = container.querySelector<HTMLButtonElement>(
       `.map-tile[data-coordinate="${positionKey(defender.position)}"]`,
-    )!)
-
-    confirmCombatPreview()
+    )!
+    if (input === 'right-click') {
+      fireEvent.contextMenu(target)
+    } else {
+      const user = userEvent.setup()
+      act(() => target.focus())
+      expect(combatPreview()).toHaveTextContent(defender.name)
+      await user.keyboard(input === 'Enter' ? '{Enter}' : '[Space]')
+    }
     expect(container.querySelector('[data-testid="arrow-volley"]')).toBeNull()
     expect(container.querySelector(`[data-unit-id="${attacker.id}"]`))
       .toHaveClass('unit-token--striking')
-    vi.useRealTimers()
   })
 
   it('applies an archer attack once when the unit panel close button is pressed mid-volley', () => {
@@ -2305,13 +2339,13 @@ describe('Milestone 07 UI', () => {
       const state = { ...initial, units: [attacker, defender], selectedUnitId: attacker.id }
       const expectedHp = resolveCombat(state, attacker, defender).defenderHp
       const { container } = renderApp(state)
-      fireEvent.click(container.querySelector(`.map-tile[data-coordinate="${positionKey(defender.position)}"]`)!)
-      const preview = screen.getByRole('alertdialog')
+      const target = container.querySelector<HTMLButtonElement>(`.map-tile[data-coordinate="${positionKey(defender.position)}"]`)!
+      hoverTile(target)
+      const preview = combatPreview()
       expect(preview).toHaveTextContent('HP 100 → 100 · 피해 0')
       expect(preview).toHaveTextContent(`HP ${defender.hp} → ${expectedHp} · 피해 ${defender.hp - expectedHp}`)
-      const confirm = within(preview).getByRole('button', { name: '공격' })
-      fireEvent.click(confirm)
-      fireEvent.click(confirm)
+      fireEvent.contextMenu(target)
+      fireEvent.contextMenu(target)
       expect(screen.getByTestId('arrow-volley')).toBeInTheDocument()
       const close = screen.getByRole('button', { name: '부대 정보 닫기' })
       expect(close).toBeDisabled()

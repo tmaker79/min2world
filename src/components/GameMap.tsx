@@ -218,6 +218,7 @@ type GameMapProps = {
   selectedDevelopmentFootprintKeys?: Set<string>
   selectedSiteId?: string
   inspectedTileKey?: string
+  combatTargetKey?: string
   combatAnimation?: CombatAnimation
   siteAttackAnimation?: SiteAttackAnimation
   showSiteAssetPreview?: boolean
@@ -239,6 +240,7 @@ type TileButtonProps = {
   selected: boolean
   siteSelected: boolean
   inspected: boolean
+  combatTarget: boolean
   reachable: boolean
   attackable: boolean
   attackableSite: boolean
@@ -349,6 +351,7 @@ const TileButton = memo(function TileButton({
   selected,
   siteSelected,
   inspected,
+  combatTarget,
   reachable,
   attackable,
   attackableSite,
@@ -406,6 +409,7 @@ const TileButton = memo(function TileButton({
         selected || siteSelected ? true : unit ? false : undefined
       }
       data-coordinate={positionKey(tile.position)}
+      data-combat-target={combatTarget || undefined}
       data-reachable={reachable ? 'true' : undefined}
       data-reachable-boundary={reachableBoundaryMask > 0 ? 'true' : undefined}
       data-attackable={attackable ? 'true' : undefined}
@@ -431,19 +435,21 @@ const TileButton = memo(function TileButton({
         if (disabled || suppressClickRef?.current) {
           return
         }
-        onPreviewTileChange?.(undefined)
         onClick(tile, source)
       }}
       onContextMenu={(event) => {
         event.preventDefault()
-        if (disabled || suppressClickRef?.current || !onContextMenu) {
+        if (disabled || suppressClickRef?.current || pointerSourceRef.current === 'touch' || !onContextMenu) {
           return
         }
-        onPreviewTileChange?.(undefined)
         onContextMenu(tile)
       }}
-      onMouseEnter={() => onPreviewTileChange?.(positionKey(tile.position))}
-      onMouseLeave={() => onPreviewTileChange?.(undefined)}
+      onPointerEnter={(event) => {
+        if (event.pointerType === 'mouse') onPreviewTileChange?.(positionKey(tile.position))
+      }}
+      onPointerLeave={(event) => {
+        if (event.pointerType === 'mouse') onPreviewTileChange?.(undefined)
+      }}
       onFocus={() => onPreviewTileChange?.(positionKey(tile.position))}
       onBlur={() => onPreviewTileChange?.(undefined)}
     >
@@ -731,6 +737,7 @@ function GameMapComponent({
   selectedDevelopmentFootprintKeys = new Set(),
   selectedSiteId,
   inspectedTileKey,
+  combatTargetKey,
   combatAnimation,
   siteAttackAnimation,
   showSiteAssetPreview = false,
@@ -992,7 +999,6 @@ function GameMapComponent({
         transform: `scale(${zoom})`,
         transformOrigin: '0 0',
       }}
-      onMouseLeave={() => onPreviewTileChange?.(undefined)}
     >
       <div className="map-layer map-layer--terrain">
         {visibleTiles.map(({ tile, style }) => {
@@ -1040,6 +1046,7 @@ function GameMapComponent({
               selected={selected}
               siteSelected={siteSelected}
               inspected={inspectedTileKey === positionKey(tile.position)}
+              combatTarget={combatTargetKey === tileKey}
               reachable={reachable}
               attackable={attackable}
               attackableSite={attackableSite}
