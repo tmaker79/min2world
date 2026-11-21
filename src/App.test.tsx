@@ -345,7 +345,7 @@ describe('Milestone 07 UI', () => {
     expect(container.querySelector('.map-layer--sites .site-marker')).toBeInTheDocument()
     expect(container.querySelector('.map-layer--units .unit-token')).toBeInTheDocument()
     expect(container.querySelector('.map-layer--units .unit-health-bar')).toBeInTheDocument()
-    expect(container.querySelector('[data-unit-selection-light]')).not.toBeInTheDocument()
+    expect(container.querySelector('.unit-token--selected')).not.toBeInTheDocument()
     expect(container.querySelectorAll('.territory-mark').length).toBeGreaterThan(0)
     expect(
       [...tiles].every((tile) => tile.hasAttribute('data-territory-owner')),
@@ -2744,9 +2744,10 @@ describe('Milestone 07 UI', () => {
     )
     expect(builderToken).toHaveAttribute('data-unit-role', 'civilian')
     expect(builderToken.querySelector('.unit-health-bar')).toBeInTheDocument()
-    expect(
-      builderToken.parentElement?.querySelector('[data-unit-selection-light="true"]'),
-    ).toBeInTheDocument()
+    const builderTile = container.querySelector<HTMLButtonElement>(
+      `.map-tile[data-coordinate="${positionKey(position)}"]`,
+    )!
+    expect(builderTile).toHaveAttribute('aria-pressed', 'true')
     fireEvent.click(screen.getByRole('button', { name: /전초기지.*0 자원/ }))
     expect(screen.getByLabelText('정착 및 건설 확인')).toHaveTextContent(
       '0 자원을 지불하고 건설자는 행동을 종료합니다.',
@@ -2758,5 +2759,9 @@ describe('Milestone 07 UI', () => {
     expect(container.querySelector(`[data-unit-id="${builder.id}"]`))
       .toHaveClass('unit-token--civilian', 'unit-token--acted')
     expect(container.querySelector('[data-site-icon="outpost"]')).toBeInTheDocument()
+    expect(builderTile).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(builderTile)
+    expect(builderTile).toHaveAttribute('aria-pressed', 'true')
+    expect(builderToken).toHaveClass('unit-token--selected', 'unit-token--acted')
   })
 })
