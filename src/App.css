@@ -1280,7 +1280,7 @@
   place-items: center;
   overflow: auto;
   padding: 0;
-  cursor: grab;
+  cursor: default;
   touch-action: none;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -1291,12 +1291,8 @@
 }
 
 .map-scroll--panning {
-  cursor: grabbing;
+  cursor: move;
   user-select: none;
-}
-
-.map-scroll--panning * {
-  cursor: grabbing;
 }
 
 .minimap {
@@ -2010,7 +2006,7 @@
   color: #1d2b27;
   border: 0;
   clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
-  cursor: pointer;
+  cursor: default;
   isolation: isolate;
 }
 
@@ -2227,6 +2223,11 @@
 .map-tile--attackable-site:not([aria-disabled='true']),
 .map-tile--attackable-site:not([aria-disabled='true']) * {
   cursor: url('./assets/crossed-swords.svg') 16 16, crosshair;
+}
+
+.map-scroll--panning .map-tile,
+.map-scroll--panning .map-tile * {
+  cursor: move;
 }
 
 .map-tile--deployable {

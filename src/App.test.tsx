@@ -380,7 +380,7 @@ describe('Milestone 07 UI', () => {
     expect(screen.queryByRole('button', { name: '범례' })).not.toBeInTheDocument()
   }, 20_000)
 
-  it('keeps impassable mountain and water tiles inspectable with a pointer cursor', () => {
+  it('uses the default arrow over the map, including impassable tiles', () => {
     const state = createInitialGameState('ui-impassable-cursor')
     state.tiles[0].terrain = 'mountain'
     state.tiles[1].terrain = 'water'
@@ -392,8 +392,9 @@ describe('Milestone 07 UI', () => {
       `.map-tile[data-coordinate="${positionKey(state.tiles[1].position)}"]`,
     )!
 
-    expect(getComputedStyle(mountain).cursor).toBe('pointer')
-    expect(getComputedStyle(water).cursor).toBe('pointer')
+    expect(getComputedStyle(container.querySelector('.map-scroll')!).cursor).toBe('default')
+    expect(getComputedStyle(mountain).cursor).toBe('default')
+    expect(getComputedStyle(water).cursor).toBe('default')
   })
 
   it('keeps the minimap fallback toggle accessible', () => {
@@ -1371,6 +1372,15 @@ describe('Milestone 07 UI', () => {
     const firstTile = container.querySelector<HTMLButtonElement>(
       `.map-tile[data-coordinate="${positionKey(defender.position)}"]`,
     )!
+    const attackCursor = getComputedStyle(firstTile).cursor
+    expect(attackCursor).toMatch(/^url\(.+crosshair$/)
+    const pointer = { button: 0, isPrimary: true, pointerId: 1, pointerType: 'mouse' }
+    fireEvent.pointerDown(firstTile, { ...pointer, clientX: 100, clientY: 100 })
+    fireEvent.pointerMove(firstTile, { ...pointer, clientX: 110, clientY: 100 })
+    expect(getComputedStyle(firstTile).cursor).toBe('move')
+    fireEvent.pointerUp(firstTile, pointer)
+    expect(getComputedStyle(firstTile).cursor).toBe(attackCursor)
+    act(() => vi.advanceTimersByTime(0))
     hoverTile(firstTile)
     expect(mapOverlay).toContainElement(combatPreview())
     expect(combatPreview()).toHaveTextContent(defender.name)
